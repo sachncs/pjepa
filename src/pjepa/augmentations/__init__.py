@@ -8,7 +8,7 @@ reproducible randomness via a ``torch.Generator``.
 
 from __future__ import annotations
 
-from pjepa.augmentations.base import Augmentation, AugmentationPipeline
+from pjepa.augmentations.base import Augmentation, AugmentationPipeline, PipelineMode
 from pjepa.augmentations.feature import DropFeature, FeatureMask
 from pjepa.augmentations.structural import DropEdge, DropNode, RandomWalkSubgraph
 from pjepa.augmentations.tensor import TensorDropFeature, tensor_drop_feature
@@ -16,6 +16,7 @@ from pjepa.augmentations.tensor import TensorDropFeature, tensor_drop_feature
 __all__ = [
     "Augmentation",
     "AugmentationPipeline",
+    "PipelineMode",
     "DropEdge",
     "DropFeature",
     "DropNode",
