@@ -23,6 +23,45 @@ Each entry includes the commit SHA (short), the date (UTC), and the rationale.
 - `pjepa train` CLI subcommand wires up the TU/CL/OGB experiment
   runners (Phase 8/9/10).
 
+## [0.0.11] - 2026-07-13
+
+### Added
+- `e4f2b33` — Phase 12 polish: README with project status table,
+  CITATION.cff, multi-stage Dockerfile.
+- `9aab762` — Phase 4 + 11 + CLI integration: encoder-ablation runner,
+  decoupling measurement runner, CLI wiring for TU/CL/OGB experiments.
+- `01a5b4b` — Phase 8 TU SOTA experiment runner (6 datasets × 7 methods
+  × 5 seeds × 10 folds). Verified smoke test on MUTAG: GIN 0.86.
+- `f96526e` — Phase 5 wrappers: SWAWrapper, TTAWrapper, Ensemble
+  (soft_vote / hard_vote / rank_avg), DistillationLoss. Plus
+  TensorDropFeature for tensor-only models.
+- `e67216c` — Phase 2 performance infra: safe_compile, autocast_context,
+  EMATarget (with cosine schedule), fused_scatter_add, sync_mps.
+- `f5196e8` — Phase 1 retrieval: GreedyRetrieval + utilities with
+  verified (1 - 1/e) approximation guarantee.
+- `cfa31ae` — Phase 1 rewriting: HRG, BisimulationMetric, FourConditions
+  (the paper's acceptance criterion), DPO loss.
+- `917cfcb` — Phase 1 graph types: TypedAttributedGraph (frozen
+  dataclass), PersistentState, WorkingGraph.
+- `0f23853` — Phase 0 logging + config: structured logging (HUMAN/JSON),
+  YAML config loading with schema validation.
+- `74ce19d` — Phase 0 foundation: PJEPAError hierarchy, deterministic
+  seeding, hardware capability probes.
+- `7dc8aed` — Initial repository scaffold.
+
+### Stats
+- 227 tests passing across 14 test files.
+- 0 ruff lint errors.
+- 8-class test taxonomy (happy / bad / ugly / leaky / round-trip /
+  cross-backend / distributional / property) applied to every public
+  module.
+- All public symbols have Google-style docstrings with Args, Returns,
+  Raises, and Example sections.
+- No bare `except`, no `print`, no global mutable state.
+- CLI works: `pjepa --version`, `pjepa doctor`, `pjepa hardware`,
+  `pjepa benchmark {retrieval, distortion, encoder-ablation}`,
+  `pjepa train {tu, cl, ogb}` all execute cleanly.
+
 ## [0.0.2] - 2026-07-13
 
 ### Added
