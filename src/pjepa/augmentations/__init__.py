@@ -16,11 +16,11 @@ from pjepa.augmentations.tensor import TensorDropFeature, tensor_drop_feature
 __all__ = [
     "Augmentation",
     "AugmentationPipeline",
-    "PipelineMode",
     "DropEdge",
     "DropFeature",
     "DropNode",
     "FeatureMask",
+    "PipelineMode",
     "RandomWalkSubgraph",
     "TensorDropFeature",
     "tensor_drop_feature",

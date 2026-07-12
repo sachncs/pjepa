@@ -42,9 +42,7 @@ class EMATarget:
         total_steps: int = 1000,
     ) -> None:
         if not 0.0 <= momentum <= 1.0:
-            raise NumericalError(
-                f"EMATarget: momentum must be in [0, 1]; got {momentum}"
-            )
+            raise NumericalError(f"EMATarget: momentum must be in [0, 1]; got {momentum}")
         if not 0.0 <= final_momentum <= 1.0:
             raise NumericalError(
                 f"EMATarget: final_momentum must be in [0, 1]; got {final_momentum}"
@@ -54,9 +52,7 @@ class EMATarget:
                 f"EMATarget: schedule must be 'constant' or 'cosine'; got {schedule!r}"
             )
         if total_steps <= 0:
-            raise NumericalError(
-                f"EMATarget: total_steps must be positive; got {total_steps}"
-            )
+            raise NumericalError(f"EMATarget: total_steps must be positive; got {total_steps}")
         self.online = online
         self.momentum = momentum
         self.schedule = schedule
@@ -79,9 +75,7 @@ class EMATarget:
     def update(self) -> None:
         """Update the target parameters via EMA."""
         m = self.current_momentum()
-        for online_param, shadow_param in zip(
-            self.online.parameters(), self.shadow.parameters()
-        ):
+        for online_param, shadow_param in zip(self.online.parameters(), self.shadow.parameters()):
             new_value = m * shadow_param.data + (1.0 - m) * online_param.data
             if not torch.isfinite(new_value).all():
                 raise NumericalError("EMATarget.update: produced non-finite parameters")

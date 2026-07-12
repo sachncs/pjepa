@@ -71,10 +71,9 @@ class SWAWrapper:
         else:
             n = float(self.snapshot_count)
             for name, tensor in snapshot.items():
-                self.averaged_state[name] = (
-                    (n - 1.0) / n * self.averaged_state[name]
-                    + (1.0 / n) * tensor
-                )
+                self.averaged_state[name] = (n - 1.0) / n * self.averaged_state[name] + (
+                    1.0 / n
+                ) * tensor
 
     def averaged_parameters(self) -> dict[str, torch.Tensor]:
         """Return the current averaged parameters."""
