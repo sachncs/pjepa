@@ -19,6 +19,9 @@ Each entry includes the commit SHA (short), the date (UTC), and the rationale.
   the Python 3.14 development environment; 3.10-3.12 remain CI targets.
 - Version bumped to `0.0.10` reflecting the Phase 0+1 production-grade
   scaffold completion.
+- `pjepa benchmark` CLI subcommand extended with `encoder-ablation`.
+- `pjepa train` CLI subcommand wires up the TU/CL/OGB experiment
+  runners (Phase 8/9/10).
 
 ## [0.0.2] - 2026-07-13
 

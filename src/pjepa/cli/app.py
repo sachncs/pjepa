@@ -15,6 +15,15 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
+
+_HERE = Path(__file__).resolve().parent
+_ROOT = _HERE.parents[2]  # src/pjepa/cli/app.py -> repo root
+_EXPERIMENTS = _ROOT / "experiments"
+if str(_EXPERIMENTS) not in sys.path:
+    sys.path.insert(0, str(_EXPERIMENTS))
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 import torch
 import typer
@@ -83,7 +92,8 @@ def benchmark(name: str = typer.Argument(..., help="retrieval | distortion")) ->
         name: Which benchmark to run. ``retrieval`` validates the
           (1 - 1/e) guarantee on synthetic submodular functions.
           ``distortion`` measures hyperbolic vs Euclidean distortion
-          on synthetic trees.
+          on synthetic trees. ``encoder-ablation`` runs the depth-
+          prediction encoder ablation.
     """
     log = get_logger(__name__)
     log.info("benchmark requested", extra={"benchmark_name": name, "event": "benchmark.start"})
@@ -95,8 +105,14 @@ def benchmark(name: str = typer.Argument(..., help="retrieval | distortion")) ->
         from experiments.run_exp_b_distortion import run as run_distortion  # type: ignore
 
         result = run_distortion()
+    elif name == "encoder-ablation":
+        from experiments.run_exp_c_encoder_ablation import run_encoder_ablation  # type: ignore
+
+        result = run_encoder_ablation()
     else:
-        typer.echo(f"unknown benchmark: {name!r}; choose 'retrieval' or 'distortion'")
+        typer.echo(
+            f"unknown benchmark: {name!r}; choose 'retrieval', 'distortion', or 'encoder-ablation'"
+        )
         raise typer.Exit(code=2)
     typer.echo(json.dumps(result, indent=2))
 
