@@ -43,7 +43,9 @@ class PPOConfig:
         if self.inner_epochs <= 0:
             raise ConfigError(f"PPOConfig.inner_epochs must be positive; got {self.inner_epochs}")
         if self.minibatch_size <= 0:
-            raise ConfigError(f"PPOConfig.minibatch_size must be positive; got {self.minibatch_size}")
+            raise ConfigError(
+                f"PPOConfig.minibatch_size must be positive; got {self.minibatch_size}"
+            )
         if not 0.0 < self.clip_eps < 1.0:
             raise ConfigError(f"PPOConfig.clip_eps must be in (0, 1); got {self.clip_eps}")
         if not 0.0 <= self.gae_lambda <= 1.0:
@@ -93,7 +95,9 @@ class PPOTrainer:
         for t in reversed(range(rewards.shape[0])):
             mask = 1.0 - dones[t]
             delta = rewards[t] + self.config.gamma * values[t + 1] * mask - values[t]
-            last_advantage = delta + self.config.gamma * self.config.gae_lambda * mask * last_advantage
+            last_advantage = (
+                delta + self.config.gamma * self.config.gae_lambda * mask * last_advantage
+            )
             advantages[t] = last_advantage
         return advantages
 
@@ -112,9 +116,9 @@ class PPOTrainer:
             The mean clipped surrogate loss (negative of objective).
         """
         unclipped = ratios * advantages
-        clipped = torch.clamp(
-            ratios, 1.0 - self.config.clip_eps, 1.0 + self.config.clip_eps
-        ) * advantages
+        clipped = (
+            torch.clamp(ratios, 1.0 - self.config.clip_eps, 1.0 + self.config.clip_eps) * advantages
+        )
         return -torch.min(unclipped, clipped).mean()
 
     def update(

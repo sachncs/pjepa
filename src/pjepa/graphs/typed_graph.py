@@ -15,7 +15,6 @@ edits) and makes the graphs hashable for caching.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Optional
 
 import torch
 
@@ -54,9 +53,9 @@ class TypedAttributedGraph:
     vertex_features: torch.Tensor
     edge_index: torch.Tensor
     edge_features: torch.Tensor = field(default_factory=lambda: torch.empty((0, 0)))
-    vertex_labels: Optional[torch.Tensor] = None
-    edge_labels: Optional[torch.Tensor] = None
-    global_features: Optional[torch.Tensor] = None
+    vertex_labels: torch.Tensor | None = None
+    edge_labels: torch.Tensor | None = None
+    global_features: torch.Tensor | None = None
     version: int = 0
 
     def __post_init__(self) -> None:
@@ -73,16 +72,14 @@ class TypedAttributedGraph:
             )
         if self.edge_index.dtype != torch.long:
             raise GraphError(
-                f"TypedAttributedGraph: edge_index dtype must be long; "
-                f"got {self.edge_index.dtype}"
+                f"TypedAttributedGraph: edge_index dtype must be long; got {self.edge_index.dtype}"
             )
         n_vertices = self.vertex_features.shape[0]
         if n_vertices > 0 and self.edge_index.numel() > 0:
             max_idx = int(self.edge_index.max().item())
             if max_idx >= n_vertices:
                 raise GraphError(
-                    f"TypedAttributedGraph: edge index {max_idx} exceeds "
-                    f"vertex count {n_vertices}"
+                    f"TypedAttributedGraph: edge index {max_idx} exceeds vertex count {n_vertices}"
                 )
         if self.edge_features.ndim != 2:
             raise GraphError(
@@ -120,7 +117,7 @@ class TypedAttributedGraph:
         """Return the number of edges in the graph."""
         return int(self.edge_index.shape[1])
 
-    def with_features(self, **kwargs: object) -> "TypedAttributedGraph":
+    def with_features(self, **kwargs: object) -> TypedAttributedGraph:
         """Return a copy with selected fields replaced; bumps the version.
 
         Args:
@@ -142,7 +139,7 @@ class TypedAttributedGraph:
         except TypeError as exc:
             raise GraphError(f"TypedAttributedGraph.with_features: {exc}") from exc
 
-    def subgraph(self, vertex_mask: torch.Tensor) -> "TypedAttributedGraph":
+    def subgraph(self, vertex_mask: torch.Tensor) -> TypedAttributedGraph:
         """Return the vertex-induced subgraph on the given boolean mask.
 
         Args:
@@ -190,9 +187,7 @@ class TypedAttributedGraph:
 
         device = self.vertex_features.device
         old_to_new = -torch.ones(self.num_vertices(), dtype=torch.long, device=device)
-        old_to_new[vertex_mask] = torch.arange(
-            int(vertex_mask.sum().item()), device=device
-        )
+        old_to_new[vertex_mask] = torch.arange(int(vertex_mask.sum().item()), device=device)
         edge_mask = vertex_mask[self.edge_index[0]] & vertex_mask[self.edge_index[1]]
         new_edges = self.edge_index[:, edge_mask]
         new_edges = old_to_new[new_edges]
@@ -205,14 +200,12 @@ class TypedAttributedGraph:
             vertex_labels=(
                 self.vertex_labels[vertex_mask] if self.vertex_labels is not None else None
             ),
-            edge_labels=(
-                self.edge_labels[edge_mask] if self.edge_labels is not None else None
-            ),
+            edge_labels=(self.edge_labels[edge_mask] if self.edge_labels is not None else None),
             global_features=self.global_features,
             version=self.version + 1,
         )
 
-    def to(self, device: torch.device) -> "TypedAttributedGraph":
+    def to(self, device: torch.device) -> TypedAttributedGraph:
         """Move every tensor to the given device."""
         return TypedAttributedGraph(
             vertex_features=self.vertex_features.to(device),
@@ -221,9 +214,7 @@ class TypedAttributedGraph:
             vertex_labels=(
                 self.vertex_labels.to(device) if self.vertex_labels is not None else None
             ),
-            edge_labels=(
-                self.edge_labels.to(device) if self.edge_labels is not None else None
-            ),
+            edge_labels=(self.edge_labels.to(device) if self.edge_labels is not None else None),
             global_features=(
                 self.global_features.to(device) if self.global_features is not None else None
             ),

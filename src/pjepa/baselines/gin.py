@@ -8,11 +8,9 @@ controlled at construction time.
 from __future__ import annotations
 
 import torch
-
 from torch import nn
 from torch_geometric.nn import GINConv, global_add_pool
 
-from pjepa.exceptions import GraphError
 from pjepa.graphs import TypedAttributedGraph
 
 __all__ = ["GIN"]
@@ -50,10 +48,7 @@ class GIN(nn.Module):
             raise ValueError("GIN: dims must be positive")
         self.input_proj = nn.Linear(input_dim, hidden_dim)
         self.layers = nn.ModuleList(
-            [
-                GINConv(_make_mlp(hidden_dim, hidden_dim, hidden_dim))
-                for _ in range(num_layers)
-            ]
+            [GINConv(_make_mlp(hidden_dim, hidden_dim, hidden_dim)) for _ in range(num_layers)]
         )
         self.classifier = nn.Linear(hidden_dim, num_classes)
         self.use_virtual_node = use_virtual_node

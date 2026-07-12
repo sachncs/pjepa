@@ -7,11 +7,9 @@ baseline in the TU SOTA comparison.
 from __future__ import annotations
 
 import torch
-
 from torch import nn
 from torch_geometric.nn import GCNConv, global_mean_pool
 
-from pjepa.exceptions import GraphError
 from pjepa.graphs import TypedAttributedGraph
 
 __all__ = ["GCN"]

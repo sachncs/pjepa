@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+from pjepa.training.checkpoint import Checkpoint, load_checkpoint, save_checkpoint
+from pjepa.training.eval import linear_probe_eval
 from pjepa.training.pretrain import pretrain_loop
 from pjepa.training.train import supervised_train_loop
-from pjepa.training.eval import linear_probe_eval
-from pjepa.training.checkpoint import Checkpoint, save_checkpoint, load_checkpoint
 
 __all__ = [
-    "pretrain_loop",
-    "supervised_train_loop",
-    "linear_probe_eval",
     "Checkpoint",
-    "save_checkpoint",
+    "linear_probe_eval",
     "load_checkpoint",
+    "pretrain_loop",
+    "save_checkpoint",
+    "supervised_train_loop",
 ]

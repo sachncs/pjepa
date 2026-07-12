@@ -7,11 +7,10 @@ Checkpointing happens at the end of every epoch.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 import torch
-
 from torch import nn
 
 from pjepa.augmentations import AugmentationPipeline

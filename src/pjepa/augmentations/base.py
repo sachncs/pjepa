@@ -9,7 +9,7 @@ sample one, and random sample k.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Sequence
+from collections.abc import Sequence
 
 import torch
 
@@ -32,9 +32,7 @@ class Augmentation(ABC):
 
     def __init__(self, strength: float = 0.2, generator: torch.Generator | None = None) -> None:
         if not 0.0 <= strength <= 1.0:
-            raise GraphError(
-                f"Augmentation: strength must be in [0, 1]; got {strength}"
-            )
+            raise GraphError(f"Augmentation: strength must be in [0, 1]; got {strength}")
         self.strength = strength
         self.generator = generator
 

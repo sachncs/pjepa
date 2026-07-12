@@ -11,11 +11,11 @@ import pytest
 from pjepa.logging_setup import LogFormat, configure_logging, get_logger, log_event
 
 __all__ = [
-    "test_human_format_renders",
     "test_bad_format_rejected",
     "test_get_logger_returns_named_logger",
-    "test_log_event_includes_event_and_fields",
+    "test_human_format_renders",
     "test_json_format_is_parseable",
+    "test_log_event_includes_event_and_fields",
 ]
 
 

@@ -11,7 +11,6 @@ from __future__ import annotations
 import copy
 
 import torch
-
 from torch import nn
 
 from pjepa.exceptions import NumericalError
@@ -74,7 +73,9 @@ class TargetEncoder:
     def update(self) -> None:
         """Update the target parameters via EMA."""
         for online_param, shadow_param in zip(self.online.parameters(), self.shadow.parameters()):
-            new_value = self.momentum * shadow_param.data + (1.0 - self.momentum) * online_param.data
+            new_value = (
+                self.momentum * shadow_param.data + (1.0 - self.momentum) * online_param.data
+            )
             if not torch.isfinite(new_value).all():
                 raise NumericalError("TargetEncoder.update: produced non-finite parameters")
             shadow_param.data.copy_(new_value)

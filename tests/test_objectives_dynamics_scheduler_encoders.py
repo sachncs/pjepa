@@ -10,6 +10,7 @@ import math
 import pytest
 import torch
 
+from pjepa.dynamics import contractivity_bound, fixed_point_iteration
 from pjepa.encoders import (
     DualGeometricEncoder,
     EuclideanMPNN,
@@ -17,7 +18,6 @@ from pjepa.encoders import (
     JEPAPredictor,
     TargetEncoder,
 )
-from pjepa.encoders.base import Encoder
 from pjepa.exceptions import ConfigError, NumericalError
 from pjepa.graphs import TypedAttributedGraph
 from pjepa.objectives import FreeEnergy, description_length, ib_lagrangian, variational_ib_bound
@@ -29,37 +29,36 @@ from pjepa.scheduler import (
     Transition,
     should_sleep,
 )
-from pjepa.dynamics import EvolutionOperator, contractivity_bound, fixed_point_iteration
 
 __all__ = [
-    "test_happy_ib_lagrangian",
-    "test_happy_variational_ib_bound",
-    "test_happy_description_length_positive",
-    "test_happy_free_energy_non_negative",
+    "test_bad_euclidean_mpnn_zero_dim",
+    "test_bad_hyperbolic_projection_curvature",
+    "test_bad_ib_lagrangian_negative_mutual_information",
+    "test_bad_ppo_zero_minibatch",
+    "test_bad_replay_buffer_zero_capacity",
+    "test_bad_sleep_cadence_window",
+    "test_bad_variational_ib_shape_mismatch",
+    "test_cross_backend_mps_hyperbolic",
+    "test_distributional_contractivity_bound_at_t_zero",
     "test_happy_contractivity_bound",
+    "test_happy_description_length_positive",
+    "test_happy_dual_geometric_encoder",
+    "test_happy_euclidean_mpnn_forward",
     "test_happy_fixed_point_iteration_identity",
+    "test_happy_free_energy_non_negative",
+    "test_happy_hyperbolic_projection_norms",
+    "test_happy_ib_lagrangian",
+    "test_happy_jepa_predictor_shape",
     "test_happy_ppo_clipped_surrogate",
     "test_happy_replay_buffer_add_and_sample",
     "test_happy_sleep_cadence_no_sleep_when_healthy",
-    "test_happy_euclidean_mpnn_forward",
-    "test_happy_hyperbolic_projection_norms",
-    "test_happy_dual_geometric_encoder",
-    "test_happy_jepa_predictor_shape",
     "test_happy_target_encoder_ema",
-    "test_bad_ib_lagrangian_negative_mutual_information",
-    "test_bad_variational_ib_shape_mismatch",
-    "test_bad_euclidean_mpnn_zero_dim",
-    "test_bad_hyperbolic_projection_curvature",
-    "test_bad_replay_buffer_zero_capacity",
-    "test_bad_sleep_cadence_window",
-    "test_bad_ppo_zero_minibatch",
+    "test_happy_variational_ib_bound",
+    "test_leaky_ppo_does_not_mutate_outer_state",
+    "test_property_dual_geometric_dims",
+    "test_round_trip_target_encoder_step",
     "test_ugly_free_energy_empty_graph",
     "test_ugly_hyperbolic_projection_zero_input",
-    "test_leaky_ppo_does_not_mutate_outer_state",
-    "test_round_tip_target_encoder_step",
-    "test_cross_backend_mps_hyperbolic",
-    "test_distributional_contractivity_bound_at_t_zero",
-    "test_property_dual_geometric_dims",
 ]
 
 
@@ -103,7 +102,7 @@ def test_happy_free_energy_non_negative() -> None:
 
 def test_happy_contractivity_bound() -> None:
     """The contractivity bound decreases monotonically when eta_g < 1."""
-    bounds = [contractivity_bound(0.5, 0.1, 0.05, t) for t in range(0, 20)]
+    bounds = [contractivity_bound(0.5, 0.1, 0.05, t) for t in range(20)]
     assert bounds[-1] < bounds[0]
 
 
@@ -313,7 +312,7 @@ def test_leaky_ppo_does_not_mutate_outer_state() -> None:
     )
 
 
-def test_round_tip_target_encoder_step() -> None:
+def test_round_trip_target_encoder_step() -> None:
     """Target encoder parameters move after update."""
     online = torch.nn.Linear(4, 4)
     target = TargetEncoder(online, momentum=0.0)
@@ -359,5 +358,5 @@ def test_property_dual_geometric_dims() -> None:
 def test_encoder_protocol_satisfied_by_subclass() -> None:
     """EuclideanMPNN satisfies the Encoder protocol structurally."""
     enc = EuclideanMPNN(input_dim=3, hidden_dim=8, num_layers=2, output_dim=4)
-    assert isinstance(enc, nn_Module := torch.nn.Module)  # noqa: F841
+    assert isinstance(enc, torch.nn.Module)
     assert hasattr(enc, "forward") and hasattr(enc, "to")

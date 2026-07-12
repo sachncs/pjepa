@@ -98,5 +98,7 @@ class FreeEnergy:
 
         value = nll + self.beta_ib * kl + self.lambda_mdl * dl - self.gamma_forward * forward
         if not (value == value):  # NaN check without importing math
-            raise NumericalError(f"FreeEnergy: computed NaN for graph with {graph.num_vertices()} vertices")
+            raise NumericalError(
+                f"FreeEnergy: computed NaN for graph with {graph.num_vertices()} vertices"
+            )
         return value

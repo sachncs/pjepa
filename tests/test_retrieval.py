@@ -16,27 +16,28 @@ from pjepa.retrieval import (
     facility_location_weights,
     uniform_weights,
 )
-from pjepa.retrieval.utility import RetrievalUtility
 
 __all__ = [
-    "test_happy_greedy_returns_budget",
-    "test_happy_facility_location_scores_non_negative",
-    "test_bad_negative_budget",
     "test_bad_facility_location_wrong_dim",
     "test_bad_information_gain_negative_mu",
-    "test_ugly_empty_graph_zero_utility",
-    "test_ugly_single_vertex_graph",
-    "test_leaky_repeated_retrieval_no_module_state",
-    "test_round_trip_submodule_property",
+    "test_bad_negative_budget",
     "test_cross_backend_mps_utility",
     "test_distributional_utility_is_submodular",
-    "test_property_uniform_weights",
-    "test_property_facility_weights_non_negative",
+    "test_happy_facility_location_scores_non_negative",
+    "test_happy_greedy_returns_budget",
+    "test_leaky_repeated_retrieval_no_module_state",
     "test_one_minus_one_over_e_on_synthetic",
+    "test_property_facility_weights_non_negative",
+    "test_property_uniform_weights",
+    "test_round_trip_submodule_property",
+    "test_ugly_empty_graph_zero_utility",
+    "test_ugly_single_vertex_graph",
 ]
 
 
-def _random_graph(num_vertices: int = 8, feature_dim: int = 3, seed: int = 0) -> TypedAttributedGraph:
+def _random_graph(
+    num_vertices: int = 8, feature_dim: int = 3, seed: int = 0
+) -> TypedAttributedGraph:
     g = torch.Generator().manual_seed(seed)
     feats = torch.randn((num_vertices, feature_dim), generator=g)
     edges = []
@@ -179,12 +180,8 @@ def test_distributional_utility_is_submodular() -> None:
         if not v_candidates:
             continue
         v = v_candidates[torch.randint(0, len(v_candidates), (1,)).item()]
-        delta_s = (
-            util(torch.cat([s, torch.tensor([v])]), obs) - util(s, obs)
-        )
-        delta_t = (
-            util(torch.cat([t, torch.tensor([v])]), obs) - util(t, obs)
-        )
+        delta_s = util(torch.cat([s, torch.tensor([v])]), obs) - util(s, obs)
+        delta_t = util(torch.cat([t, torch.tensor([v])]), obs) - util(t, obs)
         assert delta_s >= delta_t - 1e-5, (
             f"submodularity violated at S={s.tolist()}, T={t.tolist()}, v={v}: "
             f"delta_s={delta_s:.4f}, delta_t={delta_t:.4f}"

@@ -7,7 +7,6 @@ representations using a bilinear discriminator.
 from __future__ import annotations
 
 import torch
-
 from torch import nn
 
 from pjepa.exceptions import GraphError

@@ -1,0 +1,73 @@
+site_name: Persistent-JEPA
+site_description: Persistent-JEPA implementation — a persistent graph world model for continual developmental learning.
+site_url: https://sachncs.github.io/persistent-jepa/
+repo_url: https://github.com/sachncs/persistent-jepa
+repo_name: sachncs/persistent-jepa
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started.md
+      - Quickstart for Developers: developer/01_quickstart.md
+  - For Researchers:
+      - Persistent Graph World Model: researcher/01_persistent_graph_world_model.md
+  - For Developers:
+      - Architecture Overview: developer/02_architecture.md
+      - Adding a Custom Encoder: developer/03_adding_an_encoder.md
+      - Adding a Custom Baseline: developer/04_adding_a_baseline.md
+      - Reproducing Paper Results: developer/05_reproducing_paper_results.md
+      - Eight-Class Test Taxonomy: developer/06_test_taxonomy.md
+  - Reference:
+      - API: reference/api.md
+      - CLI: reference/cli.md
+      - Configuration Schema: reference/config.md
+  - Changelog: changelog.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true

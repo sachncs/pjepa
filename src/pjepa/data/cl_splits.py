@@ -7,7 +7,7 @@ disjoint subset of classes. The split is deterministic given a seed.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Sequence
+from collections.abc import Sequence
 
 import torch
 
@@ -33,9 +33,7 @@ class ClassIncrementalSplit:
         task_classes: Sequence[Sequence[int]],
     ) -> None:
         if len(tasks) != len(task_classes):
-            raise DataError(
-                "ClassIncrementalSplit: tasks and task_classes must have equal length"
-            )
+            raise DataError("ClassIncrementalSplit: tasks and task_classes must have equal length")
         if not tasks:
             raise DataError("ClassIncrementalSplit: at least one task is required")
         seen: set[int] = set()
@@ -89,7 +87,7 @@ def make_class_incremental_split(
         raise DataError(
             f"make_class_incremental_split: num_tasks must be positive; got {num_tasks}"
         )
-    classes = sorted(set(int(l) for l in labels))
+    classes = sorted(set(int(lbl) for lbl in labels))
     if num_tasks > len(classes):
         raise DataError(
             f"make_class_incremental_split: num_tasks {num_tasks} exceeds "

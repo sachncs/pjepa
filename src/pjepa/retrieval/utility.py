@@ -19,11 +19,11 @@ from typing import Protocol, runtime_checkable
 import torch
 
 __all__ = [
-    "RetrievalUtility",
-    "InformationGainUtility",
     "FacilityLocationUtility",
-    "uniform_weights",
+    "InformationGainUtility",
+    "RetrievalUtility",
     "facility_location_weights",
+    "uniform_weights",
 ]
 
 
@@ -79,9 +79,7 @@ class InformationGainUtility:
 
     def __init__(self, mu: float = 0.05) -> None:
         if mu < 0:
-            raise ValueError(
-                f"InformationGainUtility: mu must be non-negative; got {mu}"
-            )
+            raise ValueError(f"InformationGainUtility: mu must be non-negative; got {mu}")
         self.mu = mu
 
     def __call__(self, vertex_subset: torch.Tensor, observation: torch.Tensor) -> float:

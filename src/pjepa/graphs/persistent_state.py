@@ -17,14 +17,13 @@ observation history. The wrapper here enforces three invariants:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Tuple
 
 import torch
 
 from pjepa.exceptions import GraphError
 from pjepa.graphs.typed_graph import TypedAttributedGraph
 
-__all__ = ["PersistentState", "CommitRecord", "CommitRejected"]
+__all__ = ["CommitRecord", "CommitRejected", "PersistentState"]
 
 
 @dataclass(frozen=True)
@@ -79,8 +78,8 @@ class PersistentState:
     """
 
     graph: TypedAttributedGraph
-    history: Tuple[CommitRecord, ...] = field(default_factory=tuple)
-    rejections: Tuple[CommitRejected, ...] = field(default_factory=tuple)
+    history: tuple[CommitRecord, ...] = field(default_factory=tuple)
+    rejections: tuple[CommitRejected, ...] = field(default_factory=tuple)
 
     def num_vertices(self) -> int:
         """Return the number of vertices in the persistent graph."""
@@ -103,8 +102,8 @@ class PersistentState:
         candidate: TypedAttributedGraph,
         cost: float,
         timestamp: float,
-        delta_j: Optional[float] = None,
-    ) -> "PersistentState":
+        delta_j: float | None = None,
+    ) -> PersistentState:
         """Replace the persistent graph with ``candidate`` and record the commit.
 
         The acceptance criterion is supplied by the caller via
@@ -137,9 +136,7 @@ class PersistentState:
         if cost < 0:
             raise GraphError(f"PersistentState.commit: cost must be non-negative; got {cost}")
         if delta_j is not None and delta_j >= 0:
-            raise GraphError(
-                f"PersistentState.commit: delta_j must be < 0; got {delta_j}"
-            )
+            raise GraphError(f"PersistentState.commit: delta_j must be < 0; got {delta_j}")
         record = CommitRecord(
             version=self.graph.version + 1,
             timestamp=timestamp,
@@ -151,7 +148,7 @@ class PersistentState:
             rejections=self.rejections,
         )
 
-    def reject(self, reason: str, cost: float) -> "PersistentState":
+    def reject(self, reason: str, cost: float) -> PersistentState:
         """Record a rejected candidate without modifying the graph.
 
         Args:
@@ -169,9 +166,7 @@ class PersistentState:
             >>> state2 = state.reject("bisimilarity violated", cost=0.5)
         """
         if cost < 0:
-            raise GraphError(
-                f"PersistentState.reject: cost must be non-negative; got {cost}"
-            )
+            raise GraphError(f"PersistentState.reject: cost must be non-negative; got {cost}")
         if not reason:
             raise GraphError("PersistentState.reject: reason must be a non-empty string")
         rejection = CommitRejected(reason=reason, cost=cost)
@@ -181,7 +176,7 @@ class PersistentState:
             rejections=self.rejections + (rejection,),
         )
 
-    def to(self, device: torch.device) -> "PersistentState":
+    def to(self, device: torch.device) -> PersistentState:
         """Move every tensor of the persistent graph to ``device``."""
         return PersistentState(
             graph=self.graph.to(device),

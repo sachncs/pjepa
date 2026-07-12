@@ -9,8 +9,7 @@ node merging via hyperedge fusion.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Mapping
+from dataclasses import dataclass
 
 import torch
 
@@ -31,7 +30,11 @@ class HRGProduction:
           describing the right-hand-side hypergraph connectivity.
 
     Example:
-        >>> prod = HRGProduction(lhs="Stmt", rhs_edge_index=torch.zeros((2, 0), dtype=torch.long), rhs_edge_features=torch.zeros((0, 1)))
+        >>> prod = HRGProduction(
+        ...     lhs="Stmt",
+        ...     rhs_edge_index=torch.zeros((2, 0), dtype=torch.long),
+        ...     rhs_edge_features=torch.zeros((0, 1)),
+        ... )
     """
 
     lhs: str
@@ -74,9 +77,7 @@ class HRG:
             raise GraphError("HRG: non-terminal and terminal labels overlap")
         for prod in self.productions:
             if prod.lhs not in self.nonterminals:
-                raise GraphError(
-                    f"HRG: production lhs {prod.lhs!r} is not a non-terminal"
-                )
+                raise GraphError(f"HRG: production lhs {prod.lhs!r} is not a non-terminal")
 
     def productions_for(self, label: str) -> tuple[HRGProduction, ...]:
         """Return every production whose left-hand side is ``label``."""

@@ -11,7 +11,6 @@ from __future__ import annotations
 import hashlib
 import os
 from pathlib import Path
-from typing import Sequence
 
 import torch
 
@@ -104,7 +103,5 @@ def load_tu_dataset(
             if path.is_file():
                 digest.update(path.read_bytes())
         if digest.hexdigest() != expected:
-            raise DataError(
-                f"load_tu_dataset: checksum mismatch for {name!r}"
-            )
+            raise DataError(f"load_tu_dataset: checksum mismatch for {name!r}")
     return graphs, len(labels)

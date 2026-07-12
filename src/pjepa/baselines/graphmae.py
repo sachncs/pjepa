@@ -8,7 +8,6 @@ positions only.
 from __future__ import annotations
 
 import torch
-
 from torch import nn
 from torch_geometric.nn import GINConv, global_add_pool
 
@@ -41,7 +40,13 @@ class GraphMAE(nn.Module):
         self.input_proj = nn.Linear(input_dim, hidden_dim)
         self.encoder = nn.ModuleList(
             [
-                GINConv(nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, hidden_dim)))
+                GINConv(
+                    nn.Sequential(
+                        nn.Linear(hidden_dim, hidden_dim),
+                        nn.ReLU(),
+                        nn.Linear(hidden_dim, hidden_dim),
+                    )
+                )
                 for _ in range(num_layers)
             ]
         )

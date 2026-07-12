@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
-__all__ = ["accuracy", "mean_per_class_accuracy", "forgetting_rate"]
+__all__ = ["accuracy", "forgetting_rate", "mean_per_class_accuracy"]
 
 
 def accuracy(predictions: Sequence[int], targets: Sequence[int]) -> float:

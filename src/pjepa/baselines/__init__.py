@@ -8,20 +8,20 @@ deliberately minimal.
 
 from __future__ import annotations
 
-from pjepa.baselines.gcn import GCN
-from pjepa.baselines.gin import GIN
-from pjepa.baselines.graphmae import GraphMAE
-from pjepa.baselines.graphcl import GraphCL
-from pjepa.baselines.infograph import InfoGraph
 from pjepa.baselines.ewc import EWC
+from pjepa.baselines.gcn import GCN
 from pjepa.baselines.gem import GEM
+from pjepa.baselines.gin import GIN
+from pjepa.baselines.graphcl import GraphCL
+from pjepa.baselines.graphmae import GraphMAE
+from pjepa.baselines.infograph import InfoGraph
 
 __all__ = [
-    "GCN",
-    "GIN",
-    "GraphMAE",
-    "GraphCL",
-    "InfoGraph",
     "EWC",
+    "GCN",
     "GEM",
+    "GIN",
+    "GraphCL",
+    "GraphMAE",
+    "InfoGraph",
 ]

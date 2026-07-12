@@ -19,43 +19,42 @@ from pjepa.augmentations import (
 from pjepa.augmentations.base import PipelineMode
 from pjepa.baselines import EWC, GCN, GIN, GraphCL, GraphMAE, InfoGraph
 from pjepa.data.cl_splits import make_class_incremental_split
-from pjepa.data.tu import load_tu_dataset
-from pjepa.exceptions import DataError, GraphError
+from pjepa.exceptions import ConfigError, DataError, GraphError
 from pjepa.graphs import TypedAttributedGraph
 
 __all__ = [
-    "test_happy_drop_edge_removes_edges",
-    "test_happy_drop_node_reduces_vertices",
-    "test_happy_drop_feature_zero_mask",
-    "test_happy_feature_mask_applies_token",
-    "test_happy_random_walk_subgraph",
-    "test_happy_pipeline_sequential",
-    "test_happy_pipeline_random_sample_one",
-    "test_happy_gcn_forward",
-    "test_happy_gin_forward",
-    "test_happy_graphmae_forward",
-    "test_happy_graphcl_loss_runs",
-    "test_happy_infograph_loss_runs",
-    "test_happy_ewc_capture_and_penalty",
-    "test_happy_gem_memory_add",
-    "test_happy_make_class_incremental_split",
     "test_bad_augmentation_strength_out_of_range",
+    "test_bad_class_incremental_split_empty_labels",
+    "test_bad_class_incremental_split_too_many_tasks",
     "test_bad_drop_node_empty_graph",
+    "test_bad_ewc_negative_lambda",
+    "test_bad_gcn_zero_dim",
+    "test_bad_gem_zero_capacity",
     "test_bad_pipeline_empty_augmentations",
     "test_bad_pipeline_zero_k",
-    "test_bad_ewc_negative_lambda",
-    "test_bad_gem_zero_capacity",
-    "test_bad_class_incremental_split_too_many_tasks",
-    "test_bad_class_incremental_split_empty_labels",
-    "test_bad_gcn_zero_dim",
-    "test_ugly_drop_edge_no_edges",
-    "test_ugly_random_walk_on_disconnected",
-    "test_leaky_augmentation_state_isolation",
-    "test_round_trip_augmentation_pipeline_serialization",
     "test_cross_backend_mps_gcn_forward",
     "test_distributional_drop_edge_distribution",
-    "test_property_graphmae_mask_is_subset",
+    "test_happy_drop_edge_removes_edges",
+    "test_happy_drop_feature_zero_mask",
+    "test_happy_drop_node_reduces_vertices",
+    "test_happy_ewc_capture_and_penalty",
+    "test_happy_feature_mask_applies_token",
+    "test_happy_gcn_forward",
+    "test_happy_gem_memory_add",
+    "test_happy_gin_forward",
+    "test_happy_graphcl_loss_runs",
+    "test_happy_graphmae_forward",
+    "test_happy_infograph_loss_runs",
+    "test_happy_make_class_incremental_split",
+    "test_happy_pipeline_random_sample_one",
+    "test_happy_pipeline_sequential",
+    "test_happy_random_walk_subgraph",
+    "test_leaky_augmentation_state_isolation",
     "test_property_class_incremental_classes_disjoint",
+    "test_property_graphmae_mask_is_subset",
+    "test_round_trip_augmentation_pipeline_serialization",
+    "test_ugly_drop_edge_no_edges",
+    "test_ugly_random_walk_on_disconnected",
 ]
 
 
@@ -201,7 +200,7 @@ def test_happy_ewc_capture_and_penalty() -> None:
     param = torch.nn.Parameter(torch.randn(3))
     ewc = EWC(lambda_ewc=1.0)
     # Loss with non-trivial gradient produces non-zero Fisher info.
-    loss = (param ** 2).sum() + (param * torch.tensor([1.0, 2.0, 3.0])).sum()
+    loss = (param**2).sum() + (param * torch.tensor([1.0, 2.0, 3.0])).sum()
     ewc.capture([("p", param)], loss)
     # Penalise drift.
     drifted = torch.nn.Parameter(torch.ones(3))
@@ -270,7 +269,9 @@ def test_bad_ewc_negative_lambda() -> None:
 
 def test_bad_gem_zero_capacity() -> None:
     """A zero GEM capacity is rejected."""
-    with pytest.raises(Exception):
+    from pjepa.baselines.gem import GEM
+
+    with pytest.raises(ConfigError):
         GEM(capacity=0)
 
 

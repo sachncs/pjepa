@@ -76,16 +76,12 @@ def _delta_j(
         predictive_delta = nll_cand - nll_cur
         # Forward-information bonus: improvement in cosine similarity
         cand_sim = float(
-            torch.nn.functional.cosine_similarity(
-                cand_mean.unsqueeze(0), observation, dim=-1
-            )
+            torch.nn.functional.cosine_similarity(cand_mean.unsqueeze(0), observation, dim=-1)
             .mean()
             .item()
         )
         cur_sim = float(
-            torch.nn.functional.cosine_similarity(
-                cur_mean.unsqueeze(0), observation, dim=-1
-            )
+            torch.nn.functional.cosine_similarity(cur_mean.unsqueeze(0), observation, dim=-1)
             .mean()
             .item()
         )
@@ -97,10 +93,7 @@ def _delta_j(
         forward = 0.0
     cost_delta = abs(candidate.num_vertices() - current.num_vertices())
     return (
-        predictive_delta
-        + lambda_mdl * cost_delta
-        - gamma_forward * forward
-        + beta_ib * cost_delta
+        predictive_delta + lambda_mdl * cost_delta - gamma_forward * forward + beta_ib * cost_delta
     )
 
 
@@ -157,8 +150,7 @@ def accept_candidate(
 
     if candidate.vertex_features.shape[1] != current.vertex_features.shape[1]:
         raise GraphError(
-            "accept_candidate: candidate and current graphs disagree on "
-            "vertex feature dimension"
+            "accept_candidate: candidate and current graphs disagree on vertex feature dimension"
         )
     grammar_ok = grammar is not None
     info["grammar_ok"] = grammar_ok

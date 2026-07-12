@@ -9,7 +9,6 @@ combination is justified by Proposition 3 in the paper.
 from __future__ import annotations
 
 import torch
-
 from torch import nn
 
 from pjepa.encoders.euclidean_mpnn import EuclideanMPNN

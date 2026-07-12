@@ -18,7 +18,7 @@ import torch
 
 from pjepa.exceptions import ConfigError
 
-__all__ = ["set_global_seed", "get_global_seed", "seed_for", "current_seed"]
+__all__ = ["current_seed", "get_global_seed", "seed_for", "set_global_seed"]
 
 _DEFAULT_SEED: Final[int] = 0
 _VALIDATE_DETERMINISM_ENV: Final[str] = "PJEPA_DETERMINISTIC"
@@ -68,9 +68,7 @@ def set_global_seed(seed: int) -> int:
         7
     """
     if seed < 0 or seed >= 2**32:
-        raise ConfigError(
-            f"set_global_seed: seed must be in [0, 2**32); got {seed}"
-        )
+        raise ConfigError(f"set_global_seed: seed must be in [0, 2**32); got {seed}")
     _current_seed.set(seed)
 
     random.seed(seed)

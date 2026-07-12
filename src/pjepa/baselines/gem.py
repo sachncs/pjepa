@@ -76,8 +76,20 @@ class GEM:
         for sample in self.memory:
             out = model_output_fn(sample.x)
             loss = loss_fn(out, sample.y)
-            grad = torch.autograd.grad(loss, [p for p in model_output_fn.parameters()], retain_graph=False, allow_unused=True)
-            ref_grads.append(torch.cat([g.flatten() if g is not None else torch.zeros_like(p.flatten()) for g, p in zip(grad, model_output_fn.parameters())]))
+            grad = torch.autograd.grad(
+                loss,
+                [p for p in model_output_fn.parameters()],
+                retain_graph=False,
+                allow_unused=True,
+            )
+            ref_grads.append(
+                torch.cat(
+                    [
+                        g.flatten() if g is not None else torch.zeros_like(p.flatten())
+                        for g, p in zip(grad, model_output_fn.parameters())
+                    ]
+                )
+            )
         ref = torch.stack(ref_grads, dim=0)  # [M, D]
         # Check whether the candidate gradient violates any memory constraint.
         inner = ref @ gradient
@@ -85,12 +97,10 @@ class GEM:
         if not violated.any():
             return gradient
         # Solve the dual QP via the Lopez-Paz closed-form projection.
-        # g_proj = g - (g^T R R^T / (R R^T R R^T)) R^T (g - memory gradient direction)
         # For brevity we use the simple GEM projection to the cone of
         # gradients that satisfy all memory constraints.
         R = ref
         g = gradient
-        g_outer = g.unsqueeze(0).T @ g.unsqueeze(0)  # [D, D]
         # Solve w = (R R^T + λ I)^{-1} g^T R R^T (memory projection)
         gram = R @ R.T + 1e-3 * torch.eye(R.shape[0])
         w = torch.linalg.solve(gram, R @ g)

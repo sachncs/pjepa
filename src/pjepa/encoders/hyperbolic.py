@@ -11,7 +11,6 @@ from __future__ import annotations
 import math
 
 import torch
-
 from torch import nn
 
 from pjepa.exceptions import NumericalError
@@ -43,9 +42,7 @@ class HyperbolicProjection(nn.Module):
         if curvature <= 0:
             raise ValueError(f"HyperbolicProjection: curvature must be positive; got {curvature}")
         if not 0.0 < max_norm < 1.0:
-            raise ValueError(
-                f"HyperbolicProjection: max_norm must be in (0, 1); got {max_norm}"
-            )
+            raise ValueError(f"HyperbolicProjection: max_norm must be in (0, 1); got {max_norm}")
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.curvature = curvature

@@ -16,8 +16,8 @@ from pjepa.exceptions import (
 )
 
 __all__ = [
-    "test_happy_raise_and_catch",
     "test_bad_unknown_subclass_caught_as_pjepa",
+    "test_happy_raise_and_catch",
     "test_property_hierarchy",
 ]
 

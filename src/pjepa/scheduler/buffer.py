@@ -9,14 +9,14 @@ corrections against the live policy.
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Iterator
 
 import torch
 
 from pjepa.exceptions import ConfigError
 
-__all__ = ["Transition", "ReplayBuffer"]
+__all__ = ["ReplayBuffer", "Transition"]
 
 
 @dataclass
@@ -102,7 +102,9 @@ class ReplayBuffer:
             sees the canonical PPO formulation.
         """
         if batch_size <= 0:
-            raise ConfigError(f"ReplayBuffer.minibatches: batch_size must be positive; got {batch_size}")
+            raise ConfigError(
+                f"ReplayBuffer.minibatches: batch_size must be positive; got {batch_size}"
+            )
         transitions = [t for _, t in self.storage]
         if not transitions:
             return iter(())

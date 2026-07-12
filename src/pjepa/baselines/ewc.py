@@ -38,14 +38,19 @@ class EWC:
             if not param.requires_grad:
                 continue
             self._star[name] = param.detach().clone()
-        grads = torch.autograd.grad(loss, [p for _, p in named_parameters if p.requires_grad], retain_graph=False, allow_unused=True)
+        grads = torch.autograd.grad(
+            loss,
+            [p for _, p in named_parameters if p.requires_grad],
+            retain_graph=False,
+            allow_unused=True,
+        )
         for (name, param), grad in zip(
             [(n, p) for n, p in named_parameters if p.requires_grad], grads
         ):
             if grad is None:
                 self._fisher[name] = torch.zeros_like(param.detach())
             else:
-                self._fisher[name] = (grad.detach() ** 2)
+                self._fisher[name] = grad.detach() ** 2
 
     def penalty(self, named_parameters) -> torch.Tensor:
         """Compute the EWC penalty for the current parameters."""

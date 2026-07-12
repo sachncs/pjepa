@@ -26,7 +26,7 @@ class Encoder(Protocol):
         """Encode the graph and return a per-vertex or graph-level embedding."""
         ...
 
-    def to(self, device: torch.device) -> "Encoder":
+    def to(self, device: torch.device) -> Encoder:
         """Move the encoder's parameters to the given device."""
         ...
 

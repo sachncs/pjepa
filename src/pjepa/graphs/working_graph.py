@@ -65,7 +65,7 @@ class WorkingGraph:
             return 0.0
         return float(self.num_vertices()) / float(self.budget)
 
-    def to(self, device: torch.device) -> "WorkingGraph":
+    def to(self, device: torch.device) -> WorkingGraph:
         """Move every tensor of the working graph to ``device``."""
         return WorkingGraph(
             graph=self.graph.to(device),

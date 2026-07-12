@@ -8,17 +8,17 @@ and hyperbolic components, which Proposition 3 justifies.
 from __future__ import annotations
 
 from pjepa.encoders.base import Encoder, EncoderProtocol
+from pjepa.encoders.dual_geometric import DualGeometricEncoder
 from pjepa.encoders.euclidean_mpnn import EuclideanMPNN
 from pjepa.encoders.hyperbolic import HyperbolicProjection
-from pjepa.encoders.dual_geometric import DualGeometricEncoder
 from pjepa.encoders.jepa_predictor import JEPAPredictor, TargetEncoder
 
 __all__ = [
+    "DualGeometricEncoder",
     "Encoder",
     "EncoderProtocol",
     "EuclideanMPNN",
     "HyperbolicProjection",
-    "DualGeometricEncoder",
     "JEPAPredictor",
     "TargetEncoder",
 ]

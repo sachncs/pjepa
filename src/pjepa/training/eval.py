@@ -10,10 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import torch
-
 from sklearn.linear_model import LogisticRegression
 
-from pjepa.exceptions import ConfigError, DataError
+from pjepa.exceptions import DataError
 from pjepa.graphs import TypedAttributedGraph
 
 __all__ = ["LinearProbeResult", "linear_probe_eval"]

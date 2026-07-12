@@ -38,9 +38,7 @@ class SleepCadence:
         if not 0.0 <= self.rho_min <= 1.0:
             raise ConfigError(f"SleepCadence: rho_min must be in [0, 1]; got {self.rho_min}")
         if not 0.0 <= self.alpha_min <= 1.0:
-            raise ConfigError(
-                f"SleepCadence: alpha_min must be in [0, 1]; got {self.alpha_min}"
-            )
+            raise ConfigError(f"SleepCadence: alpha_min must be in [0, 1]; got {self.alpha_min}")
         if self.window <= 0:
             raise ConfigError(f"SleepCadence: window must be positive; got {self.window}")
         self.accepted_history = deque(maxlen=self.window)

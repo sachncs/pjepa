@@ -12,7 +12,7 @@ from pjepa.objectives.mdl import description_length
 
 __all__ = [
     "FreeEnergy",
+    "description_length",
     "ib_lagrangian",
     "variational_ib_bound",
-    "description_length",
 ]

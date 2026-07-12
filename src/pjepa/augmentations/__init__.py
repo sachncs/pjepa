@@ -9,15 +9,15 @@ reproducible randomness via a ``torch.Generator``.
 from __future__ import annotations
 
 from pjepa.augmentations.base import Augmentation, AugmentationPipeline
-from pjepa.augmentations.structural import DropEdge, DropNode, RandomWalkSubgraph
 from pjepa.augmentations.feature import DropFeature, FeatureMask
+from pjepa.augmentations.structural import DropEdge, DropNode, RandomWalkSubgraph
 
 __all__ = [
     "Augmentation",
     "AugmentationPipeline",
     "DropEdge",
-    "DropNode",
-    "RandomWalkSubgraph",
     "DropFeature",
+    "DropNode",
     "FeatureMask",
+    "RandomWalkSubgraph",
 ]

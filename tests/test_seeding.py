@@ -23,7 +23,15 @@ import torch
 from pjepa.exceptions import ConfigError
 from pjepa.utils import seeding
 
-__all__ = ["test_happy_set_and_get", "test_bad_seed_rejected", "test_ugly_seeding_is_deterministic", "test_round_trip_context", "test_cross_backend_mps", "test_distributional_components_differ", "test_property_sub_seed_reproducible"]
+__all__ = [
+    "test_bad_seed_rejected",
+    "test_cross_backend_mps",
+    "test_distributional_components_differ",
+    "test_happy_set_and_get",
+    "test_property_sub_seed_reproducible",
+    "test_round_trip_context",
+    "test_ugly_seeding_is_deterministic",
+]
 
 
 def test_happy_set_and_get() -> None:

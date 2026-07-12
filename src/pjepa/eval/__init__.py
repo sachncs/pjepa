@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from pjepa.eval.metrics import accuracy, mean_per_class_accuracy, forgetting_rate
 from pjepa.eval.bootstrap import paired_bootstrap_ci
-from pjepa.eval.stats import wilcoxon_signed_rank, bonferroni_correction
+from pjepa.eval.metrics import accuracy, forgetting_rate, mean_per_class_accuracy
+from pjepa.eval.stats import bonferroni_correction, wilcoxon_signed_rank
 
 __all__ = [
     "accuracy",
-    "mean_per_class_accuracy",
+    "bonferroni_correction",
     "forgetting_rate",
+    "mean_per_class_accuracy",
     "paired_bootstrap_ci",
     "wilcoxon_signed_rank",
-    "bonferroni_correction",
 ]

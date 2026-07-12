@@ -8,14 +8,14 @@ importance-ratio information for off-policy correction.
 from __future__ import annotations
 
 from pjepa.scheduler.buffer import ReplayBuffer, Transition
-from pjepa.scheduler.ppo import PPOConfig, PPOTrainer
 from pjepa.scheduler.cadence import SleepCadence, should_sleep
+from pjepa.scheduler.ppo import PPOConfig, PPOTrainer
 
 __all__ = [
     "PPOConfig",
     "PPOTrainer",
     "ReplayBuffer",
-    "Transition",
     "SleepCadence",
+    "Transition",
     "should_sleep",
 ]

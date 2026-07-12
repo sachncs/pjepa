@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import torch
+
 from pjepa.exceptions import DataError
 from pjepa.graphs import TypedAttributedGraph
 
@@ -74,9 +76,7 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
     try:
         from ogb.nodeproppred import PygNodePropPredDataset  # type: ignore[import-not-found]
     except ImportError as exc:
-        raise DataError(
-            "load_ogb_arxiv: ogb is required; install with `pip install ogb`"
-        ) from exc
+        raise DataError("load_ogb_arxiv: ogb is required; install with `pip install ogb`") from exc
 
     cache_root = Path(
         root or os.environ.get("PJEPA_DATA_ROOT") or Path.home() / ".cache" / "pjepa" / "datasets"

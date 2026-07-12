@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -11,15 +10,15 @@ from pjepa.config import ConfigSchema, load_config, merge_configs, save_config
 from pjepa.exceptions import ConfigError
 
 __all__ = [
-    "test_happy_load_yaml",
     "test_bad_missing_file",
-    "test_bad_yaml_not_mapping",
     "test_bad_required_section_missing",
-    "test_round_trip_save_load",
+    "test_bad_yaml_not_mapping",
+    "test_happy_load_yaml",
     "test_merge_deep",
     "test_merge_type_collision",
-    "test_schema_invalid_identifier",
+    "test_round_trip_save_load",
     "test_save_to_missing_directory",
+    "test_schema_invalid_identifier",
 ]
 
 

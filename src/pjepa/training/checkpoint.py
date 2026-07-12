@@ -17,7 +17,7 @@ import torch
 
 from pjepa.exceptions import CheckpointError
 
-__all__ = ["Checkpoint", "save_checkpoint", "load_checkpoint"]
+__all__ = ["Checkpoint", "load_checkpoint", "save_checkpoint"]
 
 
 @dataclass(frozen=True)
@@ -107,7 +107,9 @@ def load_checkpoint(
         raise CheckpointError(f"load_checkpoint: not a directory: {target}")
     try:
         encoder_state = torch.load(target / "encoder.pt", map_location=device, weights_only=True)
-        predictor_state = torch.load(target / "predictor.pt", map_location=device, weights_only=True)
+        predictor_state = torch.load(
+            target / "predictor.pt", map_location=device, weights_only=True
+        )
         target_state = torch.load(target / "target.pt", map_location=device, weights_only=True)
         optimizer_state = torch.load(
             target / "optimizer.pt", map_location=device, weights_only=True
@@ -115,7 +117,9 @@ def load_checkpoint(
     except (FileNotFoundError, RuntimeError) as exc:
         raise CheckpointError(f"load_checkpoint: missing or malformed files: {exc}") from exc
     metadata_path = target / "metadata.json"
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.exists() else {}
+    metadata = (
+        json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.exists() else {}
+    )
     if optimizer is not None:
         optimizer.load_state_dict(optimizer_state)
     return Checkpoint(

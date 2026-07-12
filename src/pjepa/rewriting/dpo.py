@@ -63,13 +63,12 @@ def dpo_loss(
     """
     cfg = config or DPOConfig()
     if not (
-        chosen_logprob.shape == rejected_logprob.shape
+        chosen_logprob.shape
+        == rejected_logprob.shape
         == reference_chosen_logprob.shape
         == reference_rejected_logprob.shape
     ):
-        raise ValueError(
-            "dpo_loss: all four log-probability tensors must share the same shape"
-        )
+        raise ValueError("dpo_loss: all four log-probability tensors must share the same shape")
     if not 0.0 <= cfg.label_smoothing < 0.5:
         raise ValueError(
             f"dpo_loss: label_smoothing must be in [0, 0.5); got {cfg.label_smoothing}"
@@ -78,10 +77,9 @@ def dpo_loss(
     rejected_logratio = rejected_logprob - reference_rejected_logprob
     margin = cfg.beta * (chosen_logratio - rejected_logratio)
     if cfg.label_smoothing > 0.0:
-        loss = (
-            -cfg.label_smoothing * torch.nn.functional.logsigmoid(-margin)
-            - (1.0 - cfg.label_smoothing) * torch.nn.functional.logsigmoid(margin)
-        )
+        loss = -cfg.label_smoothing * torch.nn.functional.logsigmoid(-margin) - (
+            1.0 - cfg.label_smoothing
+        ) * torch.nn.functional.logsigmoid(margin)
     else:
         loss = -torch.nn.functional.logsigmoid(margin)
     return loss.mean()

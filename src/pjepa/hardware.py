@@ -11,9 +11,9 @@ from __future__ import annotations
 import os
 import platform
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Mapping
 
 import torch
 
@@ -21,12 +21,12 @@ from pjepa.exceptions import BackendError
 
 __all__ = [
     "Backend",
-    "ProbeStatus",
-    "ProbeResult",
     "CapabilityReport",
+    "ProbeResult",
+    "ProbeStatus",
+    "current_device",
     "detect_backend",
     "detect_capabilities",
-    "current_device",
     "sync_if_mps",
 ]
 
@@ -228,6 +228,7 @@ def _probe_compile() -> ProbeResult:
             detail="skipped on CPU; set PJEPA_TRY_CPU_COMPILE=1 to force",
         )
     try:
+
         def square(x: torch.Tensor) -> torch.Tensor:
             return x * x
 
@@ -285,7 +286,6 @@ def _probe_pyg_scatter() -> ProbeResult:
     backend = detect_backend()
     try:
         import torch_geometric  # type: ignore[import-not-found]  # noqa: F401
-
         from torch_geometric.utils import scatter  # type: ignore[import-not-found]
 
         idx = torch.tensor([0, 1, 0, 1], device=current_device(backend))

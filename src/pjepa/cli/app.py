@@ -16,13 +16,12 @@ from __future__ import annotations
 import json
 import sys
 
+import torch
 import typer
 
-import torch
-
 from pjepa import __version__
-from pjepa.hardware import detect_capabilities, detect_backend, capabilities_as_dict
-from pjepa.logging_setup import configure_logging, LogFormat, get_logger
+from pjepa.hardware import detect_backend, detect_capabilities
+from pjepa.logging_setup import LogFormat, configure_logging, get_logger
 
 __all__ = ["app", "main"]
 
@@ -43,7 +42,11 @@ def _version_callback(value: bool) -> None:
 @app.callback()
 def _root(
     version: bool = typer.Option(
-        False, "--version", callback=_version_callback, is_eager=True, help="Print version and exit."
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Print version and exit.",
     ),
     log_format: str = typer.Option(
         LogFormat.HUMAN,
@@ -83,7 +86,7 @@ def benchmark(name: str = typer.Argument(..., help="retrieval | distortion")) ->
           on synthetic trees.
     """
     log = get_logger(__name__)
-    log.info("benchmark requested", extra={"event": "benchmark.start", "name": name})
+    log.info("benchmark requested", extra={"benchmark_name": name, "event": "benchmark.start"})
     if name == "retrieval":
         from experiments.run_exp_a_retrieval import run as run_retrieval  # type: ignore
 
@@ -122,7 +125,9 @@ def train(
         config: Path to the YAML configuration.
     """
     log = get_logger(__name__)
-    log.info("train requested", extra={"event": "train.start", "dataset": dataset, "config": config})
+    log.info(
+        "train requested", extra={"event": "train.start", "dataset": dataset, "config": config}
+    )
     typer.echo(f"train requested: dataset={dataset} config={config} (implementation in Phase 5)")
 
 

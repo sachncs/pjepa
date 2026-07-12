@@ -11,14 +11,14 @@ standards (see ``plans/04_quality_standards.md``).
 from __future__ import annotations
 
 __all__ = [
-    "PJEPAError",
+    "BackendError",
+    "CheckpointError",
     "ConfigError",
+    "ContractError",
     "DataError",
     "GraphError",
     "NumericalError",
-    "ContractError",
-    "CheckpointError",
-    "BackendError",
+    "PJEPAError",
 ]
 
 

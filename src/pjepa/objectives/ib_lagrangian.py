@@ -12,8 +12,6 @@ estimator used by the JEPA predictor.
 
 from __future__ import annotations
 
-import math
-
 import torch
 
 from pjepa.exceptions import NumericalError

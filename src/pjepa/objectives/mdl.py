@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import math
 
-import torch
-
 from pjepa.graphs import TypedAttributedGraph
 
 __all__ = ["description_length"]
@@ -42,8 +40,4 @@ def description_length(graph: TypedAttributedGraph) -> float:
     n_vertices = graph.num_vertices()
     n_edges = graph.num_edges()
     nnz_features = int((graph.vertex_features != 0).sum().item())
-    return (
-        math.log1p(n_vertices)
-        + math.log1p(n_edges)
-        + math.log1p(nnz_features)
-    )
+    return math.log1p(n_vertices) + math.log1p(n_edges) + math.log1p(nnz_features)

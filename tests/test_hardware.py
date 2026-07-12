@@ -22,14 +22,13 @@ from pjepa.hardware import (
 )
 
 __all__ = [
-    "test_happy_backend_detected",
     "test_bad_device_raises_when_cuda_missing",
-    "test_ugly_empty_caps_report",
-    "test_leaky_n_a",
-    "test_round_trip_capabilities_as_dict",
     "test_cross_backend_mps_matmul",
     "test_distributional_probe_status_values",
+    "test_happy_backend_detected",
     "test_property_cpu_fallback_always_green",
+    "test_round_trip_capabilities_as_dict",
+    "test_ugly_empty_caps_report",
 ]
 
 

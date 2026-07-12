@@ -13,4 +13,4 @@ from pjepa.graphs.persistent_state import PersistentState
 from pjepa.graphs.typed_graph import TypedAttributedGraph
 from pjepa.graphs.working_graph import WorkingGraph
 
-__all__ = ["TypedAttributedGraph", "PersistentState", "WorkingGraph"]
+__all__ = ["PersistentState", "TypedAttributedGraph", "WorkingGraph"]

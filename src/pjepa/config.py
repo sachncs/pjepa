@@ -36,9 +36,10 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from pjepa.exceptions import ConfigError
 
@@ -66,9 +67,7 @@ class ConfigSchema:
                     f"ConfigSchema: section name {section!r} is not a valid identifier"
                 )
         if set(self.required) & set(self.optional):
-            raise ValueError(
-                "ConfigSchema: required and optional sections overlap"
-            )
+            raise ValueError("ConfigSchema: required and optional sections overlap")
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -87,8 +86,7 @@ def _read_yaml(path: Path) -> dict[str, Any]:
         return {}
     if not isinstance(loaded, dict):
         raise ConfigError(
-            f"load_config: top-level YAML in {path} must be a mapping; "
-            f"got {type(loaded).__name__}"
+            f"load_config: top-level YAML in {path} must be a mapping; got {type(loaded).__name__}"
         )
     return loaded
 
@@ -119,9 +117,7 @@ def load_config(
     if schema is not None:
         for section in schema.required:
             if section not in config:
-                raise ConfigError(
-                    f"load_config: required section {section!r} missing from {path}"
-                )
+                raise ConfigError(f"load_config: required section {section!r} missing from {path}")
     return config
 
 
@@ -151,9 +147,7 @@ def merge_configs(*configs: Mapping[str, Any]) -> dict[str, Any]:
             if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 result[key] = merge_configs(result[key], value)
             elif key in result and isinstance(result[key], dict) is not isinstance(value, dict):
-                raise ConfigError(
-                    f"merge_configs: type collision for key {key!r}"
-                )
+                raise ConfigError(f"merge_configs: type collision for key {key!r}")
             else:
                 result[key] = value
     return result

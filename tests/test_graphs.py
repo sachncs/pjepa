@@ -11,21 +11,21 @@ from pjepa.graphs.persistent_state import CommitRejected
 from pjepa.graphs.typed_graph import graph_from_edge_index
 
 __all__ = [
-    "test_happy_graph_construct",
-    "test_bad_edge_index_wrong_shape",
     "test_bad_edge_index_dtype",
     "test_bad_edge_index_out_of_range",
-    "test_ugly_empty_graph",
-    "test_ugly_single_vertex_no_edges",
-    "test_leaky_repeated_construction_no_state",
-    "test_round_trip_versioning",
-    "test_subgraph_round_trip",
+    "test_bad_edge_index_wrong_shape",
     "test_cross_backend_mps_subgraph",
     "test_distributional_random_graphs",
-    "test_property_with_features_increments_version",
+    "test_happy_graph_construct",
+    "test_leaky_repeated_construction_no_state",
     "test_persistent_commit_increments_version",
     "test_persistent_commit_rejects_non_negative_delta_j",
     "test_persistent_reject_records_reason",
+    "test_property_with_features_increments_version",
+    "test_round_trip_versioning",
+    "test_subgraph_round_trip",
+    "test_ugly_empty_graph",
+    "test_ugly_single_vertex_no_edges",
     "test_working_graph_budget_enforced",
 ]
 

@@ -18,10 +18,10 @@ from pjepa.retrieval.utility import (
 )
 
 __all__ = [
-    "GreedyRetrieval",
-    "RetrievalUtility",
-    "InformationGainUtility",
     "FacilityLocationUtility",
-    "uniform_weights",
+    "GreedyRetrieval",
+    "InformationGainUtility",
+    "RetrievalUtility",
     "facility_location_weights",
+    "uniform_weights",
 ]

@@ -7,7 +7,6 @@ component of the persistent graph. Returns per-vertex embeddings.
 from __future__ import annotations
 
 import torch
-
 from torch import nn
 
 from pjepa.graphs import TypedAttributedGraph
@@ -81,6 +80,6 @@ class EuclideanMPNN(nn.Module):
             h = self.update(torch.cat([h, agg], dim=-1))
         return self.out_proj(h)
 
-    def to(self, device: torch.device) -> "EuclideanMPNN":
+    def to(self, device: torch.device) -> EuclideanMPNN:
         """Move parameters to ``device`` and return self."""
         return super().to(device)

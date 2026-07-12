@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import tempfile
 from pathlib import Path
 
@@ -10,7 +9,7 @@ import pytest
 import torch
 
 from pjepa.augmentations import DropEdge
-from pjepa.augmentations.base import PipelineMode, AugmentationPipeline
+from pjepa.augmentations.base import AugmentationPipeline, PipelineMode
 from pjepa.encoders import JEPAPredictor, TargetEncoder
 from pjepa.eval import (
     accuracy,
@@ -20,40 +19,40 @@ from pjepa.eval import (
     paired_bootstrap_ci,
     wilcoxon_signed_rank,
 )
-from pjepa.exceptions import CheckpointError, DataError, NumericalError
+from pjepa.exceptions import CheckpointError, ConfigError
 from pjepa.graphs import TypedAttributedGraph
 from pjepa.training import Checkpoint, load_checkpoint, save_checkpoint
 from pjepa.training.pretrain import PretrainConfig, pretrain_loop
 from pjepa.training.train import SupervisedConfig, supervised_train_loop
 
 __all__ = [
-    "test_happy_accuracy",
-    "test_happy_mean_per_class_accuracy",
-    "test_happy_forgetting_rate_zero",
-    "test_happy_paired_bootstrap_ci",
-    "test_happy_wilcoxon_signed_rank",
-    "test_happy_bonferroni_correction",
-    "test_happy_pretrain_loop_runs",
-    "test_happy_supervised_train_loop_runs",
-    "test_happy_checkpoint_round_trip",
-    "test_happy_augmentation_pipeline_sequential_with_drop_edge",
     "test_bad_accuracy_empty_input",
-    "test_bad_mean_per_class_accuracy_empty",
+    "test_bad_checkpoint_load_from_nonexistent",
+    "test_bad_checkpoint_save_to_nonexistent",
     "test_bad_forgetting_rate_empty_matrix",
-    "test_bad_paired_bootstrap_length_mismatch",
+    "test_bad_mean_per_class_accuracy_empty",
     "test_bad_paired_bootstrap_empty",
+    "test_bad_paired_bootstrap_length_mismatch",
     "test_bad_pretrain_zero_epochs",
     "test_bad_supervised_zero_epochs",
-    "test_bad_checkpoint_save_to_nonexistent",
-    "test_bad_checkpoint_load_from_nonexistent",
-    "test_ugly_supervised_loop_one_batch",
-    "test_ugly_pretrain_loop_one_batch",
-    "test_leaky_pretrain_loop_does_not_modify_external_state",
-    "test_round_trip_checkpoint_save_load",
     "test_cross_backend_mps_pretrain_loop",
     "test_distributional_bootstrap_ci_widens_with_n_resamples",
-    "test_property_wilcoxon_p_value_in_unit_interval",
+    "test_happy_accuracy",
+    "test_happy_augmentation_pipeline_sequential_with_drop_edge",
+    "test_happy_bonferroni_correction",
+    "test_happy_checkpoint_round_trip",
+    "test_happy_forgetting_rate_zero",
+    "test_happy_mean_per_class_accuracy",
+    "test_happy_paired_bootstrap_ci",
+    "test_happy_pretrain_loop_runs",
+    "test_happy_supervised_train_loop_runs",
+    "test_happy_wilcoxon_signed_rank",
+    "test_leaky_pretrain_loop_does_not_modify_external_state",
     "test_property_forgetting_rate_bounded",
+    "test_property_wilcoxon_p_value_in_unit_interval",
+    "test_round_trip_checkpoint_save_load",
+    "test_ugly_pretrain_loop_one_batch",
+    "test_ugly_supervised_loop_one_batch",
 ]
 
 
@@ -118,7 +117,9 @@ def test_happy_pretrain_loop_runs() -> None:
     encoder = _ToyEncoder()
     predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
     target = TargetEncoder(encoder, momentum=0.9)
-    optimizer = torch.optim.AdamW(list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3)
+    optimizer = torch.optim.AdamW(
+        list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
+    )
     losses = pretrain_loop(
         encoder=encoder,
         predictor=predictor,
@@ -154,7 +155,9 @@ def test_happy_checkpoint_round_trip() -> None:
     encoder = _ToyEncoder()
     predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
     target = TargetEncoder(encoder, momentum=0.9)
-    optimizer = torch.optim.AdamW(list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3)
+    optimizer = torch.optim.AdamW(
+        list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
+    )
     with tempfile.TemporaryDirectory() as tmp:
         run_dir = Path(tmp) / "run"
         run_dir.mkdir()
@@ -226,8 +229,10 @@ def test_bad_pretrain_zero_epochs() -> None:
     encoder = _ToyEncoder()
     predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
     target = TargetEncoder(encoder, momentum=0.9)
-    optimizer = torch.optim.AdamW(list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3)
-    with pytest.raises(Exception):
+    optimizer = torch.optim.AdamW(
+        list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
+    )
+    with pytest.raises(ConfigError):
         pretrain_loop(
             encoder=encoder,
             predictor=predictor,
@@ -242,7 +247,7 @@ def test_bad_supervised_zero_epochs() -> None:
     """Zero supervised epochs raise ConfigError."""
     model = _ToyEncoder()
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
-    with pytest.raises(Exception):
+    with pytest.raises(ConfigError):
         supervised_train_loop(
             model=model,
             loss_fn=torch.nn.MSELoss(),
@@ -294,7 +299,9 @@ def test_ugly_pretrain_loop_one_batch() -> None:
     encoder = _ToyEncoder()
     predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
     target = TargetEncoder(encoder, momentum=0.9)
-    optimizer = torch.optim.AdamW(list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3)
+    optimizer = torch.optim.AdamW(
+        list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
+    )
     losses = pretrain_loop(
         encoder=encoder,
         predictor=predictor,
@@ -318,7 +325,9 @@ def test_leaky_pretrain_loop_does_not_modify_external_state() -> None:
     encoder = _ToyEncoder()
     predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
     target = TargetEncoder(encoder, momentum=0.5)
-    optimizer = torch.optim.AdamW(list(encoder.parameters()) + list(predictor.parameters()), lr=1e-2)
+    optimizer = torch.optim.AdamW(
+        list(encoder.parameters()) + list(predictor.parameters()), lr=1e-2
+    )
     losses1 = pretrain_loop(
         encoder=encoder,
         predictor=predictor,
@@ -345,7 +354,9 @@ def test_round_trip_checkpoint_save_load() -> None:
     encoder = _ToyEncoder()
     predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
     target = TargetEncoder(encoder, momentum=0.5)
-    optimizer = torch.optim.AdamW(list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3)
+    optimizer = torch.optim.AdamW(
+        list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
+    )
     with tempfile.TemporaryDirectory() as tmp:
         run_dir = Path(tmp) / "r"
         run_dir.mkdir()
@@ -373,11 +384,16 @@ def test_cross_backend_mps_pretrain_loop() -> None:
     encoder = _ToyEncoder().to(device)
     predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4).to(device)
     target = TargetEncoder(encoder, momentum=0.9)
-    optimizer = torch.optim.AdamW(list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3)
+    optimizer = torch.optim.AdamW(
+        list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
+    )
 
     def _mps_batches(n: int, batch_size: int = 4, dim: int = 4):
         for _ in range(n):
-            yield torch.randn(batch_size, dim, device=device), torch.randn(batch_size, dim, device=device)
+            yield (
+                torch.randn(batch_size, dim, device=device),
+                torch.randn(batch_size, dim, device=device),
+            )
 
     losses = pretrain_loop(
         encoder=encoder,

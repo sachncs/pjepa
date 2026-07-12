@@ -88,10 +88,7 @@ def bisimulation_distance(
     # Use float64 for CPU/CUDA; MPS does not support float64 so we
     # fall back to float32, which is the supported MPS dtype.
     target_dtype = torch.float64
-    if (
-        graph_a.vertex_features.device.type == "mps"
-        or graph_b.vertex_features.device.type == "mps"
-    ):
+    if graph_a.vertex_features.device.type == "mps" or graph_b.vertex_features.device.type == "mps":
         target_dtype = torch.float32
     sig_a = _vertex_signature(graph_a).to(target_dtype)
     sig_b = _vertex_signature(graph_b).to(target_dtype)
@@ -116,8 +113,6 @@ def bisimulation_distance(
         if delta < cfg.epsilon:
             break
     if not torch.isfinite(d).all():
-        raise NumericalError(
-            "bisimulation_distance: value iteration produced non-finite values"
-        )
+        raise NumericalError("bisimulation_distance: value iteration produced non-finite values")
     # Return the maximum pairwise distance as a conservative scalar.
     return float(d.max().item())
