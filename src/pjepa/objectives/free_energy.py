@@ -1,0 +1,102 @@
+"""Unified free-energy functional 𝒥.
+
+The four-term functional of the framework (paper §2.7):
+    𝒥(G) = 𝔼[−log p(O | G)]
+         + β · D_KL(q(G) ‖ p(G))
+         + λ · DL(G)
+         − γ · I(G; O_{>t})
+
+This module provides a dataclass wrapper plus a callable evaluation
+function that operates on :class:`pjepa.graphs.TypedAttributedGraph`.
+The implementation is intentionally explicit about its terms so
+debugging and ablation are straightforward.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import torch
+
+from pjepa.exceptions import NumericalError
+from pjepa.graphs import TypedAttributedGraph
+from pjepa.objectives.ib_lagrangian import variational_ib_bound
+from pjepa.objectives.mdl import description_length
+
+__all__ = ["FreeEnergy"]
+
+
+@dataclass(frozen=True)
+class FreeEnergy:
+    """The four-term unified free-energy functional.
+
+    Attributes:
+        beta_ib: Coefficient of the KL term.
+        lambda_mdl: Coefficient of the description-length term.
+        gamma_forward: Coefficient of the forward-information bonus.
+
+    Example:
+        >>> J = FreeEnergy(beta_ib=0.01, lambda_mdl=0.001, gamma_forward=0.0001)
+        >>> value = J(graph, observation)
+    """
+
+    beta_ib: float = 1e-2
+    lambda_mdl: float = 1e-3
+    gamma_forward: float = 1e-4
+
+    def __call__(
+        self,
+        graph: TypedAttributedGraph,
+        observation: torch.Tensor,
+        posterior_logits: torch.Tensor | None = None,
+        prior_logits: torch.Tensor | None = None,
+    ) -> float:
+        """Evaluate 𝒥 on the given graph and observation.
+
+        Args:
+            graph: The persistent or candidate graph.
+            observation: The current observation tensor.
+            posterior_logits: Optional encoder logits; when supplied
+              with ``prior_logits`` they feed the KL term.
+            prior_logits: Optional prior logits for the KL term.
+
+        Returns:
+            The non-negative scalar value of 𝒥.
+        """
+        if graph.num_vertices() == 0:
+            return float("inf")
+
+        # Term 1: predictive fit (negative log-likelihood proxy)
+        if observation.numel() > 0:
+            mean_feat = graph.vertex_features.mean(dim=0)
+            nll = float(((mean_feat - observation.squeeze(0)) ** 2).mean().item())
+        else:
+            nll = 0.0
+
+        # Term 2: KL term (IB complexity)
+        if posterior_logits is not None and prior_logits is not None:
+            kl = variational_ib_bound(posterior_logits, prior_logits)
+        else:
+            kl = 0.0
+
+        # Term 3: description length (MDL)
+        dl = description_length(graph)
+
+        # Term 4: forward-information bonus
+        forward = 0.0
+        if observation.numel() > 0:
+            sim = float(
+                torch.nn.functional.cosine_similarity(
+                    graph.vertex_features.mean(dim=0, keepdim=True),
+                    observation,
+                    dim=-1,
+                )
+                .mean()
+                .item()
+            )
+            forward = sim
+
+        value = nll + self.beta_ib * kl + self.lambda_mdl * dl - self.gamma_forward * forward
+        if not (value == value):  # NaN check without importing math
+            raise NumericalError(f"FreeEnergy: computed NaN for graph with {graph.num_vertices()} vertices")
+        return value
