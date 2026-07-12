@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: |
+  If you use this software in academic work, please cite the
+  Persistent-JEPA paper.
+type: software
+title: "Persistent-JEPA"
+version: 0.0.10
+date-released: 2026-07-13
+license: Apache-2.0
+authors:
+  - family-names: Anonymous
+    given-names: Anonymous
+repository-code: https://github.com/sachncs/persistent-jepa
+keywords:
+  - graph-neural-networks
+  - continual-learning
+  - jepa
+  - world-model
+  - self-supervised-learning
+  - developmental-ai
+abstract: |
+  Persistent-JEPA is a production-grade implementation of a persistent graph
+  world model for continual developmental learning. It unifies predictive
+  representation learning, persistent sufficient-statistic memory, MDL-optimal
+  graph rewrites under a hyperedge-replacement grammar, and PPO-trained
+  developmental scheduling under a single variational free-energy
+  functional. The framework is verified under the eight-class test
+  taxonomy and reproduces the paper's headline claims on TU benchmarks,
+  OGB-arxiv, and synthetic continual-learning splits.
