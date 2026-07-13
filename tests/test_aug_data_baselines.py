@@ -10,11 +10,11 @@ import torch
 
 from pjepa.augmentations import (
     AugmentationPipeline,
+    ConnectedSubgraph,
     DropEdge,
     DropFeature,
     DropNode,
     FeatureMask,
-    RandomWalkSubgraph,
 )
 from pjepa.augmentations.base import PipelineMode
 from pjepa.baselines import EWC, GCN, GIN, GraphCL, GraphMAE, InfoGraph
@@ -103,9 +103,9 @@ def test_happy_feature_mask_applies_token() -> None:
 
 
 def test_happy_random_walk_subgraph() -> None:
-    """RandomWalkSubgraph returns a connected subgraph."""
+    """ConnectedSubgraph returns a connected subgraph."""
     g = _toy_graph(20)
-    out = RandomWalkSubgraph(strength=0.5, generator=torch.Generator().manual_seed(0))(g)
+    out = ConnectedSubgraph(strength=0.5, generator=torch.Generator().manual_seed(0))(g)
     assert out.num_vertices() <= 10
 
 
@@ -307,12 +307,12 @@ def test_ugly_drop_edge_no_edges() -> None:
 
 
 def test_ugly_random_walk_on_disconnected() -> None:
-    """RandomWalkSubgraph returns a non-empty result on a disconnected graph."""
+    """ConnectedSubgraph returns a non-empty result on a disconnected graph."""
     g = TypedAttributedGraph(
         vertex_features=torch.zeros((5, 2)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
-    out = RandomWalkSubgraph(strength=0.5, generator=torch.Generator().manual_seed(0))(g)
+    out = ConnectedSubgraph(strength=0.5, generator=torch.Generator().manual_seed(0))(g)
     # Walks on a disconnected graph return at least the starting vertex.
     assert out.num_vertices() >= 1
 

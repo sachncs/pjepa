@@ -20,7 +20,14 @@ __all__ = ["Augmentation", "AugmentationPipeline", "PipelineMode"]
 
 
 class PipelineMode:
-    """Composition modes for :class:`AugmentationPipeline`."""
+    """Composition modes for :class:`AugmentationPipeline`.
+
+    Attributes:
+        SEQUENTIAL: Apply every augmentation in declaration order.
+        RANDOM_SAMPLE_ONE: Sample one augmentation uniformly and apply it.
+        RANDOM_SAMPLE_K: Sample ``k`` augmentations without
+            replacement and apply them in the sampled order.
+    """
 
     SEQUENTIAL = "sequential"
     RANDOM_SAMPLE_ONE = "random_sample_one"
@@ -28,7 +35,24 @@ class PipelineMode:
 
 
 class Augmentation(ABC):
-    """Base class for all augmentations."""
+    """Base class for all augmentations.
+
+    Subclasses must implement :meth:`__call__`; they are free to read
+    :attr:`strength` and :attr:`generator` to make stochastic
+    decisions.
+
+    Attributes:
+        strength: A scalar in ``[0, 1]`` controlling the strength of
+            the augmentation; each subclass interprets the magnitude
+            differently (fraction of vertices, edges, etc.).
+        generator: Optional :class:`torch.Generator` for reproducible
+            randomness. When ``None``, augmentations read from the
+            global PyTorch generator.
+
+    Raises:
+        GraphError: At construction if ``strength`` is outside
+            ``[0, 1]``.
+    """
 
     def __init__(self, strength: float = 0.2, generator: torch.Generator | None = None) -> None:
         if not 0.0 <= strength <= 1.0:
@@ -38,21 +62,32 @@ class Augmentation(ABC):
 
     @abstractmethod
     def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
-        """Apply the augmentation to ``graph`` and return the result."""
+        """Apply the augmentation to ``graph`` and return the result.
+
+        The returned graph may equal ``graph`` (an explicit no-op) but
+        is always a new object unless the subclass deliberately
+        returns the input.
+        """
 
 
 class AugmentationPipeline:
     """Compose multiple augmentations into a single transform.
 
     Args:
-        augmentations: The list of augmentations to compose.
-        mode: One of :class:`PipelineMode`. ``SEQUENTIAL`` applies all
-          augmentations in order; ``RANDOM_SAMPLE_ONE`` samples one
-          augmentation uniformly and applies it; ``RANDOM_SAMPLE_K``
-          samples ``k`` augmentations without replacement and applies
-          them in the sampled order.
-        k: Number of augmentations to sample under ``RANDOM_SAMPLE_K``.
+        augmentations: The list of augmentations to compose; must be
+            non-empty.
+        mode: One of :class:`PipelineMode`. ``SEQUENTIAL`` applies
+            every augmentation in order; ``RANDOM_SAMPLE_ONE``
+            samples exactly one uniformly; ``RANDOM_SAMPLE_K``
+            samples ``k`` without replacement and applies them in
+            the sampled order.
+        k: Number of augmentations to sample under
+            ``RANDOM_SAMPLE_K``. Must be in ``[1, len(augmentations)]``.
         generator: Optional ``torch.Generator`` for reproducibility.
+
+    Raises:
+        GraphError: If ``augmentations`` is empty, ``mode`` is
+            unknown, or ``k`` is out of range.
     """
 
     def __init__(

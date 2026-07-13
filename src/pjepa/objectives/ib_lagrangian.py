@@ -1,13 +1,16 @@
 """Information Bottleneck Lagrangian and its variational bound.
 
 The IB Lagrangian (Tishby et al. 1999) is
+
     𝓛_IB(q) = I(X; Z) − β · I(Y; Z).
+
 Alemi et al. (2017) gave the variational upper bound that we use at
 training time:
-    𝓛_VIB ≤ 𝔼[−log p(y | z)] + β · D_KL(q(z | x) ‖ p(z)).
 
-This module provides both the symbolic Lagrangian and the variational
-estimator used by the JEPA predictor.
+    𝓛_VIB ≤ E[ -log p(y | z) ] + β · D_KL( q(z | x) ‖ p(z) ).
+
+This module provides both the symbolic Lagrangian and the
+variational estimator used by the JEPA predictor.
 """
 
 from __future__ import annotations
@@ -57,8 +60,14 @@ def variational_ib_bound(
     """Compute the variational IB bound from two log-distributions.
 
     Both inputs are interpreted as *logits* over a discrete latent
-    space; the function softmaxes them and computes
-    ``D_KL(q(z|x) ‖ p(z))`` plus the regression residual placeholder.
+    space. The function softmaxes them and computes
+
+        ``D_KL( q(z|x) ‖ p(z) )``
+
+    which is then scaled by ``beta``. The KL term is non-negative in
+    theory and is the dominant contribution; a small floating-point
+    rounding error can yield a marginally negative value, which the
+    function returns as-is.
 
     Args:
         posterior_logits: ``[B, K]`` encoder logits.
@@ -66,10 +75,10 @@ def variational_ib_bound(
         beta: Trade-off coefficient.
 
     Returns:
-        A non-negative float; the KL term dominates.
+        A ``float`` dominated by the non-negative KL term.
 
     Raises:
-        NumericalError: If the result is non-finite.
+        NumericalError: If the result is not finite.
     """
     if posterior_logits.shape != prior_logits.shape:
         raise NumericalError(

@@ -1,15 +1,23 @@
 """Unified free-energy functional 𝒥.
 
-The four-term functional of the framework (paper §2.7):
-    𝒥(G) = 𝔼[−log p(O | G)]
-         + β · D_KL(q(G) ‖ p(G))
-         + λ · DL(G)
-         − γ · I(G; O_{>t})
+The functional of the framework (paper §2.7) is the sum of four
+additive terms:
+
+    𝒥(G) = E[ -log p(O | G) ]
+         + β_ib · D_KL( q(G) ‖ p(G) )
+         + λ_mdl · DL(G)
+         − γ_forward · forward(G, O)
 
 This module provides a dataclass wrapper plus a callable evaluation
-function that operates on :class:`pjepa.graphs.TypedAttributedGraph`.
-The implementation is intentionally explicit about its terms so
+that operates on :class:`pjepa.graphs.TypedAttributedGraph`. The
+implementation is intentionally explicit about its terms so
 debugging and ablation are straightforward.
+
+The numerical value of 𝒥 is **not guaranteed non-negative**: the
+forward-information bonus subtracts a similarity term, so 𝒥 can be
+below zero when the candidate aligns strongly with the observation.
+What matters for the framework is the *sign of Δ𝒥*, not the absolute
+level.
 """
 
 from __future__ import annotations
@@ -34,10 +42,6 @@ class FreeEnergy:
         beta_ib: Coefficient of the KL term.
         lambda_mdl: Coefficient of the description-length term.
         gamma_forward: Coefficient of the forward-information bonus.
-
-    Example:
-        >>> J = FreeEnergy(beta_ib=0.01, lambda_mdl=0.001, gamma_forward=0.0001)
-        >>> value = J(graph, observation)
     """
 
     beta_ib: float = 1e-2
@@ -57,11 +61,18 @@ class FreeEnergy:
             graph: The persistent or candidate graph.
             observation: The current observation tensor.
             posterior_logits: Optional encoder logits; when supplied
-              with ``prior_logits`` they feed the KL term.
+                with ``prior_logits`` they feed the KL term.
             prior_logits: Optional prior logits for the KL term.
 
         Returns:
-            The non-negative scalar value of 𝒥.
+            The signed scalar value of 𝒥. May be negative when the
+            forward-information bonus dominates and may be ``inf``
+            when the input graph has no vertices.
+
+        Raises:
+            NumericalError: When the resulting value is NaN. A
+                negative or infinite value is *not* an error and is
+                returned as-is.
         """
         if graph.num_vertices() == 0:
             return float("inf")
@@ -73,16 +84,20 @@ class FreeEnergy:
         else:
             nll = 0.0
 
-        # Term 2: KL term (IB complexity)
+        # Term 2: KL term (IB complexity). Only contributes when the
+        # caller supplied both posterior and prior logits.
         if posterior_logits is not None and prior_logits is not None:
             kl = variational_ib_bound(posterior_logits, prior_logits)
         else:
             kl = 0.0
 
-        # Term 3: description length (MDL)
+        # Term 3: description length (MDL).
         dl = description_length(graph)
 
-        # Term 4: forward-information bonus
+        # Term 4: forward-information bonus (rewarding alignment with
+        # future observations). Subtracts from the functional so the
+        # candidate graph *reduces J* when it aligns with the
+        # observation.
         forward = 0.0
         if observation.numel() > 0:
             sim = float(
@@ -97,7 +112,7 @@ class FreeEnergy:
             forward = sim
 
         value = nll + self.beta_ib * kl + self.lambda_mdl * dl - self.gamma_forward * forward
-        if not (value == value):  # NaN check without importing math
+        if value != value:  # NaN check that avoids importing math.
             raise NumericalError(
                 f"FreeEnergy: computed NaN for graph with {graph.num_vertices()} vertices"
             )

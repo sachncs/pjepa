@@ -2,6 +2,21 @@
 
 Maximises mutual information between graph-level and node-level
 representations using a bilinear discriminator.
+
+## Algorithm
+
+The bilinear discriminator ``D(node_emb, graph_emb) = node_emb^T W
+graph_emb`` is trained to assign high scores to genuine
+node-graph pairs and low scores to permuted-node-graph pairs.
+The InfoGraph loss is the binary cross-entropy of these
+discriminator scores.
+
+## Complexity
+
+* :meth:`encode` — ``O(|V| * H)`` for the linear encoder and
+  mean-pooling.
+* :meth:`loss` — ``O(|V| * H)`` for the bilinear discriminator
+  scores plus ``O(|V|)`` for the cross-entropy.
 """
 
 from __future__ import annotations
@@ -31,7 +46,18 @@ class InfoGraph(nn.Module):
         self.hidden_dim = hidden_dim
 
     def encode(self, graph: TypedAttributedGraph) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return ``(node_embeddings, graph_embedding)``."""
+        """Return ``(node_embeddings, graph_embedding)``.
+
+        Args:
+            graph: The input graph.
+
+        Returns:
+            A tuple ``(node, graph_emb)`` of shapes
+            ``([N, hidden_dim], [1, hidden_dim])``.
+
+        Raises:
+            GraphError: When the graph has no vertices.
+        """
         if graph.num_vertices() == 0:
             raise GraphError("InfoGraph.encode: cannot encode an empty graph")
         node = self.encoder(graph.vertex_features)
@@ -44,7 +70,18 @@ class InfoGraph(nn.Module):
         graph_emb: torch.Tensor,
         shuffled_node_emb: torch.Tensor,
     ) -> torch.Tensor:
-        """Compute the InfoGraph mutual-information loss."""
+        """Compute the InfoGraph mutual-information loss.
+
+        Args:
+            node_emb: ``[N, H]`` node embeddings.
+            graph_emb: ``[1, H]`` graph embedding.
+            shuffled_node_emb: ``[N, H]`` node embeddings with the
+              rows permuted (the negatives).
+
+        Returns:
+            The mean binary cross-entropy of the discriminator on
+            the genuine / shuffled pairs.
+        """
         n = node_emb.shape[0]
         pos = self.discriminator(node_emb, graph_emb.expand_as(node_emb))
         neg = self.discriminator(shuffled_node_emb, graph_emb.expand_as(node_emb))

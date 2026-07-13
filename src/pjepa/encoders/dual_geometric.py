@@ -24,6 +24,13 @@ class DualGeometricEncoder(nn.Module):
     The forward pass returns a tuple ``(e, h)`` of Euclidean and
     hyperbolic components. Downstream code can either concatenate
     them or process each component separately.
+
+    Attributes:
+        euclidean: The underlying :class:`EuclideanMPNN`.
+        hyperbolic: The hyperbolic projection applied to the
+            Euclidean output.
+        euclidean_dim: Width of the Euclidean representation.
+        hyperbolic_dim: Width of the hyperbolic representation.
     """
 
     def __init__(

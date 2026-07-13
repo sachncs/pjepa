@@ -1,11 +1,23 @@
 """Model ensemble with three aggregation strategies.
 
 A k-model ensemble runs each model on the input and combines
-predictions via:
+predictions via one of three strategies:
 
-* ``soft_vote`` (default): mean of logits, then argmax.
-* ``hard_vote``: mode of per-model argmax.
-* ``rank_avg``: average of per-model ranks.
+* ``soft_vote`` (default) — mean of logits, then argmax.
+* ``hard_vote`` — mode of the per-model argmax.
+* ``rank_avg`` — average of the per-model rank vectors.
+
+## Complexity
+
+All three aggregations are ``O(K * B * C)`` where ``K`` is the
+ensemble size, ``B`` the batch size, and ``C`` the class count.
+Hard-vote additionally materialises a ``Counter`` per sample so the
+constant factor is higher but still ``O(B * K)``.
+
+## Exceptions
+
+* :class:`pjepa.exceptions.ConfigError` — empty model list or
+  unknown aggregator identifier.
 """
 
 from __future__ import annotations
@@ -20,18 +32,30 @@ __all__ = ["Aggregator", "Ensemble"]
 
 
 class Aggregator:
-    """Enumeration of ensemble aggregation strategies."""
+    """Enumeration of ensemble aggregation strategies.
 
-    SOFT_VOTE = "soft_vote"
-    HARD_VOTE = "hard_vote"
-    RANK_AVG = "rank_avg"
+    The class is a lightweight namespace; the values are plain
+    strings so callers can pass them directly to
+    :class:`Ensemble` without instantiating this class.
+    """
+
+    SOFT_VOTE: str = "soft_vote"
+    """Mean of per-model logits, then argmax."""
+
+    HARD_VOTE: str = "hard_vote"
+    """Per-sample mode of per-model argmax."""
+
+    RANK_AVG: str = "rank_avg"
+    """Per-sample mean of per-model ranks."""
 
 
 class Ensemble(torch.nn.Module):
     """A k-model ensemble.
 
     Attributes:
-        models: The list of models to ensemble.
+        models: The list of models to ensemble. Registered as a
+          :class:`torch.nn.ModuleList` so all parameters participate
+          in ``state_dict`` round-trips.
         aggregator: One of :class:`Aggregator`'s values.
     """
 
@@ -64,7 +88,8 @@ class Ensemble(torch.nn.Module):
             return logits.mean(dim=0)
         if self.aggregator == Aggregator.HARD_VOTE:
             preds = torch.stack([m(x).argmax(dim=-1) for m in self.models], dim=0)
-            # Per-sample mode; ties broken by smallest index.
+            # Per-sample mode; ties broken by smallest index because
+            # ``Counter.most_common`` is deterministic in input order.
             result = []
             for sample_idx in range(preds.shape[1]):
                 counts = Counter(preds[:, sample_idx].tolist())

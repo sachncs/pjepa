@@ -1,15 +1,31 @@
 """GraphMAE baseline (Hou et al., 2022).
 
 Masked autoencoder for graphs. The encoder is GIN; the decoder
-reconstructs masked node features. Trained with MSE on masked
-positions only.
+reconstructs masked node features. Trained with mean-squared error
+(MSE) on masked positions only.
+
+## Algorithm
+
+For each training graph we sample a vertex subset ``M ⊂ V`` of
+size ``mask_ratio * |V|``. The features at ``M`` are zeroed
+before encoding (a vision-Transformer-style "mask token" of all
+zeros). The decoder maps every encoded vertex back to the input
+feature dimension; the loss is MSE between the decoder outputs at
+``M`` and the original features at ``M``.
+
+## Complexity
+
+* :meth:`forward` — one GIN encoder pass (``O(|E| * H)``) plus a
+  small MLP decoder (``O(|V| * H * D)``).
+* The MSE is computed only at the ``mask_ratio * |V|`` masked
+  positions.
 """
 
 from __future__ import annotations
 
 import torch
 from torch import nn
-from torch_geometric.nn import GINConv, global_add_pool
+from torch_geometric.nn import GINConv, global_add_pool  # type: ignore[import-not-found]
 
 from pjepa.exceptions import GraphError
 from pjepa.graphs import TypedAttributedGraph
@@ -22,7 +38,8 @@ class GraphMAE(nn.Module):
 
     Attributes:
         hidden_dim: Width of the GIN layers.
-        mask_ratio: Fraction of vertices to mask during training.
+        mask_ratio: Fraction of vertices to mask during training
+          (``[0, 1)``).
     """
 
     def __init__(
@@ -59,7 +76,15 @@ class GraphMAE(nn.Module):
         self.hidden_dim = hidden_dim
 
     def encode(self, graph: TypedAttributedGraph) -> torch.Tensor:
-        """Encode the (masked) graph and return per-vertex embeddings."""
+        """Encode the (masked) graph and return per-vertex embeddings.
+
+        Args:
+            graph: The input graph (already masked by :meth:`forward`
+              or supplied pre-masked).
+
+        Returns:
+            ``[N, hidden_dim]`` per-vertex embeddings.
+        """
         h = self.input_proj(graph.vertex_features)
         for layer in self.encoder:
             h = torch.relu(layer(h, graph.edge_index))
@@ -75,6 +100,9 @@ class GraphMAE(nn.Module):
             A dict with ``embedding`` (pooled graph embedding),
             ``mask`` (boolean mask of masked vertices), and
             ``reconstruction`` (per-vertex reconstruction).
+
+        Raises:
+            GraphError: If the input graph has zero vertices.
         """
         n_vertices = graph.num_vertices()
         if n_vertices == 0:

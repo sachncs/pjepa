@@ -1,9 +1,37 @@
-"""Checkpoint save/load with sharded persistent graph support.
+"""Checkpoint save/load with sharded persistent-graph support.
 
 A checkpoint is a directory containing one ``.pt`` file per component
 plus a ``metadata.json`` summary. The interface is intentionally
 simple so it can be reused by both pretraining and continual-learning
 loops.
+
+## Layout
+
+```
+  <run_id>/
+    ├── encoder.pt          # online encoder state_dict
+    ├── predictor.pt        # predictor state_dict
+    ├── target.pt           # target encoder state_dict
+    ├── optimizer.pt        # optimiser state_dict
+    └── metadata.json       # epoch, loss, extras (JSON)
+```
+
+## Complexity
+
+The save path copies four tensors into one or more ``.pt`` files plus
+a small JSON sidecar; reads rewrite the same number of tensors.
+Total I/O cost is ``O(sum_of_tensor_bytes)`` (one ``torch.save``
+and one ``json.dumps`` per checkpoint). Memory is bounded by one
+copy of each state dict — comfortably small for the JEPA
+encoders used in the Phase-5 experiments.
+
+## Exceptions
+
+Every save/load failure is reported as
+:class:`pjepa.exceptions.CheckpointError`. The class distinguishes
+I/O failures (``OSError``) and shape / state-dict mismatches from a
+missing file — all three are reported uniformly so the training
+loop can react in one place.
 """
 
 from __future__ import annotations
@@ -17,7 +45,7 @@ import torch
 
 from pjepa.exceptions import CheckpointError
 
-__all__ = ["Checkpoint", "load_checkpoint", "save_checkpoint"]
+__all__ = ["Checkpoint", "load_checkpoint", "save_checkpoint", "serialise_for_json"]
 
 
 @dataclass(frozen=True)
@@ -31,7 +59,9 @@ class Checkpoint:
         optimizer_state: The optimiser state dict.
         epoch: Epoch at which the checkpoint was taken.
         loss: Mean epoch loss.
-        extras: Optional additional state to persist.
+        extras: Optional additional state to persist. The dict is
+          round-tripped through :func:`serialise_for_json` before
+          being written to disk.
     """
 
     encoder_state: dict[str, torch.Tensor]
@@ -52,8 +82,9 @@ def save_checkpoint(
 
     Args:
         checkpoint: The checkpoint to save.
-        directory: Parent directory.
-        run_id: Unique identifier for this checkpoint.
+        directory: Parent directory. Must exist.
+        run_id: Unique identifier for this checkpoint (the subdirectory
+          name).
 
     Returns:
         The path of the saved checkpoint directory.
@@ -77,7 +108,7 @@ def save_checkpoint(
     metadata = {
         "epoch": checkpoint.epoch,
         "loss": checkpoint.loss,
-        "extras": {k: _serialise(v) for k, v in checkpoint.extras.items()},
+        "extras": {k: serialise_for_json(v) for k, v in checkpoint.extras.items()},
     }
     (target / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return target
@@ -133,12 +164,25 @@ def load_checkpoint(
     )
 
 
-def _serialise(value: object) -> object:
-    """Serialise values that are not natively JSON-encodable."""
+def serialise_for_json(value: object) -> object:
+    """Recursively coerce ``value`` to a JSON-encodable form.
+
+    The function walks :class:`list`, :class:`tuple`, and :class:`dict`
+    instances, applying itself recursively to their elements, and
+    falls back to :func:`repr` for any other value (so
+    :class:`numpy.ndarray`, custom dataclasses, etc. are still
+    represented in the metadata file as Python ``repr`` strings).
+
+    Args:
+        value: The Python object to serialise.
+
+    Returns:
+        A JSON-compatible scalar, list, or dict.
+    """
     if isinstance(value, (int, float, str, bool, type(None))):
         return value
     if isinstance(value, (list, tuple)):
-        return [_serialise(v) for v in value]
+        return [serialise_for_json(v) for v in value]
     if isinstance(value, dict):
-        return {str(k): _serialise(v) for k, v in value.items()}
+        return {str(k): serialise_for_json(v) for k, v in value.items()}
     return repr(value)

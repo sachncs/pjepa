@@ -24,7 +24,11 @@ class DropFeature(Augmentation):
     """
 
     def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
-        """Apply the augmentation."""
+        """Apply the augmentation.
+
+        Returns the input graph unchanged when it has zero vertices or
+        when ``strength * dim`` rounds down to zero.
+        """
         if graph.num_vertices() == 0:
             return graph
         n_dim = graph.vertex_features.shape[1]
@@ -41,6 +45,8 @@ class FeatureMask(Augmentation):
     """Replace a fraction ``strength`` of feature values with a learnable mask token.
 
     The mask token is registered as a buffer and initialised to zeros.
+    The token participates in gradient updates so the encoder can
+    learn to handle masked inputs.
     """
 
     def __init__(
@@ -54,7 +60,11 @@ class FeatureMask(Augmentation):
         self.mask_token = nn.Parameter(torch.zeros(feature_dim))
 
     def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
-        """Apply the augmentation."""
+        """Apply the augmentation.
+
+        Returns the input graph unchanged when it has zero vertices or
+        when ``strength * dim`` rounds down to zero.
+        """
         if graph.num_vertices() == 0:
             return graph
         n_dim = graph.vertex_features.shape[1]

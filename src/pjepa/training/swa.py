@@ -2,7 +2,19 @@
 
 SWA averages model parameters across multiple snapshots, starting
 from a configurable epoch. The averaged weights tend to generalise
-better than any single snapshot.
+better than any single snapshot (Izmailov et al., 2018).
+
+## Algorithm
+
+The wrapper maintains two data structures:
+
+* ``snapshots`` — a deque of the live ``state_dict`` per snapshot.
+* ``averaged_state`` — the running arithmetic mean of the snapshots
+  (incremental update, so the cost is ``O(P)`` per ``update`` where
+  ``P`` is the number of named parameters).
+
+Calling :meth:`apply_to` copies the averaged parameters back into the
+live model for inference.
 """
 
 from __future__ import annotations
@@ -22,9 +34,13 @@ class SWAConfig:
     """Configuration for the SWA wrapper.
 
     Attributes:
-        start_epoch: First epoch at which to begin averaging.
+        start_epoch: First epoch at which to begin averaging. The
+          loop calls :meth:`SWAWrapper.update` every epoch; only
+          epochs ``>= start_epoch`` contribute to the running average.
         swa_lr: Optional learning rate to use after SWA is activated
-          (often lower than the base learning rate).
+          (often lower than the base learning rate). Currently
+          informational — the wrapper does not switch optimisers
+          itself.
     """
 
     start_epoch: int = 0
@@ -37,6 +53,10 @@ class SWAWrapper:
     Attributes:
         model: The model being averaged.
         config: The SWA configuration.
+        snapshot_count: The number of snapshots taken since the last
+          reset. Read-only outside of :meth:`update`.
+        averaged_state: The current average parameter map (read-only
+          outside of :meth:`update`).
     """
 
     def __init__(self, model: torch.nn.Module, config: SWAConfig | None = None) -> None:
@@ -51,11 +71,22 @@ class SWAWrapper:
         self.snapshots: deque = deque(maxlen=64)
 
     def should_snapshot(self, epoch: int) -> bool:
-        """Return whether the current epoch should contribute a snapshot."""
+        """Return whether ``epoch`` should contribute a snapshot.
+
+        Args:
+            epoch: The current training epoch.
+
+        Returns:
+            ``True`` when ``epoch >= config.start_epoch``.
+        """
         return epoch >= self.config.start_epoch
 
     def update(self, epoch: int) -> None:
-        """Record a snapshot of the model parameters at the given epoch.
+        """Record a snapshot of the model parameters at ``epoch``.
+
+        Snapshots taken before ``self.config.start_epoch`` are
+        silently ignored. The wrapper updates its running average
+        incrementally so the amortised cost stays ``O(P)``.
 
         Args:
             epoch: The current training epoch.
@@ -71,19 +102,23 @@ class SWAWrapper:
         else:
             n = float(self.snapshot_count)
             for name, tensor in snapshot.items():
-                self.averaged_state[name] = (n - 1.0) / n * self.averaged_state[name] + (
-                    1.0 / n
-                ) * tensor
+                running = self.averaged_state[name]
+                self.averaged_state[name] = (n - 1.0) / n * running + (1.0 / n) * tensor
 
     def averaged_parameters(self) -> dict[str, torch.Tensor]:
-        """Return the current averaged parameters."""
+        """Return the current averaged parameters.
+
+        Returns:
+            A copy of the running-average parameter map.
+        """
         return dict(self.averaged_state)
 
     def apply_to(self) -> None:
         """Copy the averaged parameters into the live model.
 
         Call this after training to load the averaged weights into
-        ``self.model`` for inference.
+        ``self.model`` for inference. No-op when the wrapper has
+        not yet taken any snapshots.
         """
         if not self.averaged_state:
             return

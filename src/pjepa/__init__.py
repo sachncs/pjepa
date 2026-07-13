@@ -25,11 +25,27 @@ The package is organised into the following subpackages:
 * ``augmentations`` — graph augmentations used in self-supervised training.
 
 The public API is what is re-exported here. Internal helpers are kept
-module-private and not listed in ``__all__``.
+module-private and not listed in :data:`__all__`.
 """
 
 from __future__ import annotations
 
-__version__ = "0.0.1"
+from pjepa.compat import (
+    Graph,
+    GraphState,
+    PersistentGraph,
+    PJEPAAugmentation,
+    PJEPAEncoder,
+    make_typed_graph,
+)
+from pjepa.version import __version__
 
-__all__ = ["__version__"]
+__all__ = [
+    "Graph",
+    "GraphState",
+    "PJEPAAugmentation",
+    "PJEPAEncoder",
+    "PersistentGraph",
+    "__version__",
+    "make_typed_graph",
+]

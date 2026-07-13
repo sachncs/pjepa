@@ -1,9 +1,19 @@
 """Behavioural bisimulation metric on graphs.
 
-The bisimulation metric implemented here is a value-iteration
-approximation to the Ferns-Panangaden-Precup (2004) pseudometric,
-adapted to the graph domain and the SSCG relation set. It is
-the runtime counterpart to the paper's §7.7 verification step.
+The bisimulation metric implemented here compares two attributed
+graphs through the *signature distance* between their vertices: a
+pairwise distance is computed between every vertex of the first graph
+and every vertex of the second using the per-vertex signature, and a
+scalar summary is returned. The current implementation deliberately
+returns the **maximum pairwise distance** rather than the Hausdorff
+or Wasserstein aggregation; this is the conservative choice and is
+sufficient for the verification step, which only needs a non-negative
+scalar that vanishes on identical graphs and grows with structural
+divergence.
+
+Future revisions may add a true value-iteration Bellman update to
+recover the Ferns-Panangaden-Precup (2004) pseudometric; the API is
+designed to absorb that change without touching callers.
 """
 
 from __future__ import annotations
@@ -23,11 +33,14 @@ class BisimulationMetric:
     """Configuration for the bisimulation distance computation.
 
     Attributes:
-        epsilon: Convergence tolerance for value iteration.
+        epsilon: Convergence tolerance reserved for the eventual
+            Bellman-style value-iteration sweep. Currently unused;
+            callers should set it for forward compatibility.
         max_iters: Maximum number of value-iteration sweeps.
+            Likewise reserved for forward compatibility.
         relation_set: The names of relation views to consider (the
-          SSCG relation set ``R`` in the paper). Currently unused but
-          reserved for future multi-view extensions.
+            SSCG relation set ``R`` in the paper). Currently unused
+            but reserved for future multi-view extensions.
 
     Example:
         >>> metric = BisimulationMetric(epsilon=1e-4, max_iters=50)
@@ -39,12 +52,22 @@ class BisimulationMetric:
     relation_set: tuple[str, ...] = ("default",)
 
 
-def _vertex_signature(graph: TypedAttributedGraph) -> torch.Tensor:
+def vertex_signature(graph: TypedAttributedGraph) -> torch.Tensor:
     """Return a per-vertex signature suitable for bisimulation distance.
 
-    The signature is the concatenation of vertex features and (if
-    present) the vertex label one-hot. It is used as a stable
-    per-vertex identity for the value-iteration Bellman update.
+    The signature is the concatenation of the (already continuous)
+    vertex features and the vertex label one-hot when labels are
+    present. It is used as a stable per-vertex identity for the
+    pairwise distance matrix.
+
+    Args:
+        graph: The graph whose per-vertex signature to compute.
+
+    Returns:
+        A ``[N, d]`` tensor; ``d`` equals
+        ``vertex_features.shape[1]`` when labels are absent and
+        ``vertex_features.shape[1] + 2`` when binary labels are
+        present.
     """
     features = graph.vertex_features
     if graph.vertex_labels is not None:
@@ -60,59 +83,51 @@ def bisimulation_distance(
 ) -> float:
     """Compute the bisimulation pseudometric between two graphs.
 
-    The implementation runs a fixed-point value iteration over a
-    pairwise distance matrix using the per-vertex signature of each
-    graph as the base distance. The result is non-negative and
-    symmetric.
+    The result is the **maximum pairwise signature distance** under
+    L2: a non-negative scalar that is zero when both graphs are
+    empty or have pairwise identical vertex signatures, and grows as
+    the graphs diverge. The metric accepts arbitrarily shaped feature
+    tensors as long as the two leading dimensions (vertex counts)
+    can be combined into a pairwise matrix.
 
     Args:
         graph_a: The first graph.
         graph_b: The second graph.
         metric: Optional configuration; defaults to
-          ``BisimulationMetric()``.
+            :class:`BisimulationMetric`. Currently the configuration
+            only controls fields reserved for future iterations.
 
     Returns:
-        A non-negative float. ``0.0`` indicates (approximate)
-        bisimilarity within the configured tolerance.
+        A non-negative ``float``. ``0.0`` indicates (exactly equal)
+        signatures across all vertex pairs (or two empty graphs).
 
     Raises:
-        NumericalError: If the value iteration produces non-finite
-          values.
+        NumericalError: If the computed distance contains non-finite
+            values.
 
     Example:
         >>> d = bisimulation_distance(g1, g2)
         >>> d >= 0.0
         True
     """
-    cfg = metric or BisimulationMetric()
-    # Use float64 for CPU/CUDA; MPS does not support float64 so we
-    # fall back to float32, which is the supported MPS dtype.
+    del metric  # Reserved for forward compatibility.
+    # MPS does not support float64; fall back to float32 on that backend.
     target_dtype = torch.float64
     if graph_a.vertex_features.device.type == "mps" or graph_b.vertex_features.device.type == "mps":
         target_dtype = torch.float32
-    sig_a = _vertex_signature(graph_a).to(target_dtype)
-    sig_b = _vertex_signature(graph_b).to(target_dtype)
+    sig_a = vertex_signature(graph_a).to(target_dtype)
+    sig_b = vertex_signature(graph_b).to(target_dtype)
     n_a = sig_a.shape[0]
     n_b = sig_b.shape[0]
+    if n_a == 0 and n_b == 0:
+        return 0.0
     if n_a == 0 or n_b == 0:
-        return float("inf") if (n_a == 0) != (n_b == 0) else 0.0
+        return float("inf")
 
-    # Pairwise signature distance as the base distance
+    # Pairwise L2 signature distance forms the basis for the metric.
+    # Maximum pairwise distance is a conservative scalar summary that
+    # vanishes iff signatures match on every pair of (i, j).
     base = torch.cdist(sig_a.unsqueeze(0), sig_b.unsqueeze(0)).squeeze(0)
-    d = base.clone()
-
-    for _ in range(cfg.max_iters):
-        # The Bellman update is omitted for cross-graph bisimulation;
-        # we use the signature distance as a conservative proxy. This
-        # is sufficient for the verification step (which only needs a
-        # non-negative scalar that vanishes when the graphs are
-        # identical and grows when they are not).
-        new_d = base.clone()
-        delta = (new_d - d).abs().max().item()
-        d = new_d
-        if delta < cfg.epsilon:
-            break
-    if not torch.isfinite(d).all():
-        raise NumericalError("bisimulation_distance: value iteration produced non-finite values")
-    # Return the maximum pairwise distance as a conservative scalar.
-    return float(d.max().item())
+    if not torch.isfinite(base).all():
+        raise NumericalError("bisimulation_distance: signature distance produced non-finite values")
+    return float(base.max().item())

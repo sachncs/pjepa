@@ -3,7 +3,16 @@
 The rewriting engine uses DPO to train the candidate generator on
 preference data: pairs of (winner, loser) candidate rewrites, where
 the winner scored higher under the unified objective 𝒥. The loss is
-the standard log-sigmoid objective from Rafailov et al. (NeurIPS 2023).
+the standard log-sigmoid objective from Rafailov et al. (NeurIPS 2023)
+with optional symmetric label smoothing.
+
+The implementation is a literal translation of the reference equation::
+
+    L_DPO = -E[ log σ( beta * (Δθ_w - Δθ_l)) ]
+
+where ``Δθ_w = log π_w - log π_w^ref`` and similarly for the loser.
+Label smoothing replaces the inner ``log σ`` with a convex combination
+of ``log σ(margin)`` and ``log σ(-margin)``.
 """
 
 from __future__ import annotations
@@ -21,8 +30,9 @@ class DPOConfig:
 
     Attributes:
         beta: Temperature parameter; larger values push the policy
-          further from the reference.
-        label_smoothing: Optional label smoothing in [0, 0.5).
+            further from the reference.
+        label_smoothing: Optional label smoothing coefficient in
+            ``[0, 0.5)``. ``0.0`` recovers the canonical DPO loss.
     """
 
     beta: float = 0.1
@@ -39,22 +49,23 @@ def dpo_loss(
     """Compute the DPO loss for a batch of preference pairs.
 
     Args:
-        chosen_logprob: ``[B]`` log-probabilities of the chosen action
-          under the policy being trained.
+        chosen_logprob: ``[B]`` log-probabilities of the chosen
+            action under the policy being trained.
         rejected_logprob: ``[B]`` log-probabilities of the rejected
-          action under the policy being trained.
+            action under the policy being trained.
         reference_chosen_logprob: ``[B]`` log-probabilities of the
-          chosen action under the reference policy.
+            chosen action under the reference policy.
         reference_rejected_logprob: ``[B]`` log-probabilities of the
-          rejected action under the reference policy.
+            rejected action under the reference policy.
         config: Optional DPO configuration; defaults to
-          :class:`DPOConfig`.
+            :class:`DPOConfig`.
 
     Returns:
         A scalar tensor holding the mean DPO loss for the batch.
 
     Raises:
-        ValueError: If the input tensors do not share the same shape.
+        ValueError: If the input tensors do not share the same shape,
+            or if ``label_smoothing`` is outside ``[0, 0.5)``.
 
     Example:
         >>> loss = dpo_loss(c_lp, r_lp, c_ref, r_ref)

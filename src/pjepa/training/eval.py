@@ -1,8 +1,31 @@
 """Linear-probe evaluation for self-supervised encoders.
 
-A logistic regression head is fit on the frozen encoder features; the
-resulting accuracy is the linear-probe score. The implementation
-follows the protocol of Assran et al. (2023).
+A logistic-regression head is fit on the frozen encoder features; the
+resulting accuracy on the held-out test split is the linear-probe
+score. The implementation follows the protocol of Assran et al.
+(2023), which is the canonical reference for the BGRL/MAE-style
+graph-evaluation literature.
+
+## Algorithm
+
+1. Encode every training and test graph with the frozen encoder,
+   producing a 1-D feature vector per graph.
+2. Fit a multinomial :class:`sklearn.linear_model.LogisticRegression`
+   on the training features.
+3. Evaluate the trained head on the test features; report the
+   ``score`` method's accuracy.
+
+## Complexity
+
+Encoding is ``O(|train| + |test|)`` forward passes; the logistic
+regression fit is ``O(|train| * D * iterations)`` where ``D`` is the
+feature dimension. With the default ``max_iter=1000`` the scikit-learn
+implementation converges in a few seconds for TU-scale datasets.
+
+## Exceptions
+
+A non-empty training and test set is required;
+:class:`pjepa.exceptions.DataError` is raised when either is empty.
 """
 
 from __future__ import annotations
@@ -23,8 +46,9 @@ class LinearProbeResult:
     """Result of a linear-probe evaluation.
 
     Attributes:
-        accuracy: Mean per-class accuracy on the test split.
-        num_classes: Number of distinct classes seen.
+        accuracy: Mean accuracy on the test split in ``[0, 1]``.
+        num_classes: Number of distinct classes seen across the
+          train + test sets (taken as ``max(y) + 1``).
         train_size: Number of training samples used.
         test_size: Number of test samples used.
     """
@@ -35,8 +59,22 @@ class LinearProbeResult:
     test_size: int
 
 
-def _graph_to_embedding(graph: TypedAttributedGraph, encoder: torch.nn.Module) -> torch.Tensor:
-    """Encode a single graph to a 1-D embedding tensor."""
+def encode_graph(graph: TypedAttributedGraph, encoder: torch.nn.Module) -> torch.Tensor:
+    """Encode a single graph to a 1-D embedding tensor.
+
+    The encoder's output is expected to be ``[1, D]`` (batch of
+    one graph); the leading singleton dimension is squeezed out so
+    downstream stacking yields ``[N, D]``. The function falls back
+    to the original output when the encoder does not produce a
+    ``[1, D]`` tensor.
+
+    Args:
+        graph: The input graph.
+        encoder: The frozen encoder module.
+
+    Returns:
+        The graph embedding as a 1-D tensor.
+    """
     with torch.no_grad():
         out = encoder(graph)
     if hasattr(out, "shape") and out.ndim == 2 and out.shape[0] == 1:
@@ -64,9 +102,9 @@ def linear_probe_eval(
     """
     if not train_graphs or not test_graphs:
         raise DataError("linear_probe_eval: train and test sets must both be non-empty")
-    train_x = torch.stack([_graph_to_embedding(g, encoder) for g, _ in train_graphs]).numpy()
+    train_x = torch.stack([encode_graph(g, encoder) for g, _ in train_graphs]).numpy()
     train_y = torch.tensor([lbl for _, lbl in train_graphs], dtype=torch.long).numpy()
-    test_x = torch.stack([_graph_to_embedding(g, encoder) for g, _ in test_graphs]).numpy()
+    test_x = torch.stack([encode_graph(g, encoder) for g, _ in test_graphs]).numpy()
     test_y = torch.tensor([lbl for _, lbl in test_graphs], dtype=torch.long).numpy()
     clf = LogisticRegression(max_iter=1000, multi_class="auto")
     clf.fit(train_x, train_y)

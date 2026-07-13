@@ -2,13 +2,19 @@
 
 The greedy algorithm iteratively adds the vertex with the largest
 marginal gain to the working subset, stopping when the budget is
-exhausted. For monotone submodular utilities the algorithm achieves
-the Nemhauser-Wolsey-Fisher 1978 ``(1 - 1/e)`` approximation
+exhausted or the marginal gain becomes non-positive. For monotone
+submodular utilities the algorithm achieves the
+Nemhauser-Wolsey-Fisher 1978 ``(1 − 1/e) ≈ 0.632`` approximation
 guarantee relative to the optimal subset of the same size.
 
-Complexity is ``O(budget * n * utility_eval_cost)``. For very large
-persistent graphs a lazy-evaluation priority queue can be substituted
-later; the public API is unaffected.
+Complexity is ``O(budget × n × utility_eval_cost)`` for ``n``
+vertices and an arbitrary ``utility``. The implementation uses a
+straightforward linear scan rather than a lazy priority queue; the
+public API would not change when that optimisation is added later.
+
+The retrieval step is deterministic for a fixed graph, observation,
+budget, and utility instance; the test suite relies on this
+property.
 """
 
 from __future__ import annotations
@@ -29,11 +35,13 @@ class RetrievalResult:
     """The output of a greedy retrieval run.
 
     Attributes:
-        working: The working graph that was selected.
+        working: The working graph that was selected. Its vertex
+            count never exceeds the configured budget.
         utility: The cumulative utility achieved by the greedy
-          selection.
+            selection. ``0.0`` for empty input graphs.
         iterations: The number of greedy iterations actually performed
-          (may be less than the budget when the graph is too small).
+            (may be less than the budget when the graph is too small
+            or when further additions no longer improve the utility).
 
     Example:
         >>> result = GreedyRetrieval(budget=8).select(graph, observation)
@@ -56,7 +64,10 @@ class GreedyRetrieval:
 
     Attributes:
         budget: The maximum number of vertices to include in the
-          working graph.
+            working graph.
+
+    Raises:
+        GraphError: At construction time if ``budget`` is negative.
 
     Example:
         >>> retriever = GreedyRetrieval(budget=32)
@@ -79,21 +90,24 @@ class GreedyRetrieval:
         Args:
             graph: The persistent graph state.
             observation: A tensor whose leading dimension matches the
-              observation batch.
-            utility: A :class:`RetrievalUtility` instance. When
-              ``None``, a default :class:`FacilityLocationUtility` is
-              constructed from the graph's vertex features.
+                observation batch (``[m, d]`` or ``[d]``).
+            utility: A :class:`RetrievalUtility` instance. ``None``
+                constructs a default :class:`FacilityLocationUtility`
+                from the graph's vertex features.
 
         Returns:
             A populated :class:`RetrievalResult`.
 
         Raises:
-            GraphError: If the persistent graph has zero vertices.
+            GraphError: If the persistent graph has zero vertices
+                and a non-zero budget (in that case the empty result
+                is returned as ``utility=0.0``, ``iterations=0``).
         """
         n = graph.num_vertices()
+        feature_dim = graph.vertex_features.shape[1]
         if n == 0:
             empty = TypedAttributedGraph(
-                vertex_features=torch.zeros((0, graph.vertex_features.shape[1])),
+                vertex_features=torch.zeros((0, feature_dim)),
                 edge_index=torch.zeros((2, 0), dtype=torch.long),
             )
             return RetrievalResult(
@@ -140,7 +154,7 @@ class GreedyRetrieval:
             working_graph = graph.subgraph(mask)
         else:
             working_graph = TypedAttributedGraph(
-                vertex_features=torch.zeros((0, graph.vertex_features.shape[1])),
+                vertex_features=torch.zeros((0, feature_dim)),
                 edge_index=torch.zeros((2, 0), dtype=torch.long),
             )
 

@@ -1,7 +1,53 @@
-"""Gradient Episodic Memory baseline (Lopez-Paz & Ranzato, 2017).
+r"""Gradient Episodic Memory baseline (Lopez-Paz & Ranzato, 2017).
 
 Stores a fixed-size memory of past samples and projects candidate
 gradients so they do not increase loss on the memory.
+
+## Algorithm
+
+For a new gradient ``g`` we collect per-sample reference gradients
+``g_i = ∇_θ L_i`` (one per memory sample) and form the matrix
+``R ∈ ℝ^{M × P}`` whose rows are the flattened reference gradients.
+A memory violation occurs when ``g`` has positive inner product with
+any ``g_i`` along the "wrong" axis — specifically, when
+
+.. math::
+
+    g^T g_i < 0
+
+for some memory sample ``i`` (a positive dot product would
+*decrease* memory loss, which we tolerate; a negative dot product
+means ``g`` would *increase* memory loss, which GEM forbids).
+
+When at least one constraint is violated, GEM solves the equality-
+constrained QP
+
+.. math::
+
+    \tilde{g} = g - R^T w
+
+with
+
+.. math::
+
+    w = (R R^T + \lambda I)^{-1} R g
+
+The Lagrange multiplier ``w`` is the closed-form solution of the
+GEM dual; the projection ``g - R^T w`` lands on the boundary of the
+feasible cone and removes the offending direction.
+
+## Complexity
+
+Per projected gradient the cost is ``O(M * P)`` where ``M`` is the
+memory size and ``P`` is the number of parameters (here ``M ≤
+capacity``). The closed-form solve uses
+``torch.linalg.solve(gram, rg)``, which is ``O(M^3)`` per call but
+in practice ``M ≤ 256``.
+
+## Exceptions
+
+A non-positive ``capacity`` is rejected with
+:class:`pjepa.exceptions.ConfigError`.
 """
 
 from __future__ import annotations
@@ -35,6 +81,9 @@ class GEM:
 
     Attributes:
         capacity: Maximum memory size.
+        memory: Bounded :class:`collections.deque` of
+          :class:`MemorySample` instances. ``maxlen`` is set to
+          ``capacity``; the deque discards the oldest entry when full.
     """
 
     capacity: int = 256
@@ -49,7 +98,13 @@ class GEM:
         return len(self.memory)
 
     def add(self, x: torch.Tensor, y: torch.Tensor) -> None:
-        """Add a sample to memory."""
+        """Add a sample to memory.
+
+        Args:
+            x: The input tensor (cloned to detach from the caller's
+              graph).
+            y: The label tensor (cloned likewise).
+        """
         self.memory.append(MemorySample(x=x.detach().clone(), y=y.detach().clone()))
 
     def project_gradient(
@@ -62,8 +117,11 @@ class GEM:
 
         Args:
             gradient: The candidate gradient (flat tensor).
-            model_output_fn: Callable mapping an input tensor to model outputs.
-            loss_fn: Callable mapping (output, target) to a scalar loss.
+            model_output_fn: Callable mapping an input tensor to
+              model outputs. Must expose ``.parameters()`` so that
+              per-sample reference gradients can be computed.
+            loss_fn: Callable mapping ``(output, target)`` to a
+              scalar loss.
 
         Returns:
             The (possibly projected) gradient, in the same shape as
@@ -90,22 +148,26 @@ class GEM:
                     ]
                 )
             )
-        ref = torch.stack(ref_grads, dim=0)  # [M, D]
-        # Check whether the candidate gradient violates any memory constraint.
+        ref = torch.stack(ref_grads, dim=0)  # [M, P]; M = len(memory), P = num parameters.
         inner = ref @ gradient
+        # A memory constraint is *violated* when ``g^T g_i < 0``: that means the
+        # candidate gradient would *increase* the memory loss. A non-negative
+        # dot product is acceptable — it means ``g`` does not hurt memory loss.
         violated = inner < -1e-7
         if not violated.any():
             return gradient
-        # Solve the dual QP via the Lopez-Paz closed-form projection.
-        # For brevity we use the simple GEM projection to the cone of
-        # gradients that satisfy all memory constraints.
+        # Closed-form GEM dual projection (Lopez-Paz & Ranzato, 2017, §3.2).
+        # The constraint is ``g' = g - R^T w`` with ``R w = R g`` when feasible;
+        # the damped solve ``w = (R R^T + λ I)^{-1} R g`` restores feasibility
+        # via a tiny Tikhonov regulariser (λ = 1e-3 here).
         R = ref
         g = gradient
-        # Solve w = (R R^T + λ I)^{-1} g^T R R^T (memory projection)
         gram = R @ R.T + 1e-3 * torch.eye(R.shape[0])
         w = torch.linalg.solve(gram, R @ g)
         projection = R.T @ w
-        # Reduce along the gradient direction that violates the constraint.
+        # ``v = projection - g`` is the direction we projected *into*; ``alpha``
+        # rescales the projection so the worst memory constraint is exactly
+        # satisfied instead of over-projected.
         v = projection - g
         denom = v @ v
         if denom <= 0:

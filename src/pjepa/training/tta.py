@@ -1,8 +1,22 @@
 """Test-Time Augmentation wrapper.
 
 At inference time the input is passed through ``n_aug`` augmentations;
-the predictions are averaged. Improves accuracy at 2-3x the
-inference cost.
+the predictions are averaged. TTA typically improves accuracy at a
+``2-3x`` inference cost.
+
+## Architecture
+
+```
+   x ──► model(x)                  (include_original=True only)
+   x ──► aug(x) ──► model(aug(x))  ┐
+   x ──► aug(x) ──► model(aug(x))  ├─ n_aug passes
+   x ──► aug(x) ──► model(aug(x))  ┘
+                 ▼
+        mean across the stack
+```
+
+The wrapper returns ``torch.stack(outputs).mean(dim=0)`` so the
+output shape matches the model output shape exactly.
 """
 
 from __future__ import annotations
@@ -20,8 +34,11 @@ class TTAConfig:
 
     Attributes:
         n_aug: Number of augmented passes per inference call.
-        include_original: Whether the original (unaugmented) input is
-          included in the average.
+          Must be ``>= 1``.
+        include_original: When ``True`` the original (unaugmented)
+          input is included in the prediction stack alongside the
+          augmented passes; when ``False`` only the augmented passes
+          contribute.
     """
 
     def __init__(self, n_aug: int = 5, include_original: bool = True) -> None:
@@ -35,7 +52,7 @@ class TTAWrapper(torch.nn.Module):
     """Wrap a model with test-time augmentation.
 
     Attributes:
-        model: The model to wrap.
+        model: The wrapped model.
         augmentation: The augmentation to apply ``n_aug`` times.
         config: The TTA configuration.
     """
@@ -60,7 +77,8 @@ class TTAWrapper(torch.nn.Module):
               inputs, pass the underlying feature matrix.
 
         Returns:
-            The mean of the predictions across augmented passes.
+            The mean of the per-pass predictions across the augmented
+            (and optionally original) passes.
         """
         outputs = []
         if self.config.include_original:

@@ -1,9 +1,9 @@
 """Hyperbolic projection of Euclidean features into the Poincaré ball.
 
-The projector wraps :class:`geoopt.PoincareBallExact` and exposes a
-simple ``forward`` method that takes Euclidean features and returns
-hyperbolic coordinates of the same leading dimension. Numerical
-stability is enforced by clamping norms just inside the unit ball.
+The projector wraps a linear projection followed by a ``tanh``-based
+radial rescaling that maps every output onto the open unit ball
+``B^d = {x ∈ ℝ^d : ‖x‖ < 1}``. Numerical stability is enforced by
+clamping norms just inside ``max_norm``.
 """
 
 from __future__ import annotations
@@ -21,12 +21,27 @@ __all__ = ["HyperbolicProjection"]
 class HyperbolicProjection(nn.Module):
     """Project Euclidean features into the Poincaré ball of curvature ``-c``.
 
+    The forward pass applies a linear map ``ℝ^{input_dim} → ℝ^{output_dim}``
+    and then a two-step radial rescaling:
+
+    1. ``u = project / ‖project‖`` followed by
+       ``r = tanh(‖project‖ * sqrt(c))`` so the result lies on the
+       hyperbolic ball of curvature ``-c``.
+    2. The norm is clamped to ``max_norm`` to defend against
+       floating-point drift when downstream code adds or subtracts
+       small perturbations.
+
     Attributes:
         input_dim: Dimension of the input Euclidean features.
         output_dim: Dimension of the output hyperbolic features.
         curvature: A positive float controlling the curvature ``-c``.
         max_norm: Hyperbolic norms are clamped below this value to
-          maintain numerical stability.
+            maintain numerical stability.
+
+    Raises:
+        ValueError: At construction if any dimension is non-positive,
+            ``curvature <= 0``, or ``max_norm`` is outside ``(0, 1)``.
+        NumericalError: At forward time if the output is not finite.
     """
 
     def __init__(
@@ -53,15 +68,16 @@ class HyperbolicProjection(nn.Module):
         """Project Euclidean features into the Poincaré ball.
 
         Args:
-            features: A ``[..., input_dim]`` tensor of Euclidean features.
+            features: A ``[..., input_dim]`` tensor of Euclidean
+                features.
 
         Returns:
-            A ``[..., output_dim]`` tensor of hyperbolic features with
-            norms strictly below ``max_norm``.
+            A ``[..., output_dim]`` tensor of hyperbolic features
+            with norms strictly below ``max_norm``.
         """
         projected = self.proj(features)
         norms = projected.norm(dim=-1, keepdim=True).clamp(min=1e-12)
-        # tanh map from Euclidean to hyperbolic
+        # Radial rescaling via ``tanh``: maps Euclidean direction onto the ball.
         scaled = projected / norms * torch.tanh(norms * math.sqrt(self.curvature))
         norms = scaled.norm(dim=-1, keepdim=True).clamp(min=1e-12)
         scaled = scaled / norms * norms.clamp(max=self.max_norm)

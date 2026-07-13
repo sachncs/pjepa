@@ -1,11 +1,16 @@
 """Sleep-cycle cadence for the scheduler.
 
-A sleep cycle is triggered when either (i) the rolling mean
-accepted-rewrite rate falls below ``rho_min`` over ``T_w``
-observations, or (ii) the working-graph utilisation
-``mean(|W_t|) / B`` falls below ``alpha_min``. The cadence is
-deterministic and reproduces across runs given the same observation
-history.
+A sleep cycle is triggered when either:
+
+* the rolling mean accepted-rewrite rate over the last ``window``
+  observations falls below ``rho_min``, or
+* the rolling mean working-graph utilisation
+  ``mean(|W_t|) / B`` falls below ``alpha_min``.
+
+The cadence is deterministic and reproduces across runs given the same
+observation history. The two rolling histories are independent
+``deque(maxlen=window)`` instances so updating one does not affect the
+other.
 """
 
 from __future__ import annotations
@@ -26,6 +31,10 @@ class SleepCadence:
         rho_min: Minimum rolling accepted-rewrite rate.
         alpha_min: Minimum rolling working-graph utilisation.
         window: Size of the rolling window (in observations).
+
+    Raises:
+        ConfigError: At construction time if any threshold is out
+            of range or ``window`` is non-positive.
     """
 
     rho_min: float = 0.05
@@ -50,32 +59,53 @@ class SleepCadence:
         Args:
             accepted: Whether the most recent rewrite was accepted.
             utilisation: The working-graph utilisation at this step,
-              in [0, 1].
+                expected in ``[0, 1]``. Values outside that range
+                are accepted but may distort future ``should_sleep``
+                decisions.
         """
         self.accepted_history.append(1 if accepted else 0)
         self.utilisation_history.append(utilisation)
 
     def reset(self) -> None:
-        """Clear the rolling histories."""
+        """Clear the rolling histories.
+
+        After a reset the cadence returns ``1.0`` for both
+        :attr:`mean_accepted_rate` and :attr:`mean_utilisation` until
+        a new observation is recorded.
+        """
         self.accepted_history.clear()
         self.utilisation_history.clear()
 
     @property
     def mean_accepted_rate(self) -> float:
-        """Return the rolling accepted-rewrite rate."""
+        """Return the rolling accepted-rewrite rate.
+
+        When the history is empty (e.g. immediately after
+        :meth:`reset`) returns ``1.0`` so the cadence does not fire
+        from a cold start.
+        """
         if not self.accepted_history:
             return 1.0
         return sum(self.accepted_history) / len(self.accepted_history)
 
     @property
     def mean_utilisation(self) -> float:
-        """Return the rolling mean utilisation."""
+        """Return the rolling mean utilisation.
+
+        Empty history returns ``1.0``; see :attr:`mean_accepted_rate`.
+        """
         if not self.utilisation_history:
             return 1.0
         return sum(self.utilisation_history) / len(self.utilisation_history)
 
     def should_sleep(self) -> bool:
-        """Return whether a sleep cycle should fire."""
+        """Return whether a sleep cycle should fire.
+
+        Sleep fires when **either** rolling statistic drops below
+        its threshold. Once a sleep cycle begins, the trainer
+        typically calls :meth:`reset` so the next observations start
+        fresh.
+        """
         return self.mean_accepted_rate < self.rho_min or self.mean_utilisation < self.alpha_min
 
 

@@ -1,8 +1,17 @@
 """PPO trainer with clipped surrogate.
 
 Implements the clipped-surrogate PPO update of Schulman et al. 2017
-(arXiv:1707.06347). The reward is unclipped (the surrogate is clipped
-instead, which is the standard PPO recipe).
+(arXiv:1707.06347). The reward is unclipped (the surrogate is
+clipped instead, which is the standard PPO recipe). The trainer also
+exposes :meth:`compute_gae` for callers that need a true generalised
+advantage estimator — :class:`ReplayBuffer`'s default ``minibatches``
+does not run GAE and uses the reward directly as both the advantage
+and the return-to-go.
+
+The trainer is *stateless* across updates: every call to
+:meth:`update` consumes the buffer once and returns aggregated
+statistics; the live policy is the only piece of state that
+persists.
 """
 
 from __future__ import annotations
@@ -23,12 +32,21 @@ class PPOConfig:
 
     Attributes:
         clip_eps: Clipping epsilon for the surrogate objective.
-        gae_lambda: GAE lambda parameter.
+        gae_lambda: GAE lambda parameter; used by
+            :meth:`PPOTrainer.compute_gae` rather than by the
+            :meth:`update` loop (which uses the trivial reward-as-advantage
+            fallback when no GAE is supplied).
         value_coef: Coefficient for the value loss.
         entropy_coef: Coefficient for the entropy bonus.
         gamma: Discount factor.
         inner_epochs: Number of PPO epochs per update.
         minibatch_size: Minibatch size for each inner epoch.
+
+    Raises:
+        ConfigError: At construction time if ``clip_eps`` is not in
+            ``(0, 1)``, ``gae_lambda`` is outside ``[0, 1]``,
+            ``gamma`` is outside ``(0, 1]``, or ``inner_epochs`` /
+            ``minibatch_size`` is non-positive.
     """
 
     clip_eps: float = 0.2
@@ -60,14 +78,14 @@ class PPOTrainer:
     Attributes:
         config: The PPO configuration.
         policy: A module that produces logits and a value estimate
-          given a state. The interface is
-          ``policy(state) -> (logits, value)``.
+            given a state. The interface is
+            ``policy(state) -> (logits, value)``.
     """
 
     def __init__(self, policy: torch.nn.Module, config: PPOConfig | None = None) -> None:
         self.config = config or PPOConfig()
-        # PPOConfig.__post_init__ already validated everything; PPOTrainer
-        # accepts any PPOConfig.
+        # PPOConfig.__post_init__ has already validated the configuration
+        # at construction time, so PPOTrainer accepts any PPOConfig.
         self.policy = policy
 
     def compute_gae(
@@ -80,11 +98,15 @@ class PPOTrainer:
 
         Args:
             rewards: ``[T]`` reward sequence.
-            values: ``[T+1]`` value sequence (last entry is bootstrap).
+            values: ``[T+1]`` value sequence (last entry is the
+                bootstrap value).
             dones: ``[T]`` done flags.
 
         Returns:
             ``[T]`` advantages tensor.
+
+        Raises:
+            ConfigError: If ``values`` has the wrong length.
         """
         if values.shape[0] != rewards.shape[0] + 1:
             raise ConfigError(
@@ -109,11 +131,13 @@ class PPOTrainer:
         """Compute the clipped surrogate objective.
 
         Args:
-            ratios: ``[N]`` importance ratios ``pi(a|s) / pi_old(a|s)``.
+            ratios: ``[N]`` importance ratios ``π(a|s) / π_old(a|s)``.
             advantages: ``[N]`` advantage estimates.
 
         Returns:
-            The mean clipped surrogate loss (negative of objective).
+            The mean clipped surrogate loss, defined as the negative
+            of the PPO objective so that minimising this loss
+            maximises the surrogate.
         """
         unclipped = ratios * advantages
         clipped = (
@@ -128,13 +152,22 @@ class PPOTrainer:
     ) -> dict[str, float]:
         """Run one PPO update on a replay buffer.
 
+        Iterates ``config.inner_epochs`` passes, each consuming
+        minibatches of size ``config.minibatch_size`` from the
+        buffer via :meth:`ReplayBuffer.minibatches`. Aggregates
+        ``policy_loss``, ``value_loss`` and ``entropy`` statistics
+        across all minibatches and returns their means.
+
         Args:
             buffer: The replay buffer to sample from.
-            optimizer: The optimiser (Adam is standard).
+            optimizer: The optimiser; Adam is the standard choice.
 
         Returns:
-            A dict with the mean policy loss, value loss, and entropy
-            recorded over the update.
+            A dict with keys ``policy_loss``, ``value_loss`` and
+            ``entropy``, each averaged over the update.
+
+        Raises:
+            ConfigError: If the buffer is empty.
         """
         if len(buffer) == 0:
             raise ConfigError("PPOTrainer.update: replay buffer is empty")

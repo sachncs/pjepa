@@ -1,17 +1,23 @@
-"""Persistent graph state.
+"""Persistent graph state ``G_t``.
 
-The persistent graph is the only object on which learning is deposited
-in the framework. It is the evolved sufficient statistic of the
-observation history. The wrapper here enforces three invariants:
+The persistent graph is the only object on which learning is
+deposited in the framework. It is the evolved sufficient statistic
+of the observation history. The wrapper here enforces three invariants:
 
-1. The persistent graph only grows via :meth:`commit`, which validates
-   a candidate rewrite against the framework's four-conditions
-   acceptance criterion.
+1. The persistent graph only grows via :meth:`PersistentState.commit`,
+   which validates a candidate rewrite against the framework's
+   four-conditions acceptance criterion.
 2. The wrapper exposes read-only views; the underlying
    :class:`TypedAttributedGraph` is already immutable, so the wrapper
    just enforces the commit interface.
 3. The wrapper records the version number of every commit so that
-   audit trails can be reconstructed.
+   audit trails can be reconstructed. The version of the head graph
+   is therefore ``initial_version + len(history)`` once every commit
+   has been accepted.
+
+The class is intentionally cheap to copy: every field except ``graph``
+is a tuple of dataclass instances, and ``dataclasses.replace``-style
+updates avoid mutating the underlying tensors.
 """
 
 from __future__ import annotations
@@ -31,10 +37,15 @@ class CommitRecord:
     """A single successful commit to the persistent graph.
 
     Attributes:
-        version: The graph version produced by the commit (>= 1).
+        version: The graph version produced by the commit. After the
+            ``k``-th commit ``version == initial_version + k``; the
+            framework guarantees strict monotonicity, so this number
+            is a reliable audit order key.
         timestamp: An arbitrary monotonic counter or wall-clock value
-          supplied by the caller; the framework does not interpret it.
+            supplied by the caller; the framework does not interpret
+            it. Epoch seconds are the conventional choice.
         cost: The rewrite cost recorded by the verification step.
+            Non-negative by construction.
 
     Example:
         >>> record = CommitRecord(version=1, timestamp=0.0, cost=0.1)
@@ -51,8 +62,10 @@ class CommitRejected:
 
     Attributes:
         reason: A human-readable explanation of why the candidate was
-          rejected.
-        cost: The cost the verification step computed.
+            rejected — for example ``"bisimilarity violated"`` or
+            ``"delta_j is non-negative"``.
+        cost: The cost the verification step computed. Non-negative
+            by construction.
 
     Example:
         >>> rejection = CommitRejected(reason="bisimilarity violated", cost=0.5)
@@ -66,15 +79,22 @@ class CommitRejected:
 class PersistentState:
     """Wrapper around the persistent graph ``G_t``.
 
+    Each method that produces a new state (``commit``, ``reject``,
+    ``to``) returns a fresh instance rather than mutating in place.
+    Holding a reference to an older :class:`PersistentState` therefore
+    pins the configuration at that point in time, which lets training
+    loops snapshot and roll back without extra bookkeeping.
+
     Attributes:
         graph: The current :class:`TypedAttributedGraph`.
-        history: A tuple of :class:`CommitRecord` (successful commits).
-        rejections: A tuple of :class:`CommitRejected` (rejected
-          candidates).
+        history: A tuple of :class:`CommitRecord` for accepted
+            commits, in order.
+        rejections: A tuple of :class:`CommitRejected` for rejected
+            candidates, in order.
 
     Example:
         >>> state = PersistentState(graph=g0)
-        >>> state.commit(candidate, cost=0.0, timestamp=1.0)
+        >>> state = state.commit(candidate, cost=0.0, timestamp=1.0)
     """
 
     graph: TypedAttributedGraph
@@ -108,27 +128,27 @@ class PersistentState:
 
         The acceptance criterion is supplied by the caller via
         ``delta_j``: when ``delta_j`` is provided, the commit is
-        accepted only if ``delta_j < 0``. When ``delta_j`` is ``None``,
-        the caller is asserting that the candidate has already been
-        verified; this is the path taken by the rewriting engine after
-        all four conditions have been satisfied.
+        accepted only if ``delta_j < 0`` (i.e. the objective strictly
+        decreases). When ``delta_j`` is ``None``, the caller asserts
+        that the candidate has already been verified — typically by
+        :func:`pjepa.rewriting.four_conditions.accept_candidate` —
+        and the wrapper accepts the commit unconditionally.
 
         Args:
             candidate: The candidate next-state graph.
             cost: The rewrite cost (must be non-negative).
             timestamp: A monotonic counter or wall-clock timestamp.
             delta_j: Optional ``Δ𝒥`` value; when provided, the commit
-              is accepted iff ``delta_j < 0``.
+                is accepted iff ``delta_j < 0``.
 
         Returns:
-            A new :class:`PersistentState` reflecting the accepted
-            commit. The caller is responsible for replacing the live
-            state with the returned value; the wrapper does not
-            mutate in place.
+            A new :class:`PersistentState` whose ``graph`` is
+            ``candidate`` and whose ``history`` has the new
+            :class:`CommitRecord` appended.
 
         Raises:
-            GraphError: If ``cost`` is negative or ``delta_j`` is
-              non-negative.
+            GraphError: If ``cost`` is negative, or if ``delta_j``
+                is non-negative when supplied.
 
         Example:
             >>> state2 = state.commit(candidate, cost=0.1, timestamp=1.0)
@@ -156,8 +176,8 @@ class PersistentState:
             cost: The cost the verification step computed.
 
         Returns:
-            A new :class:`PersistentState` with the rejection appended
-            to its audit trail.
+            A new :class:`PersistentState` with the rejection
+            appended to its audit trail.
 
         Raises:
             GraphError: If ``cost`` is negative or ``reason`` is empty.
@@ -177,7 +197,11 @@ class PersistentState:
         )
 
     def to(self, device: torch.device) -> PersistentState:
-        """Move every tensor of the persistent graph to ``device``."""
+        """Move every tensor of the persistent graph to ``device``.
+
+        The ``history`` and ``rejections`` tuples are pure data and do
+        not need to be moved.
+        """
         return PersistentState(
             graph=self.graph.to(device),
             history=self.history,

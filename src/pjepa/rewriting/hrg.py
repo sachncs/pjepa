@@ -5,6 +5,9 @@ framework (see the paper, §7.6.1). Productions replace a single
 non-terminal hyperedge with a hypergraph, which makes DPO-style
 verification well-defined and supports both edge substitution and
 node merging via hyperedge fusion.
+
+The implementation here is the canonical representation; the runtime
+enforcement happens in :mod:`pjepa.rewriting.four_conditions`.
 """
 
 from __future__ import annotations
@@ -24,10 +27,15 @@ class HRGProduction:
 
     Attributes:
         lhs: The non-terminal label on the left-hand side.
+        rhs_edge_index: A ``[2, E_rhs]`` ``long`` tensor in COO
+            format describing the right-hand-side hypergraph
+            connectivity.
         rhs_edge_features: A ``[E_rhs, d_e]`` tensor describing the
-          right-hand-side edges.
-        rhs_edge_index: A ``[2, E_rhs]`` ``long`` tensor in COO format
-          describing the right-hand-side hypergraph connectivity.
+            right-hand-side edges.
+
+    Raises:
+        GraphError: At construction time if ``lhs`` is empty or
+            ``rhs_edge_index.dtype`` is not ``torch.long``.
 
     Example:
         >>> prod = HRGProduction(
@@ -56,10 +64,21 @@ class HRG:
         nonterminals: Tuple of non-terminal labels.
         terminals: Tuple of terminal labels.
         productions: Tuple of :class:`HRGProduction` rules.
-        start: The start non-terminal.
+        start: The start non-terminal. Must appear in ``nonterminals``.
+
+    Raises:
+        GraphError: At construction time if ``nonterminals`` is
+            empty, ``start`` is not a non-terminal, non-terminal and
+            terminal labels overlap, or a production's ``lhs`` is not
+            a non-terminal.
 
     Example:
-        >>> hrg = HRG(nonterminals=("Stmt",), terminals=("Tok",), productions=(), start="Stmt")
+        >>> hrg = HRG(
+        ...     nonterminals=("Stmt",),
+        ...     terminals=("Tok",),
+        ...     productions=(),
+        ...     start="Stmt",
+        ... )
     """
 
     nonterminals: tuple[str, ...]
@@ -80,7 +99,19 @@ class HRG:
                 raise GraphError(f"HRG: production lhs {prod.lhs!r} is not a non-terminal")
 
     def productions_for(self, label: str) -> tuple[HRGProduction, ...]:
-        """Return every production whose left-hand side is ``label``."""
+        """Return every production whose left-hand side is ``label``.
+
+        Args:
+            label: The non-terminal or terminal label to look up.
+
+        Returns:
+            A tuple of :class:`HRGProduction`. Empty when no rule has
+            that ``lhs``.
+
+        Raises:
+            GraphError: If ``label`` is neither a non-terminal nor a
+                terminal of this grammar.
+        """
         if label not in self.nonterminals and label not in self.terminals:
             raise GraphError(f"HRG.productions_for: unknown label {label!r}")
         return tuple(p for p in self.productions if p.lhs == label)

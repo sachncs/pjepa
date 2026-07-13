@@ -61,13 +61,13 @@ def test_log_event_includes_event_and_fields() -> None:
 
 def test_json_format_is_parseable() -> None:
     """JSON format emits parseable JSON lines."""
-    from pjepa.logging_setup import _JsonFormatter
+    from pjepa.logging_setup import JsonLogFormatter
 
     log = get_logger("json_test")
     log.propagate = False
     stream = io.StringIO()
     handler = logging.StreamHandler(stream=stream)
-    handler.setFormatter(_JsonFormatter())
+    handler.setFormatter(JsonLogFormatter())
     log.addHandler(handler)
     try:
         log_event(log, "test.event", count=3)

@@ -91,7 +91,7 @@ def test_bad_facility_location_wrong_dim() -> None:
 def test_bad_information_gain_negative_mu() -> None:
     """A negative mu is rejected."""
     with pytest.raises(ValueError):
-        InformationGainUtility(mu=-0.1)
+        InformationGainUtility(torch.zeros((1, 1)), mu=-0.1)
 
 
 def test_ugly_empty_graph_zero_utility() -> None:

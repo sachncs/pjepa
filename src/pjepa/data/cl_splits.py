@@ -109,4 +109,7 @@ def make_class_incremental_split(
             tasks_indices[target_task].append(order[p])
         tasks_classes[target_task].add(cls)
 
-    return ClassIncrementalSplit(tasks=tasks_indices, task_classes=tasks_classes)
+    return ClassIncrementalSplit(
+        tasks=tasks_indices,
+        task_classes=[sorted(s) for s in tasks_classes],
+    )

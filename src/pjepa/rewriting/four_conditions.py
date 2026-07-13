@@ -2,14 +2,21 @@
 
 A candidate rewrite is accepted iff all four conditions hold:
 
-1. Variational descent: ``Δ𝒥 < 0``.
-2. Grammar conformance: the rewrite is produced by a rule in the HRG.
-3. Behavioural bisimilarity: ``d_∼(G_{t+1}, G_t) ≤ ε``.
-4. Bounded cost: ``DL(G_{t+1}) - DL(G_t) ≤ η``.
+1. **Variational descent**: ``Δ𝒥 < 0``. The candidate strictly
+   decreases the unified free-energy functional.
+2. **Grammar conformance**: the rewrite is produced by a rule in the
+   supplied :class:`HRG`.
+3. **Behavioural bisimilarity**: ``d_∼(G_{t+1}, G_t) ≤ ε``.
+4. **Bounded cost**: ``DL(G_{t+1}) - DL(G_t) ≤ η``.
 
-This module exposes the criterion as a structured object plus a
-convenience function :func:`accept_candidate` that performs the
-evaluation.
+Conditions are evaluated in ascending order of computational cost;
+the first failure short-circuits the rest and is reported via
+``info["reason"]``.
+
+Evaluation returns ``(accepted, info)`` where ``info`` contains the
+per-condition booleans and the metric values; this makes the verifier
+inspectable from the training loop without instrumenting each
+condition separately.
 """
 
 from __future__ import annotations
@@ -35,8 +42,9 @@ class FourConditions:
         lambda_mdl: Coefficient of the MDL description-length term.
         gamma_forward: Coefficient of the forward-information bonus.
         bisimulation_eps: Maximum allowed bisimulation distance.
-        max_cost: Maximum allowed cost delta for an accepted rewrite.
-        bisimulation: Bisimulation metric configuration.
+        max_cost: Maximum allowed cost delta for an accepted
+            rewrite.
+        bisimulation: Configuration for the bisimulation metric.
     """
 
     beta_ib: float = 1e-2
@@ -47,7 +55,7 @@ class FourConditions:
     bisimulation: BisimulationMetric = field(default_factory=BisimulationMetric)
 
 
-def _delta_j(
+def compute_delta_j(
     candidate: TypedAttributedGraph,
     current: TypedAttributedGraph,
     observation: torch.Tensor,
@@ -58,11 +66,25 @@ def _delta_j(
     """Compute ``Δ𝒥`` between the candidate and the current state.
 
     The runtime approximation uses:
+
     * the observation's negative log-likelihood under each graph as
       the predictive-fit proxy (lower is better);
     * the absolute change in vertex count as the MDL proxy;
     * the change in cosine similarity to the observation as the
       forward-information bonus.
+
+    Args:
+        candidate: The proposed next-state graph.
+        current: The current persistent graph.
+        observation: The observation tensor driving the rewrite.
+        beta_ib: Coefficient of the IB KL term in the objective.
+        lambda_mdl: Coefficient of the MDL term.
+        gamma_forward: Coefficient of the forward-information bonus.
+
+    Returns:
+        The signed ``Δ𝒥`` value. Negative values indicate an
+        improvement. Returns ``+inf`` when the candidate has no
+        vertices (sentinel for "degenerate state").
     """
     if candidate.num_vertices() == 0:
         return float("inf")
@@ -112,7 +134,7 @@ def accept_candidate(
         observation: The observation tensor driving the rewrite.
         grammar: The hyperedge-replacement grammar in use.
         thresholds: Optional thresholds; defaults to
-          :class:`FourConditions`.
+            :class:`FourConditions`.
 
     Returns:
         A tuple ``(accepted, info)`` where ``accepted`` is a boolean
@@ -120,9 +142,8 @@ def accept_candidate(
         and a textual reason for any rejection.
 
     Raises:
-        GraphError: If the candidate or current graphs are
-          incompatible with the verification (e.g., inconsistent
-          feature dimensions).
+        GraphError: If the candidate or current graphs disagree on
+            vertex feature dimension.
     """
     cfg = thresholds or FourConditions()
     info: dict[str, object] = {}
@@ -134,7 +155,7 @@ def accept_candidate(
         info["reason"] = "cost exceeds max_cost"
         return False, info
 
-    delta = _delta_j(
+    delta = compute_delta_j(
         candidate,
         current,
         observation,

@@ -16,7 +16,12 @@ __all__ = ["TensorDropFeature", "tensor_drop_feature"]
 
 
 class TensorDropFeature:
-    """Drop a fraction ``strength`` of feature columns from a 2-D tensor."""
+    """Drop a fraction ``strength`` of feature columns from a 2-D tensor.
+
+    The augmentation accepts either a 2-D tensor directly or a
+    :class:`TypedAttributedGraph`; the graph branch updates only the
+    vertex-feature tensor and returns a fresh graph.
+    """
 
     def __init__(
         self,
@@ -28,17 +33,26 @@ class TensorDropFeature:
         self.strength = strength
         self.generator = generator
 
-    def __call__(self, tensor: torch.Tensor | TypedAttributedGraph) -> torch.Tensor:
+    def __call__(
+        self, tensor: torch.Tensor | TypedAttributedGraph
+    ) -> torch.Tensor | TypedAttributedGraph:
         """Drop a random fraction of feature columns.
 
         Args:
-            tensor: Either a 2-D feature tensor or a TypedAttributedGraph.
-              When a graph is passed, its vertex features are augmented
-              and a new graph is returned.
+            tensor: Either a 2-D feature tensor or a
+                :class:`TypedAttributedGraph`. When a graph is passed,
+                its vertex features are augmented and a new graph is
+                returned.
 
         Returns:
             Either the augmented tensor (same shape) or the augmented
-            TypedAttributedGraph.
+            :class:`TypedAttributedGraph`. The concrete type mirrors
+            the input type.
+
+        Raises:
+            GraphError: If the input tensor's leading dimension is not
+                ``2`` or the input is a graph with a non-2-D feature
+                tensor.
         """
         if isinstance(tensor, TypedAttributedGraph):
             feats = tensor.vertex_features
@@ -66,5 +80,10 @@ def tensor_drop_feature(
     strength: float = 0.2,
     generator: torch.Generator | None = None,
 ) -> torch.Tensor:
-    """Convenience function: drop features from a tensor in one call."""
+    """Convenience function: drop features from a tensor in one call.
+
+    Equivalent to ``TensorDropFeature(strength, generator)(tensor)``;
+    provided so call sites that always work with raw tensors do not
+    have to construct an instance.
+    """
     return TensorDropFeature(strength=strength, generator=generator)(tensor)

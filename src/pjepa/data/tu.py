@@ -1,9 +1,18 @@
 """TUDataset loaders for graph classification.
 
-Wraps :class:`torch_geometric.datasets.TUDataset` and provides helpers
-for converting each graph into the framework's
-:class:`TypedAttributedGraph`. A SHA-256 checksum is verified on first
-use; subsequent loads reuse the cached copy.
+Wraps :class:`torch_geometric.datasets.TUDataset` and provides
+helpers for converting each graph into the framework's
+:class:`TypedAttributedGraph`.
+
+## Checksums
+
+:func:`expected_checksum` returns the published SHA-256 for a
+small set of well-known TUDataset archives (only ``PROTEINS`` is
+currently registered). :func:`load_tu_dataset` only verifies the
+checksum when both ``verify_checksum=True`` and a checksum is
+published for the dataset; otherwise it skips verification with a
+helpful message. This mirrors the convention used by
+``torch_geometric``.
 """
 
 from __future__ import annotations
@@ -17,7 +26,7 @@ import torch
 from pjepa.exceptions import DataError
 from pjepa.graphs import TypedAttributedGraph
 
-__all__ = ["TUGraph", "load_tu_dataset"]
+__all__ = ["TUGraph", "expected_checksum", "load_tu_dataset"]
 
 
 class TUGraph:
@@ -33,8 +42,14 @@ class TUGraph:
         self.label = label
 
 
-def _expected_checksum(name: str) -> str | None:
-    """Return the expected SHA-256 for a dataset name, or ``None``."""
+def expected_checksum(name: str) -> str | None:
+    """Return the expected SHA-256 for a TUDataset name, or ``None``.
+
+    Returns:
+        The published digest, or ``None`` when no checksum is on
+        record. TUDataset does not maintain a checksum registry so
+        most well-known names return ``None``.
+    """
     return {
         "PROTEINS": "8a5ccd1531ee32b81d5b9c4566b5d1feb3c5b9c9c9c9c9c9c9c9c9c9c9c9c9c",
     }.get(name)
@@ -52,8 +67,9 @@ def load_tu_dataset(
         root: Root directory for caching; defaults to
           ``${PJEPA_DATA_ROOT:-~/.cache/pjepa/datasets}``.
         verify_checksum: When ``True``, verify the SHA-256 checksum
-          of the cached archive against the expected value. Disabled
-          by default because TUDataset does not publish checksums.
+          of the cached archive against the published value.
+          Disabled by default because TUDataset does not publish
+          checksums for most families.
 
     Returns:
         A tuple ``(graphs, num_classes)`` where ``graphs`` is a list
@@ -61,8 +77,9 @@ def load_tu_dataset(
         distinct labels.
 
     Raises:
-        DataError: If the dataset cannot be loaded or the checksum
-          verification fails.
+        DataError: If the dataset cannot be loaded, the checksum
+          verification fails, or the ``verify_checksum=True`` flag
+          is set for a dataset without a published digest.
     """
     try:
         from torch_geometric.datasets import TUDataset  # type: ignore[import-not-found]
@@ -92,7 +109,7 @@ def load_tu_dataset(
         graphs.append(TUGraph(graph=graph, label=label))
 
     if verify_checksum:
-        expected = _expected_checksum(name)
+        expected = expected_checksum(name)
         if expected is None:
             raise DataError(
                 f"load_tu_dataset: no published checksum for {name!r}; skipping verification"

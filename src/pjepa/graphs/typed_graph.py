@@ -1,15 +1,32 @@
 """Typed attributed graphs.
 
-A :class:`TypedAttributedGraph` is an immutable, fully-typed container
-for the graph data structures used throughout the framework. The class
-is intentionally minimal: it stores vertex and edge features plus
-optional labels and a global feature vector, but does not interpret
-them. Downstream modules (encoders, retrieval, rewriting) attach
-meaning via well-defined protocols.
+A :class:`TypedAttributedGraph` is an immutable, fully-typed
+container for the graph data structures used throughout the framework.
+The class is intentionally minimal: it stores vertex and edge
+features plus optional labels and a global feature vector, but does
+not interpret them. Downstream modules (encoders, retrieval,
+rewriting) attach meaning via well-defined protocols.
 
 The dataclass is ``frozen=True``: every "mutation" returns a new
 instance, which eliminates an entire class of bugs (in-place graph
-edits) and makes the graphs hashable for caching.
+edits) and makes the graphs hashable for caching. Validation runs in
+``__post_init__`` so construction failures surface at the point of
+use rather than later in training.
+
+Construction cost is ``O(1)`` for tensor storage plus a single
+``tensor.max()`` to validate the edge-index range, so callers that
+build many graphs in a hot loop should batch by keeping tensors on
+device and calling :meth:`with_features` only when needed.
+
+Example::
+    >>> import torch
+    >>> from pjepa.graphs import TypedAttributedGraph
+    >>> v = torch.randn((3, 4))
+    >>> ei = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
+    >>> e = torch.randn((4, 2))
+    >>> g = TypedAttributedGraph(v, ei, e)
+    >>> g.num_vertices()
+    3
 """
 
 from __future__ import annotations
@@ -27,27 +44,28 @@ __all__ = ["TypedAttributedGraph", "graph_from_edge_index"]
 class TypedAttributedGraph:
     """Immutable typed attributed graph.
 
-    Attributes:
-        vertex_features: A ``[N, d_v]`` tensor of vertex features.
-        edge_index: A ``[2, E]`` ``long`` tensor in COO format.
-        edge_features: A ``[E, d_e]`` tensor of edge features; may be
-          empty when the graph has no edges.
-        vertex_labels: Optional ``[N]`` ``long`` tensor of categorical
-          vertex labels.
-        edge_labels: Optional ``[E]`` ``long`` tensor of categorical
-          edge labels.
-        global_features: Optional ``[d_g]`` tensor of graph-level
-          features.
-        version: A monotonically increasing version counter, bumped on
-          every functional update.
+    All tensor-shaped fields are 2-D: the leading dimension indexes
+    vertices or edges, and the trailing dimension indexes feature
+    channels. Label fields are 1-D ``long`` tensors aligned with their
+    vertices or edges.
 
-    Example:
-        >>> v = torch.randn((3, 4))
-        >>> ei = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
-        >>> e = torch.randn((4, 2))
-        >>> g = TypedAttributedGraph(v, ei, e)
-        >>> g.num_vertices()
-        3
+    Attributes:
+        vertex_features: ``[N, d_v]`` tensor of vertex features.
+        edge_index: ``[2, E]`` ``long`` tensor in COO format where
+            ``edge_index[0]`` is the source and ``edge_index[1]`` is
+            the destination of each edge.
+        edge_features: ``[E, d_e]`` tensor of edge features; for
+            edgeless graphs the constructor synthesises a ``[0, 0]``
+            zero-row tensor.
+        vertex_labels: Optional ``[N]`` ``long`` tensor of categorical
+            vertex labels. ``None`` means "no labels assigned".
+        edge_labels: Optional ``[E]`` ``long`` tensor of categorical
+            edge labels. An empty tensor (zero-element) is treated as
+            "no labels" and passes validation.
+        global_features: Optional ``[d_g]`` tensor of graph-level
+            features.
+        version: A monotonically increasing version counter, bumped on
+            every functional update that produces a new graph.
     """
 
     vertex_features: torch.Tensor
@@ -59,7 +77,17 @@ class TypedAttributedGraph:
     version: int = 0
 
     def __post_init__(self) -> None:
-        """Validate shape consistency on construction."""
+        """Validate shape consistency on construction.
+
+        Raises:
+            GraphError: If ``vertex_features`` is not 2-D,
+                ``edge_index`` is not ``[2, E]`` with ``dtype=long``,
+                any edge endpoint exceeds ``N - 1``, ``edge_features``
+                is not 2-D, ``edge_features`` and ``edge_index``
+                disagree on the number of edges, ``vertex_labels``
+                length does not match ``N``, or ``edge_labels`` length
+                (when non-empty) does not match ``E``.
+        """
         if self.vertex_features.ndim != 2:
             raise GraphError(
                 f"TypedAttributedGraph: vertex_features must be 2-D; "
@@ -110,7 +138,11 @@ class TypedAttributedGraph:
                 )
 
     def num_vertices(self) -> int:
-        """Return the number of vertices in the graph."""
+        """Return the number of vertices in the graph.
+
+        Equivalent to ``int(self.vertex_features.shape[0])`` but
+        documents intent at call sites.
+        """
         return int(self.vertex_features.shape[0])
 
     def num_edges(self) -> int:
@@ -119,6 +151,12 @@ class TypedAttributedGraph:
 
     def with_features(self, **kwargs: object) -> TypedAttributedGraph:
         """Return a copy with selected fields replaced; bumps the version.
+
+        The new instance is a *new* graph with ``version = self.version + 1``;
+        the original is left untouched. If the caller tries to set a
+        field that does not exist on :class:`TypedAttributedGraph`
+        the underlying ``dataclasses.replace`` raises ``TypeError``;
+        that is re-raised as :class:`GraphError` for uniform handling.
 
         Args:
             **kwargs: Field names to update on the new instance.
@@ -142,17 +180,24 @@ class TypedAttributedGraph:
     def subgraph(self, vertex_mask: torch.Tensor) -> TypedAttributedGraph:
         """Return the vertex-induced subgraph on the given boolean mask.
 
+        Edges whose endpoints fall outside the mask are dropped; edge
+        indices are remapped to the new compact labelling. The
+        ``global_features`` tensor and ``version`` are preserved
+        (modulo the ``+ 1`` bump).
+
+        Complexity is ``O(N + E)`` for indexing plus an ``O(N)``
+        scatter to build the old-to-new vertex map.
+
         Args:
-            vertex_mask: A ``[N]`` boolean or 0/1 tensor selecting the
-              vertices to keep.
+            vertex_mask: A ``[N]`` boolean or 0/1 tensor selecting
+                the vertices to keep.
 
         Returns:
             A new :class:`TypedAttributedGraph` containing only the
             selected vertices and edges between them.
 
         Raises:
-            GraphError: If ``vertex_mask`` has the wrong shape or
-              contains non-boolean values.
+            GraphError: If ``vertex_mask`` has the wrong shape.
 
         Example:
             >>> mask = torch.tensor([True, False, True])
@@ -178,9 +223,11 @@ class TypedAttributedGraph:
                 vertex_labels=(
                     self.vertex_labels[vertex_mask] if self.vertex_labels is not None else None
                 ),
-                edge_labels=torch.zeros((0,), dtype=torch.long)
-                if self.edge_labels is not None and self.edge_labels.numel() > 0
-                else None,
+                edge_labels=(
+                    torch.zeros((0,), dtype=torch.long)
+                    if self.edge_labels is not None and self.edge_labels.numel() > 0
+                    else None
+                ),
                 global_features=self.global_features,
                 version=self.version + 1,
             )
@@ -206,7 +253,17 @@ class TypedAttributedGraph:
         )
 
     def to(self, device: torch.device) -> TypedAttributedGraph:
-        """Move every tensor to the given device."""
+        """Move every tensor to the given device.
+
+        Returns a new :class:`TypedAttributedGraph`; the ``version``
+        counter is preserved.
+
+        Args:
+            device: Target :class:`torch.device`.
+
+        Returns:
+            A copy with every tensor moved to ``device``.
+        """
         return TypedAttributedGraph(
             vertex_features=self.vertex_features.to(device),
             edge_index=self.edge_index.to(device),
@@ -230,23 +287,28 @@ def graph_from_edge_index(
 ) -> TypedAttributedGraph:
     """Construct a graph from an edge index, optionally synthesising features.
 
-    Useful for tests and for ingesting raw adjacency data without
-    having to fabricate features manually.
+    The helper is intended for tests and for ingesting raw adjacency
+    data without having to fabricate features manually. Zero-valued
+    ``vertex_dim`` and ``edge_dim`` arguments produce ``[N, 0]`` and
+    ``[E, 0]`` feature tensors — useful when the downstream code only
+    needs topology.
 
     Args:
-        edge_index: A ``[2, E]`` ``long`` tensor in COO format.
-        num_vertices: The number of vertices in the graph.
-        vertex_dim: Feature dimension for synthesised vertex features.
-          Zero yields zero-row tensors.
+        edge_index: ``[2, E]`` ``long`` tensor in COO format.
+        num_vertices: The number of vertices in the graph. Must be
+            non-negative.
+        vertex_dim: Feature dimension for synthesised vertex
+            features. Zero yields zero-row tensors.
         edge_dim: Feature dimension for synthesised edge features.
-          Zero yields zero-row tensors.
+            Zero yields zero-row tensors.
 
     Returns:
         A new :class:`TypedAttributedGraph` with the requested
-        topology and (optional) zero-initialised features.
+        topology and zero-initialised features.
 
     Raises:
-        GraphError: If ``num_vertices`` is negative.
+        GraphError: If ``num_vertices`` is negative, or if
+            ``edge_index`` violates the standard invariants.
 
     Example:
         >>> ei = torch.tensor([[0, 1], [1, 0]], dtype=torch.long)

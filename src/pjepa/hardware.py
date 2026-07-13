@@ -1,9 +1,15 @@
 """Hardware detection and capability reporting.
 
-The library runs on Apple Silicon (MPS), NVIDIA (CUDA), and CPU backends.
-A :class:`CapabilityReport` is built at start-up so that downstream
-modules can adapt their behaviour (for example, disabling
-``torch.compile`` on MPS where some operators do not fuse cleanly).
+The library runs on Apple Silicon (MPS), NVIDIA (CUDA), and CPU
+backends. A :class:`CapabilityReport` is built at start-up so that
+downstream modules can adapt their behaviour — for example, disabling
+:func:`torch.compile` on MPS where some operators do not fuse cleanly.
+
+All public functions and probe helpers are pure with respect to
+module globals apart from the implicit dependency on the active
+PyTorch / CUDA / MPS runtimes. Probes allocate small tensors on the
+target device; calling them concurrently from multiple threads on the
+same CUDA device is **not** safe.
 """
 
 from __future__ import annotations
@@ -24,6 +30,7 @@ __all__ = [
     "CapabilityReport",
     "ProbeResult",
     "ProbeStatus",
+    "capabilities_as_dict",
     "current_device",
     "detect_backend",
     "detect_capabilities",
@@ -32,15 +39,30 @@ __all__ = [
 
 
 class Backend(str, Enum):
-    """Compute backends supported by the library."""
+    """Compute backends supported by the library.
+
+    Values are lowercase strings so they serialise naturally to JSON
+    and survive ``str.lower`` round-trips through command-line
+    arguments.
+    """
 
     CUDA = "cuda"
+    """NVIDIA CUDA backend."""
     MPS = "mps"
+    """Apple Silicon MPS backend."""
     CPU = "cpu"
+    """CPU fallback — always available."""
 
 
 class ProbeStatus(str, Enum):
-    """Outcome of a single capability probe."""
+    """Outcome of a single capability probe.
+
+    The three values form an ordered quality scale:
+
+    * :data:`GREEN` — the probe ran successfully.
+    * :data:`YELLOW` — the probe was skipped or ran in a degraded mode.
+    * :data:`RED` — the probe failed.
+    """
 
     GREEN = "GREEN"
     YELLOW = "YELLOW"
@@ -49,21 +71,60 @@ class ProbeStatus(str, Enum):
 
 @dataclass(frozen=True)
 class ProbeResult:
-    """A single capability probe and its outcome."""
+    """A single capability probe and its outcome.
+
+    Attributes:
+        name: Short identifier suitable for indexing in
+            :func:`capabilities_as_dict` (e.g. ``"matmul"``).
+        status: The outcome of the probe.
+        detail: Free-form description, typically the exception type
+            and message for :data:`ProbeStatus.RED`. May be empty.
+
+    Example:
+        >>> ProbeResult(name="matmul", status=ProbeStatus.GREEN).render()
+        '[GREEN ] matmul'
+    """
 
     name: str
     status: ProbeStatus
     detail: str = ""
 
     def render(self) -> str:
-        """Return a human-readable one-line rendering of the result."""
+        """Return a human-readable one-line rendering of the result.
+
+        The status column is left-padded to a fixed width so multiple
+        ``ProbeResult`` lines line up neatly when concatenated.
+        """
         suffix = f" — {self.detail}" if self.detail else ""
         return f"[{self.status.value:<6}] {self.name}{suffix}"
 
 
 @dataclass(frozen=True)
 class CapabilityReport:
-    """Aggregated capability report for the current host."""
+    """Aggregated capability report for the current host.
+
+    The report is immutable; passing it around is cheap because every
+    field is either a scalar, a string, or a tuple.
+
+    Attributes:
+        backend: The selected :class:`Backend`.
+        device_name: A human-readable device name (``"Apple Silicon
+            (MPS)"`` for MPS, ``"CPU"`` for CPU, the CUDA device name
+            for CUDA).
+        python_version: The interpreter version as reported by
+            ``sys.version.split()[0]``.
+        torch_version: ``torch.__version__``.
+        platform: The string returned by :func:`platform.platform`.
+        cpu_count: The number of visible CPUs as reported by
+            :func:`os.cpu_count`, falling back to ``1``.
+        probes: Tuple of :class:`ProbeResult` produced by
+            :func:`detect_capabilities`.
+
+    Example:
+        >>> report = detect_capabilities()
+        >>> report.has_red()
+        False
+    """
 
     backend: Backend
     device_name: str
@@ -74,7 +135,12 @@ class CapabilityReport:
     probes: tuple[ProbeResult, ...] = field(default_factory=tuple)
 
     def is_green(self) -> bool:
-        """Return ``True`` when every probe is GREEN."""
+        """Return ``True`` when every probe is GREEN.
+
+        An empty probe list is treated as all-green; this matches the
+        behaviour expected by the unit tests of an empty
+        :class:`CapabilityReport`.
+        """
         return all(p.status is ProbeStatus.GREEN for p in self.probes)
 
     def has_red(self) -> bool:
@@ -82,7 +148,11 @@ class CapabilityReport:
         return any(p.status is ProbeStatus.RED for p in self.probes)
 
     def render(self) -> str:
-        """Return a multi-line rendering of the full report."""
+        """Return a multi-line rendering of the full report.
+
+        The output is suitable for direct printing at the start of
+        every interactive session.
+        """
         lines = [
             f"Backend:    {self.backend.value}",
             f"Device:     {self.device_name}",
@@ -100,9 +170,14 @@ class CapabilityReport:
 def detect_backend() -> Backend:
     """Return the most capable backend available on the current host.
 
-    Preference order: CUDA, MPS, CPU. A :class:`BackendError` is never
-    raised: when no accelerator is available, the function returns
-    :attr:`Backend.CPU`.
+    Preference order: CUDA, MPS, CPU. The function never raises
+    :class:`BackendError`; when no accelerator is available, it
+    returns :attr:`Backend.CPU`.
+
+    The detection is performed by inspecting the global PyTorch
+    runtime; importing this module performs no warm-up. The result
+    reflects the runtime state at call time and may change between
+    calls if the user toggles ``CUDA_VISIBLE_DEVICES`` or similar.
 
     Returns:
         The selected backend.
@@ -122,15 +197,16 @@ def current_device(backend: Backend | None = None) -> torch.device:
     """Return the default :class:`torch.device` for the active backend.
 
     Args:
-        backend: Explicit backend to use; if ``None``, the result of
-          :func:`detect_backend` is used.
+        backend: Explicit backend to use; ``None`` selects the result
+            of :func:`detect_backend`.
 
     Returns:
         The corresponding PyTorch device object.
 
     Raises:
-        BackendError: If ``backend`` is CUDA but no CUDA device is
-          available.
+        BackendError: If ``backend`` is :attr:`Backend.CUDA` but no
+            CUDA device is available, or :attr:`Backend.MPS` is
+            requested on a host without an Apple Silicon runtime.
 
     Example:
         >>> current_device().type
@@ -167,8 +243,14 @@ def sync_if_mps() -> None:
         torch.mps.synchronize()
 
 
-def _probe_matmul() -> ProbeResult:
-    """Probe matrix multiplication on the active backend."""
+def probe_matmul() -> ProbeResult:
+    """Probe matrix multiplication on the active backend.
+
+    Returns:
+        A :class:`ProbeResult` whose status is :data:`ProbeStatus.GREEN`
+        when the matmul completes and produces finite values; otherwise
+        a RED result with an explanatory detail string.
+    """
     backend = detect_backend()
     try:
         device = current_device(backend)
@@ -184,7 +266,7 @@ def _probe_matmul() -> ProbeResult:
                 detail="produced non-finite values",
             )
         return ProbeResult(name="matmul", status=ProbeStatus.GREEN)
-    except Exception as exc:
+    except (RuntimeError, NotImplementedError, ValueError, TypeError) as exc:
         return ProbeResult(
             name="matmul",
             status=ProbeStatus.RED,
@@ -192,8 +274,8 @@ def _probe_matmul() -> ProbeResult:
         )
 
 
-def _probe_scatter_add() -> ProbeResult:
-    """Probe ``scatter_add_`` on the active backend."""
+def probe_scatter_add() -> ProbeResult:
+    """Probe ``Tensor.scatter_add_`` on the active backend."""
     backend = detect_backend()
     try:
         device = current_device(backend)
@@ -210,7 +292,7 @@ def _probe_scatter_add() -> ProbeResult:
                 detail="unexpected result",
             )
         return ProbeResult(name="scatter_add", status=ProbeStatus.GREEN)
-    except Exception as exc:
+    except (RuntimeError, NotImplementedError, ValueError, TypeError) as exc:
         return ProbeResult(
             name="scatter_add",
             status=ProbeStatus.RED,
@@ -218,8 +300,12 @@ def _probe_scatter_add() -> ProbeResult:
         )
 
 
-def _probe_compile() -> ProbeResult:
-    """Probe ``torch.compile`` on a small module."""
+def probe_compile() -> ProbeResult:
+    """Probe ``torch.compile`` on a tiny square module.
+
+    On CPU the probe is skipped by default to keep startup fast; set
+    ``PJEPA_TRY_CPU_COMPILE=1`` in the environment to force it.
+    """
     backend = detect_backend()
     if backend is Backend.CPU and not os.environ.get("PJEPA_TRY_CPU_COMPILE"):
         return ProbeResult(
@@ -244,7 +330,7 @@ def _probe_compile() -> ProbeResult:
                 detail="compiled output differs",
             )
         return ProbeResult(name="torch.compile", status=ProbeStatus.GREEN)
-    except Exception as exc:
+    except (RuntimeError, NotImplementedError, ValueError, TypeError) as exc:
         return ProbeResult(
             name="torch.compile",
             status=ProbeStatus.RED,
@@ -252,11 +338,17 @@ def _probe_compile() -> ProbeResult:
         )
 
 
-def _probe_hyperbolic() -> ProbeResult:
-    """Probe Poincare ball operations via geoopt."""
+def probe_hyperbolic() -> ProbeResult:
+    """Probe Poincare ball operations via the optional ``geoopt`` dependency.
+
+    Returns:
+        A :class:`ProbeResult` that is GREEN when random points
+        sampled on the ball satisfy the unit-radius constraint,
+        YELLOW when ``geoopt`` is not installed, and RED otherwise.
+    """
     backend = detect_backend()
     try:
-        import geoopt  # type: ignore[import-not-found]
+        import geoopt  # type: ignore[import-not-found]  # geoopt is optional.
 
         ball = geoopt.PoincareBallExact()
         x = ball.random((4, 3)).to(current_device(backend))
@@ -273,7 +365,7 @@ def _probe_hyperbolic() -> ProbeResult:
             status=ProbeStatus.YELLOW,
             detail="geoopt not installed",
         )
-    except Exception as exc:
+    except (RuntimeError, NotImplementedError, ValueError, TypeError) as exc:
         return ProbeResult(
             name="hyperbolic",
             status=ProbeStatus.RED,
@@ -281,12 +373,18 @@ def _probe_hyperbolic() -> ProbeResult:
         )
 
 
-def _probe_pyg_scatter() -> ProbeResult:
-    """Probe PyTorch-Geometric scatter operations."""
+def probe_pyg_scatter() -> ProbeResult:
+    """Probe PyTorch-Geometric ``scatter`` on the active backend.
+
+    Returns:
+        GREEN when the scatter yields the expected shape, YELLOW when
+        ``torch_geometric`` is not installed, RED otherwise.
+    """
     backend = detect_backend()
     try:
-        import torch_geometric  # type: ignore[import-not-found]  # noqa: F401
-        from torch_geometric.utils import scatter  # type: ignore[import-not-found]
+        from torch_geometric.utils import (  # type: ignore[import-not-found]
+            scatter,  # torch_geometric is an optional dependency.
+        )
 
         idx = torch.tensor([0, 1, 0, 1], device=current_device(backend))
         src = torch.ones((4, 2), device=current_device(backend))
@@ -306,7 +404,7 @@ def _probe_pyg_scatter() -> ProbeResult:
             status=ProbeStatus.YELLOW,
             detail="torch_geometric not installed",
         )
-    except Exception as exc:
+    except (RuntimeError, NotImplementedError, ValueError, TypeError) as exc:
         return ProbeResult(
             name="pyg_scatter",
             status=ProbeStatus.RED,
@@ -314,7 +412,7 @@ def _probe_pyg_scatter() -> ProbeResult:
         )
 
 
-def _probe_cpu_fallback() -> ProbeResult:
+def probe_cpu_fallback() -> ProbeResult:
     """CPU fallback is always available."""
     return ProbeResult(name="cpu_fallback", status=ProbeStatus.GREEN)
 
@@ -322,10 +420,11 @@ def _probe_cpu_fallback() -> ProbeResult:
 def detect_capabilities() -> CapabilityReport:
     """Build a :class:`CapabilityReport` for the current host.
 
-    Each probe exercises a small operation and reports GREEN, YELLOW, or
-    RED with a one-line detail. The function is cheap (under a second
-    on a typical laptop) and is intended to be called at the start of
-    every interactive session.
+    Each probe exercises a small operation and reports GREEN, YELLOW,
+    or RED with a one-line detail. The total cost is bounded by the
+    slowest probe (typically under a second on a laptop). The
+    function is intended to be called at the start of every
+    interactive session, not on the hot path.
 
     Returns:
         The populated capability report.
@@ -336,14 +435,14 @@ def detect_capabilities() -> CapabilityReport:
         False
     """
     backend = detect_backend()
-    device_name = _device_name(backend)
+    device_name = device_name_for(backend)
     probes = (
-        _probe_matmul(),
-        _probe_scatter_add(),
-        _probe_compile(),
-        _probe_hyperbolic(),
-        _probe_pyg_scatter(),
-        _probe_cpu_fallback(),
+        probe_matmul(),
+        probe_scatter_add(),
+        probe_compile(),
+        probe_hyperbolic(),
+        probe_pyg_scatter(),
+        probe_cpu_fallback(),
     )
     return CapabilityReport(
         backend=backend,
@@ -356,8 +455,18 @@ def detect_capabilities() -> CapabilityReport:
     )
 
 
-def _device_name(backend: Backend) -> str:
-    """Return a human-readable device name for the backend."""
+def device_name_for(backend: Backend) -> str:
+    """Return a human-readable device name for the backend.
+
+    Args:
+        backend: The backend whose device name should be reported.
+
+    Returns:
+        For CUDA the value of ``torch.cuda.get_device_name(0)`` if any
+        CUDA device is available, otherwise the literal ``"CPU"``;
+        for MPS the literal ``"Apple Silicon (MPS)"``; for CPU the
+        literal ``"CPU"``.
+    """
     if backend is Backend.CUDA and torch.cuda.is_available():
         return torch.cuda.get_device_name(0)
     if backend is Backend.MPS:
@@ -365,8 +474,22 @@ def _device_name(backend: Backend) -> str:
     return "CPU"
 
 
-def capabilities_as_dict(report: CapabilityReport) -> Mapping[str, str]:
-    """Convert a :class:`CapabilityReport` to a JSON-friendly mapping."""
+def capabilities_as_dict(report: CapabilityReport) -> Mapping[str, object]:
+    """Convert a :class:`CapabilityReport` to a JSON-friendly mapping.
+
+    The ``cpu_count`` field is rendered as a string to preserve
+    portability with JSON encoders that cannot disambiguate integers
+    from booleans on parse. Every probe name becomes a key mapping to
+    its status string.
+
+    Args:
+        report: The report to serialise.
+
+    Returns:
+        A mapping containing ``backend``, ``device_name``,
+        ``python_version``, ``torch_version``, ``platform``,
+        ``cpu_count``, and ``probes``.
+    """
     return {
         "backend": report.backend.value,
         "device_name": report.device_name,
