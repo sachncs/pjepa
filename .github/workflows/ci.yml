@@ -2,12 +2,38 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
+  lint:
+    name: Lint, format, packaging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Ruff (lint)
+        run: ruff check src tests
+      - name: Ruff (format check)
+        run: ruff format --check src tests
+      - name: Build sdist + wheel
+        run: python -m build --sdist --wheel
+
   test:
+    name: Tests (${{ matrix.os }} / Python ${{ matrix.python-version }})
+    needs: lint
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -20,32 +46,55 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install dependencies
+      - name: Install
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,ogb]"
-      - name: Lint
-        run: ruff check src tests
-      - name: Type check
-        run: pytype src/pjepa || true
-      - name: Test
-        run: pytest -n auto --cov=pjepa --cov-report=xml
+      - name: Run pytest with coverage
+        run: |
+          pytest -n auto \
+            --cov=pjepa \
+            --cov-branch \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=80
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v4
+        uses: actions/upload-artifact@v4
         with:
-          files: coverage.xml
-          fail_ci_if_error: false
-      - name: Audit
-        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
-        run: pip install pip-audit && pip-audit --strict
+          name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
+          path: coverage.xml
 
-  audit:
+  typecheck:
+    name: Type check
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pip-audit
-      - run: pip-audit --strict
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: pytype (blocking)
+        run: pytype src/pjepa
+
+  docs:
+    name: Docs strict build
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: mkdocs build --strict
+        run: mkdocs build --strict

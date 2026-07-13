@@ -1,0 +1,27 @@
+experiment:
+  name: ogb_arxiv
+  dataset: ogbn-arxiv
+  seed_split: 0
+  seed_model: 42
+
+training:
+  epochs: 100
+  batch_size: 1024
+  optimizer: adamw
+  lr: 1.0e-2
+  weight_decay: 5.0e-4
+  scheduler: cosine
+
+model:
+  encoder: gin
+  hidden_dim: 256
+  num_layers: 3
+  output_dim: 256
+  dropout: 0.5
+
+pjepa:
+  B: 256
+  beta_ib: 1.0e-2
+  lambda_mdl: 1.0e-3
+  gamma_forward: 1.0e-4
+  ema_momentum: 0.99

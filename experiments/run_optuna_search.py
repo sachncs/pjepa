@@ -3,205 +3,242 @@
 Phase 6 of the implementation plan: per-dataset hyperparameter search
 using Optuna with the Hyperband pruner. The search space covers the
 encoder dimensions, learning rate, weight decay, JEPA coefficients,
-and the working-graph budget ``B``.
+the working-graph budget ``B``, and the augmentation family.
 
-Each Optuna trial runs a single fold of the TU experiment and
-reports the validation accuracy. The best config per dataset is saved
-to ``results/optuna/<dataset>/best_config.yaml`` for downstream use
-by Phase 8 (full TU SOTA).
+Implementation layout:
+
+* The canonical implementation lives in
+  :mod:`pjepa.training.optuna_search`. That module provides the
+  :class:`OptunaSearch` runner, the SQLite-backed study
+  construction with WAL journaling, the
+  :func:`suggest_hyperparameters` search-space sampler, and the
+  :func:`build_augmentation_from_name` augmentation factory.
+* This module is a thin CLI on top of the package implementation so
+  the experiment runner can be invoked via ``python
+  experiments/run_optuna_search.py``. It re-exports the public
+  names :func:`suggest_config`, :func:`train_one_trial`, and
+  :func:`save_best_config` (formerly ``_suggest_config``,
+  ``_train_one_trial``, and ``_save_best_config``) so existing
+  callers continue to work.
+
+The Hyperband pruning strategy and the search-space sampling are
+performed inside :class:`OptunaSearch` and are not duplicated here;
+see :mod:`pjepa.training.optuna_search` for the full implementation
+details.
 """
 
 from __future__ import annotations
 
 import argparse
-import time
-from dataclasses import dataclass
+from collections.abc import Sequence
 from pathlib import Path
-
-import torch
+from typing import Any
 
 from pjepa.data.tu import load_tu_dataset
-from pjepa.encoders import DualGeometricEncoder
-from pjepa.exceptions import ConfigError
-from pjepa.logging_setup import configure_logging, get_logger, LogFormat
-from pjepa.utils.seeding import set_global_seed
+from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.training.optuna_search import (
+    OPTUNA_SEARCH_SPACE,
+    OptunaSearch,
+    OptunaSearchConfig,
+    build_augmentation_from_name,
+    suggest_hyperparameters,
+)
 
-__all__ = ["OptunaConfig", "run_search"]
+__all__ = [
+    "OPTUNA_SEARCH_SPACE",
+    "OptunaConfig",
+    "build_augmentation_from_name",
+    "run_search",
+    "save_best_config",
+    "suggest_config",
+    "train_one_trial",
+]
 
 
-@dataclass(frozen=True)
 class OptunaConfig:
-    """Configuration for the Optuna search.
+    """Backwards-compatible CLI configuration for the Optuna search.
 
     Attributes:
-        datasets: The datasets to run search on.
+        datasets: The dataset names to run search on. The default is
+            the Phase 6 plan's TU trio: ``("PROTEINS", "MUTAG",
+            "NCI1")``.
         n_trials: The number of trials per dataset.
         epochs: The number of training epochs per trial.
         timeout_seconds: Optional wall-clock timeout for the whole
-          search per dataset.
+            search per dataset; ``None`` disables the timeout.
     """
 
-    datasets: tuple[str, ...] = ("PROTEINS", "MUTAG", "NCI1")
-    n_trials: int = 20
-    epochs: int = 100
-    timeout_seconds: float | None = None
+    def __init__(
+        self,
+        datasets: Sequence[str] = ("PROTEINS", "MUTAG", "NCI1"),
+        n_trials: int = 20,
+        epochs: int = 100,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        """Store the Optuna search parameters.
+
+        Args:
+            datasets: Dataset names. Stored as a tuple.
+            n_trials: Integer number of trials per dataset.
+            epochs: Integer number of training epochs per trial.
+            timeout_seconds: Wall-clock timeout in seconds, or
+                ``None`` for no timeout.
+        """
+        self.datasets = tuple(datasets)
+        self.n_trials = int(n_trials)
+        self.epochs = int(epochs)
+        self.timeout_seconds = timeout_seconds
 
 
-def _suggest_config(trial, dataset) -> dict[str, object]:
-    """Sample a hyperparameter configuration from the Optuna trial."""
-    return {
-        "lr": trial.suggest_float("lr", 1e-5, 1e-2, log=True),
-        "weight_decay": trial.suggest_float("weight_decay", 1e-6, 1e-3, log=True),
-        "hidden_dim": trial.suggest_categorical("hidden_dim", [64, 128, 256]),
-        "num_layers": trial.suggest_int("num_layers", 2, 6),
-        "dropout": trial.suggest_float("dropout", 0.0, 0.5),
-        "B": trial.suggest_categorical("B", [16, 32, 64, 128, 256]),
-        "beta_ib": trial.suggest_float("beta_ib", 1e-4, 1.0, log=True),
-        "lambda_mdl": trial.suggest_float("lambda_mdl", 1e-4, 1.0, log=True),
-        "gamma_forward": trial.suggest_float("gamma_forward", 1e-4, 1.0, log=True),
-        "ema_momentum": trial.suggest_float("ema_momentum", 0.99, 0.9999),
-        "label_smoothing": trial.suggest_float("label_smoothing", 0.0, 0.2),
-    }
+def suggest_config(trial: Any, dataset: str) -> dict[str, Any]:
+    """Sample a hyperparameter configuration from ``trial``.
+
+    Thin wrapper around :func:`suggest_hyperparameters` kept for
+    backwards compatibility. ``dataset`` is accepted for signature
+    symmetry but is not used; the search space is shared across
+    datasets and is parameterised only by the Optuna trial.
+
+    Args:
+        trial: An Optuna trial object that exposes ``suggest_*``
+            methods.
+        dataset: Dataset name (currently unused; retained for API
+            stability).
+
+    Returns:
+        A dictionary mapping every parameter name in
+        :data:`OPTUNA_SEARCH_SPACE` to a sampled value.
+    """
+    _ = dataset
+    return suggest_hyperparameters(trial, OPTUNA_SEARCH_SPACE)
 
 
-def _train_one_trial(
-    config: dict[str, object],
-    train_pairs: list,
-    test_pairs: list,
+def train_one_trial(
+    config: dict[str, Any],
+    train_pairs: Sequence[Any],
+    test_pairs: Sequence[Any],
     num_classes: int,
     epochs: int,
 ) -> float:
-    """Train one encoder+classifier pair and return test accuracy."""
-    input_dim = train_pairs[0][0].vertex_features.shape[1]
-    encoder = DualGeometricEncoder(
-        input_dim=input_dim,
-        euclidean_dim=int(config["hidden_dim"]),
-        hyperbolic_dim=32,
-        num_layers=int(config["num_layers"]),
+    """Train a single (encoder, classifier) for ``epochs`` and report test accuracy.
+
+    This is the CLI-friendly entry point that wraps the package's
+    :class:`OptunaSearch`. It instantiates a one-trial Optuna search
+    so the same :meth:`OptunaSearch.evaluate` path used for the full
+    study is exercised (including ``optim.AdamW``, the cosine
+    schedule, and label smoothing).
+
+    Args:
+        config: Hyperparameter dictionary. Must contain the keys
+            referenced by :meth:`OptunaSearch.evaluate` (``lr``,
+            ``weight_decay``, ``hidden_dim``, ``num_layers``, and
+            ``augmentation``); ``label_smoothing`` defaults to
+            ``0.0``.
+        train_pairs: Training ``(graph, label)`` pairs.
+        test_pairs: Test ``(graph, label)`` pairs.
+        num_classes: Number of classification targets.
+        epochs: Number of training epochs.
+
+    Returns:
+        The mean per-class accuracy on ``test_pairs`` after training,
+        in ``[0, 1]``.
+    """
+    search = OptunaSearch(OptunaSearchConfig(n_trials=1, epochs=epochs))
+    return float(
+        search.evaluate(
+            params=dict(config),
+            train_pairs=list(train_pairs),
+            test_pairs=list(test_pairs),
+            num_classes=int(num_classes),
+            augmentation=build_augmentation_from_name(str(config.get("augmentation", "none"))),
+        )
     )
-    classifier = torch.nn.Sequential(
-        torch.nn.Linear(int(config["hidden_dim"]), 64),
-        torch.nn.ReLU(),
-        torch.nn.Linear(64, num_classes),
-    )
-    params = list(encoder.parameters()) + list(classifier.parameters())
-    optimizer = torch.optim.AdamW(
-        params, lr=float(config["lr"]), weight_decay=float(config["weight_decay"])
-    )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
-    loss_fn = torch.nn.CrossEntropyLoss(label_smoothing=float(config["label_smoothing"]))
-
-    def _forward(pairs):
-        feats = []
-        labels = []
-        for g, lbl in pairs:
-            e, _ = encoder(g)
-            feats.append(e.mean(dim=0))
-            labels.append(lbl)
-        return torch.stack(feats), torch.tensor(labels, dtype=torch.long)
-
-    n = len(train_pairs)
-    batch_size = min(32, n)
-    for _ in range(epochs):
-        perm = torch.randperm(n)
-        for start in range(0, n, batch_size):
-            idx = perm[start : start + batch_size]
-            batch = [train_pairs[i] for i in idx.tolist()]
-            x, y = _forward(batch)
-            logits = classifier(x)
-            loss = loss_fn(logits, y)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        scheduler.step()
-    encoder.eval()
-    classifier.eval()
-    with torch.no_grad():
-        test_x, test_y = _forward(test_pairs)
-        preds = classifier(test_x).argmax(dim=-1)
-    return float((preds == test_y).float().mean().item())
 
 
-def _save_best_config(study, output_dir: Path, dataset: str) -> None:
-    """Save the best config to a YAML file."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    best = study.best_params
-    lines = [f"dataset: {dataset}", "# Optuna best hyperparameters", "best_params:"]
-    for key, value in best.items():
-        lines.append(f"  {key}: {value!r}")
-    lines.append(f"best_value: {study.best_value:.4f}")
-    (output_dir / "best_config.yaml").write_text("\n".join(lines), encoding="utf-8")
+def save_best_config(study: Any, output_dir: Path, dataset: str) -> Path:
+    """Persist the best hyperparameters from ``study`` to disk.
+
+    The ``output_dir`` argument is forwarded as
+    :attr:`OptunaSearchConfig.storage_path`; the
+    :meth:`OptunaSearch.save_best_config` method then writes the
+    best hyperparameters to ``<storage_path>/<dataset>/best_config.yaml``.
+
+    Args:
+        study: An Optuna study object (post-optimisation).
+        output_dir: Base directory whose ``dataset`` sub-directory
+            receives the best-config YAML.
+        dataset: Dataset name; used both as a sub-directory name and
+            inside the YAML payload.
+
+    Returns:
+        The :class:`pathlib.Path` of the YAML file written.
+    """
+    search = OptunaSearch(OptunaSearchConfig(storage_path=str(output_dir)))
+    return search.save_best_config(study, dataset)
 
 
-def run_search(config: OptunaConfig, output_dir: str = "results/optuna") -> dict[str, object]:
-    """Run Optuna search on each dataset and save per-dataset best configs."""
-    try:
-        import optuna  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ConfigError(
-            "run_search: Optuna is required; install with `pip install optuna`"
-        ) from exc
+def run_search(
+    config: OptunaConfig, output_dir: str = "results/optuna"
+) -> dict[str, dict[str, Any]]:
+    """Run the Optuna search on every dataset listed in ``config``.
+
+    The ``output_dir`` parameter is forwarded as
+    :attr:`OptunaSearchConfig.storage_path`. Two artefacts are
+    written per dataset under this directory:
+
+    * ``<output_dir>/<dataset>.db`` — the SQLite-backed Optuna
+      study with WAL journaling enabled.
+    * ``<output_dir>/<dataset>/best_config.yaml`` — the best
+      hyperparameters found by TPE sampling under Hyperband
+      pruning.
+
+    Each Optuna trial is a single fold of the TU experiment;
+    :class:`OptunaSearch.evaluate` reports the validation accuracy
+    and the Hyperband pruner can short-circuit unpromising trials
+    via :func:`trial.report` / :func:`trial.should_prune` (see
+    :mod:`pjepa.training.optuna_search`).
+
+    Args:
+        config: The Optuna configuration.
+        output_dir: The storage path; defaults to
+            ``"results/optuna"``.
+
+    Returns:
+        A mapping from dataset name to the per-dataset summary
+        returned by :meth:`OptunaSearch.run` (``best_value``,
+        ``best_params``, ``n_trials``, ``n_pruned``, ``storage_path``,
+        ``best_config_path``).
+    """
     log = get_logger(__name__)
     log.info("optuna search starting", extra={"event": "optuna.start"})
-    out = Path(output_dir)
-    summary: dict[str, object] = {}
-    for dataset in config.datasets:
-        log.info("searching dataset", extra={"event": "optuna.dataset", "dataset": dataset})
-        try:
-            graphs, num_classes = load_tu_dataset(dataset)
-        except Exception as exc:  # pragma: no cover - tolerate download failures
-            log.info("dataset load failed", extra={"event": "optuna.dataset_failed", "dataset": dataset, "error": str(exc)})
-            continue
-        pairs = [(g.graph, g.label) for g in graphs]
-        n = len(pairs)
-        n_train = int(0.9 * n)
-        set_global_seed(0)
-        train_pairs = pairs[:n_train]
-        test_pairs = pairs[n_train:]
-        study = optuna.create_study(
-            direction="maximize",
-            pruner=optuna.pruners.HyperbandPruner(reduction_factor=3),
+    search = OptunaSearch(
+        OptunaSearchConfig(
+            storage_path=output_dir,
+            n_trials=int(config.n_trials),
+            epochs=int(config.epochs),
+            timeout_seconds=config.timeout_seconds,
         )
-        start = time.time()
+    )
 
-        def objective(trial):
-            params = _suggest_config(trial, dataset)
-            return _train_one_trial(
-                params, train_pairs, test_pairs, num_classes, epochs=config.epochs
-            )
+    def loader(name: str) -> tuple[list[tuple[Any, int]], int]:
+        graphs, num_classes = load_tu_dataset(name)
+        return [(g.graph, g.label) for g in graphs], int(num_classes)
 
-        study.optimize(
-            objective,
-            n_trials=config.n_trials,
-            timeout=config.timeout_seconds,
-            show_progress_bar=False,
-        )
-        elapsed = time.time() - start
-        _save_best_config(study, out / dataset, dataset)
-        summary[dataset] = {
-            "best_value": study.best_value,
-            "best_params": study.best_params,
-            "n_trials": len(study.trials),
-            "elapsed_seconds": elapsed,
-        }
-        log.info(
-            "search complete",
-            extra={
-                "event": "optuna.dataset_complete",
-                "dataset": dataset,
-                "best_value": study.best_value,
-                "n_trials": len(study.trials),
-            },
-        )
+    summary = search.run_many(list(config.datasets), loader)
+    log.info(
+        "optuna search complete",
+        extra={"event": "optuna.complete", "datasets": list(summary.keys())},
+    )
     return summary
 
 
 def main() -> int:
     """CLI entry point."""
-    parser = argparse.ArgumentParser(description="Optuna hyperparameter search for Persistent-JEPA.")
-    parser.add_argument("--datasets", nargs="*", default=list(OptunaConfig.datasets))
-    parser.add_argument("--n-trials", type=int, default=OptunaConfig.n_trials)
-    parser.add_argument("--epochs", type=int, default=OptunaConfig.epochs)
+    parser = argparse.ArgumentParser(
+        description="Optuna hyperparameter search for Persistent-JEPA."
+    )
+    parser.add_argument("--datasets", nargs="*", default=list(OptunaConfig().datasets))
+    parser.add_argument("--n-trials", type=int, default=OptunaConfig().n_trials)
+    parser.add_argument("--epochs", type=int, default=OptunaConfig().epochs)
     parser.add_argument("--timeout", type=float, default=None)
     parser.add_argument("--output-dir", default="results/optuna")
     args = parser.parse_args()
@@ -212,9 +249,7 @@ def main() -> int:
         epochs=args.epochs,
         timeout_seconds=args.timeout,
     )
-    summary = run_search(config, output_dir=args.output_dir)
-    log = get_logger(__name__)
-    log.info("optuna search complete", extra={"event": "optuna.complete", "datasets": list(summary.keys())})
+    run_search(config, output_dir=args.output_dir)
     return 0
 
 

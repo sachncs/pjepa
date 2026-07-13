@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pjepa"
-version = "0.0.1"
+version = "1.0.0"
 description = "Persistent-JEPA: a persistent graph world model for continual developmental learning."
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -21,7 +21,7 @@ keywords = [
     "developmental-ai",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: Apache Software License",
@@ -54,10 +54,12 @@ dev = [
     "ruff>=0.6",
     "pytype>=2024.10",
     "mutmut>=2.4",
-    "cosmic-ray>=10.0",
     "pip-audit>=2.7",
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
+    "build>=1.0",
+    "optuna>=4.0",
+    "pre-commit>=3.6",
 ]
 ogb = [
     "ogb>=1.3",
@@ -131,7 +133,7 @@ filterwarnings = [
 branch = true
 source = ["src/pjepa"]
 omit = [
-    "src/pjepa/_version.py",
+    "src/pjepa/version.py",
     "src/pjepa/cli/__init__.py",
 ]
 
@@ -149,4 +151,4 @@ precision = 1
 inputs = ["src/pjepa"]
 python_version = "3.12"
 strict = ["src/pjepa"]
-exclude = ["**/_version.py"]
+exclude = ["**/version.py"]

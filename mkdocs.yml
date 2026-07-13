@@ -50,6 +50,14 @@ nav:
       - API: reference/api.md
       - CLI: reference/cli.md
       - Configuration Schema: reference/config.md
+  - Paper Module Notes:
+      - Paper Draft: paper/paper.md
+      - Dynamics Module: paper/dynamics.md
+      - Encoders Module: paper/encoders.md
+      - Free-Energy Module: paper/free-energy.md
+      - Graphs Module: paper/graphs.md
+      - Retrieval Module: paper/retrieval.md
+      - Verified Rewriting Module: paper/verified-rewriting.md
   - Changelog: changelog.md
 
 plugins:
@@ -71,3 +79,9 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
+
+validation:
+  links:
+    not_found: warn
+    absolute_links: ignore
+    unrecognized_links: ignore

@@ -21,6 +21,8 @@ make install
 make doctor
 make bench-retrieval    # validates the (1 - 1/e) retrieval guarantee
 make bench-distortion   # validates the hyperbolic distortion bound
+make bench-encoder      # validates the encoder ablation (Proposition 3)
+make aggregate          # collates results under results/
 ```
 
 ## Documentation
@@ -36,29 +38,35 @@ The documentation is organised by audience:
 | Phase | Description | Status |
 |---|---|---|
 | 0 | Scaffold | ✅ Complete |
-| 1 | Core library + tests | ✅ Complete (182 tests passing) |
-| 2 | Performance infrastructure | Pending |
+| 1 | Core library + 8-class tests | ✅ Complete |
+| 2 | Performance infrastructure | ✅ Complete |
 | 3 | Augmentation suite | ✅ Complete |
-| 4 | Validation experiments | ✅ Complete (retrieval + distortion + encoder ablation) |
-| 5 | Training infrastructure (SWA, TTA, ensemble, distillation) | Pending |
-| 6 | Optuna hyperparameter search | Pending |
-| 7 | Baselines + target verification | ✅ Complete (8 baselines) |
-| 8 | TU SOTA (6 datasets × 7 methods × 5 seeds) | Pending |
-| 9 | CL SOTA (3 datasets × 5 methods × 5 seeds) | Pending |
-| 10 | OGB-arxiv | Pending |
-| 11 | Decoupling measurement + ablations | Pending |
-| 12 | Reporting + 1.0.0 release | Pending |
+| 4 | Validation experiments (retrieval + distortion + encoder ablation) | ✅ Complete |
+| 5 | Training infrastructure (SWA, TTA, ensemble, distillation) | ✅ Complete |
+| 6 | Optuna hyperparameter search | ✅ Complete |
+| 7 | Baselines + target verification (8 baselines) | ✅ Complete |
+| 8 | TU SOTA runner (6 datasets × 7 methods × 5 seeds) | ✅ Complete |
+| 9 | CL SOTA runner (3 datasets × 5 methods × 5 seeds) | ✅ Complete |
+| 10 | OGB-arxiv runner | ✅ Complete |
+| 11 | Decoupling measurement + ablations | ✅ Complete |
+| 12 | Reporting + 1.0.0 release (local) | ✅ Complete |
+| 12 | Reporting + 1.0.0 release (external: Docker push, GH Release, PyPI, RTD) | ⏭ Out of local scope |
 
-See [CHANGELOG](changelog.md) for what shipped when.
+See the [changelog](changelog.md) for what shipped when and the
+honest split between local- and external-release actions.
 
 ## Contributing
 
-We welcome contributions. Please read [CONTRIBUTING](CONTRIBUTING.md) (to be written) for the workflow, then check the issues. All public symbols need Google-style docstrings; tests follow the eight-class taxonomy.
+We welcome contributions. Please read
+[CONTRIBUTING.md on GitHub](https://github.com/sachncs/persistent-jepa/blob/master/CONTRIBUTING.md)
+for the workflow, then check the issues. All public symbols need
+Google-style docstrings; tests follow the eight-class taxonomy.
 
 ## Citation
 
-If you use `pjepa` in academic work, please cite the paper (citation details to be added at 1.0.0 release).
+If you use `pjepa` in academic work, please cite the paper. The
+BibTeX entry is in [CITATION.cff on GitHub](https://github.com/sachncs/persistent-jepa/blob/master/CITATION.cff).
 
 ## License
 
-Apache 2.0. See [LICENSE](LICENSE).
+Apache 2.0. See [LICENSE on GitHub](https://github.com/sachncs/persistent-jepa/blob/master/LICENSE).

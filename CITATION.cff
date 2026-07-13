@@ -4,7 +4,7 @@ message: |
   Persistent-JEPA paper.
 type: software
 title: "Persistent-JEPA"
-version: 0.0.10
+version: 1.0.0
 date-released: 2026-07-13
 license: Apache-2.0
 authors:

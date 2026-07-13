@@ -1,0 +1,39 @@
+experiment:
+  name: tu_sota
+  datasets:
+    - PROTEINS
+    - MUTAG
+    - NCI1
+    - IMDB-BINARY
+    - REDDIT-BINARY
+    - DD
+  seed_split: 0
+  seed_model: 42
+
+training:
+  epochs: 200
+  batch_size: 32
+  optimizer: adamw
+  lr: 1.0e-2
+  weight_decay: 1.0e-4
+  scheduler: cosine
+
+model:
+  encoder: dual_geometric
+  hidden_dim: 128
+  num_layers: 4
+  output_dim: 128
+  dropout: 0.0
+
+pjepa:
+  B: 64
+  beta_ib: 1.0e-2
+  lambda_mdl: 1.0e-3
+  gamma_forward: 1.0e-4
+  ema_momentum: 0.99
+  bisimulation_eps: 1.0e-2
+  max_cost: 2.0
+
+optuna:
+  n_trials: 20
+  pruner: hyperband

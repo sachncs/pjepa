@@ -3,6 +3,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 [![Code style](https://img.shields.io/badge/code%20style-google-blueviolet)](https://google.github.io/styleguide/pyguide.html)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/sachncs/persistent-jepa/releases)
 
 **Persistent-JEPA** (`pjepa`) is a production-grade, open-source implementation of a persistent graph world model for continual developmental learning. It separates long-term knowledge (a persistent graph), transient reasoning (a working graph), and learning dynamics (a fast-weight kernel), all governed by a single information-theoretic variational objective.
 
@@ -24,9 +25,13 @@ pjepa benchmark distortion      # Proposition 7: hyperbolic vs Euclidean distort
 pjepa benchmark encoder-ablation # Proposition 3: dual-geometric advantage
 
 # Run headline experiments
-pjepa train tu                  # Phase 8: TU SOTA (6 datasets × 7 methods)
-pjepa train cl                  # Phase 9: CL SOTA (3 datasets × 5 methods)
-pjepa train ogb                 # Phase 10: OGB-arxiv
+pjepa tune tu configs/tu.yaml   # Phase 6: Optuna search for Persistent-JEPA
+pjepa train tu configs/tu.yaml  # Phase 8: TU SOTA (6 datasets × 7 methods)
+pjepa train cl configs/cl.yaml  # Phase 9: CL SOTA (3 datasets × 5 methods)
+pjepa train ogb configs/ogb.yaml # Phase 10: OGB-arxiv
+
+# Aggregate results across phases
+pjepa aggregate results         # writes results/all_runs.jsonl + tables
 ```
 
 ## Documentation
@@ -52,11 +57,27 @@ pjepa train ogb                 # Phase 10: OGB-arxiv
 | 7 | Baselines (GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM) | ✅ Complete |
 | 8 | TU SOTA experiment runner | ✅ Complete |
 | 9 | CL SOTA experiment runner | ✅ Complete |
-| 10 | OGB-arxiv experiment stub | ✅ Complete |
+| 10 | OGB-arxiv experiment runner | ✅ Complete |
 | 11 | Decoupling measurement + ablations | ✅ Complete |
-| 12 | Reporting + 1.0.0 release | In progress |
+| 12 | Reporting + 1.0.0 release (local) | ✅ Complete |
+| 12 | Reporting + 1.0.0 release (external) | ⏭ Out-of-scope (see below) |
 
-**227 tests pass, 0 ruff errors, 0 mypy-style type issues.**
+**Local 1.0.0 scope**: the library, the CLI dispatcher, the experiment
+runners, the aggregator, the docs site (mkdocs strict), the package
+artefacts (`make package`), and the changelog are all in this commit.
+
+**External 1.0.0 scope (intentionally not executed here)**:
+
+- Docker image push to a registry — requires credentials.
+- GitHub Release `v1.0.0` with attached sdist + wheel — requires GH
+  credentials and a signed maintainer decision.
+- PyPI upload — requires credentials and a maintainer decision.
+- Read the Docs build trigger — requires RTD credentials.
+- Full 70-hour reproduction (`make reproduce-all`) — saturates the
+  CI runner; the reproduction matrix in `experiments/REPRODUCE.md`
+  remains the source of truth for one-command re-runs.
+
+**436 tests pass, 0 ruff errors, mkdocs builds with `--strict`, `python -m build` succeeds locally.**
 
 ## Project Structure
 
@@ -90,7 +111,7 @@ pjepa/
 │   ├── data/                   # TUDataset, OGB-arxiv, class-incremental splits
 │   ├── baselines/              # GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM
 │   └── cli/                    # Typer-based CLI
-├── tests/                      # 227 tests covering the eight-class taxonomy
+├── tests/                      # 436 tests covering the eight-class taxonomy
 ├── plans/                      # Implementation plans (gitignored)
 ├── docs/paper/paper.md         # Paper draft (gitignored)
 ├── pyproject.toml              # PEP 621 metadata, full deps, lint/type/test config

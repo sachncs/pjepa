@@ -1,0 +1,18 @@
+experiment:
+  name: baseline_gcn_tu
+  baseline: gcn
+  dataset: PROTEINS
+  seed_split: 0
+  seed_model: 42
+
+training:
+  epochs: 200
+  batch_size: 32
+  optimizer: adamw
+  lr: 1.0e-2
+  weight_decay: 5.0e-4
+
+model:
+  hidden_dim: 64
+  num_layers: 2
+  dropout: 0.5

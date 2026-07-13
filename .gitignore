@@ -75,11 +75,10 @@ coverage.xml
 logs/
 
 # Generated artifacts
-results/checkpoints/
-results/logs/
-results/optuna/
-results/metrics/
+results/
+site/
 *.pyc
+.pytype/
 
 # OS
 Thumbs.db
