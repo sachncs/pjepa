@@ -1,13 +1,13 @@
-"""Configuration loading and validation for the ``pjepa`` package.
+"""Configuration loading and saving for the ``pjepa`` package.
 
-Configurations are YAML files. They are validated against a hand-rolled
-schema (:class:`ConfigSchema`) at load time; any deviation raises
+Configurations are YAML files. A caller may supply a tuple of required
+top-level section names; any deviation raises
 :class:`pjepa.exceptions.ConfigError`. The implementation intentionally
 avoids pulling Pydantic into the runtime surface so the core library
-keeps a tiny dependency footprint. The schema is permissive about
+keeps a tiny dependency footprint. The loader is permissive about
 *shape* (unknown top-level sections are allowed) but strict about
-*type* (mappings must remain mappings; lists and scalars cannot stand
-in for them).
+*type* (the root must remain a mapping; lists and scalars cannot stand
+in for it).
 
 Example configuration::
 
@@ -40,55 +40,13 @@ if that matters.
 from __future__ import annotations
 
 import os
-import re
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from pjepa.exceptions import ConfigError
 
-__all__ = ["ConfigSchema", "load_config", "merge_configs", "save_config"]
-
-SECTION_IDENT: re.Pattern[str] = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-"""Precompiled pattern matching valid YAML section identifiers."""
-
-
-@dataclass(frozen=True)
-class ConfigSchema:
-    """Schema describing the recognised top-level sections of a config.
-
-    A section is either *required* (its absence raises
-    :class:`ConfigError` at load time) or *optional* (its absence is
-    silently tolerated). Sections outside both lists are permitted so
-    that user-defined extensions survive a load, but they emit a
-    warning through the ``pjepa`` logger.
-
-    Attributes:
-        required: Tuple of section names that must be present.
-        optional: Tuple of section names that are allowed but not
-            required.
-
-    Raises:
-        ValueError: At construction time if any section name fails
-            :data:`SECTION_IDENT`, or if a section is listed as both
-            required and optional.
-
-    Example:
-        >>> schema = ConfigSchema(required=("experiment",), optional=("notes",))
-    """
-
-    required: tuple[str, ...] = field(default_factory=tuple)
-    optional: tuple[str, ...] = field(default_factory=tuple)
-
-    def __post_init__(self) -> None:
-        for section in (*self.required, *self.optional):
-            if not SECTION_IDENT.match(section):
-                raise ValueError(
-                    f"ConfigSchema: section name {section!r} is not a valid identifier"
-                )
-        if set(self.required) & set(self.optional):
-            raise ValueError("ConfigSchema: required and optional sections overlap")
+__all__ = ["load_config", "merge_configs", "save_config"]
 
 
 def read_yaml_file(path: Path) -> dict[str, Any]:
@@ -104,16 +62,17 @@ def read_yaml_file(path: Path) -> dict[str, Any]:
         ConfigError: If the file is missing, if PyYAML is not
             installed, or if the YAML root is not a mapping.
     """
-    if not path.exists():
-        raise ConfigError(f"load_config: file does not exist: {path}")
     try:
-        import yaml  # PyYAML is an optional dependency at runtime.
+        import yaml  # PyYAML is declared in pyproject [dependencies].
     except ImportError as exc:
         raise ConfigError(
             "load_config: PyYAML is not installed; install with `pip install pyyaml`"
         ) from exc
-    with path.open("r", encoding="utf-8") as fh:
-        loaded = yaml.safe_load(fh)
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            loaded = yaml.safe_load(fh)
+    except FileNotFoundError as exc:
+        raise ConfigError(f"load_config: file does not exist: {path}") from exc
     if loaded is None:
         return {}
     if not isinstance(loaded, dict):
@@ -125,7 +84,7 @@ def read_yaml_file(path: Path) -> dict[str, Any]:
 
 def load_config(
     path: str | os.PathLike[str],
-    schema: ConfigSchema | None = None,
+    required_sections: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
     """Load and optionally validate a YAML configuration file.
 
@@ -134,15 +93,16 @@ def load_config(
 
     Args:
         path: Path to a YAML configuration file.
-        schema: Optional schema enforcing required sections. ``None``
-            accepts any well-formed mapping.
+        required_sections: Optional tuple of section names that must be
+            present in the configuration. ``None`` accepts any
+            well-formed mapping.
 
     Returns:
         The loaded configuration as a ``dict``.
 
     Raises:
         ConfigError: If the file cannot be read, parsed, or fails
-            schema validation, or if PyYAML is not installed.
+            validation, or if PyYAML is not installed.
 
     Example:
         >>> cfg = load_config("configs/tu.yaml")
@@ -150,8 +110,8 @@ def load_config(
         200
     """
     config = read_yaml_file(Path(path))
-    if schema is not None:
-        for section in schema.required:
+    if required_sections:
+        for section in required_sections:
             if section not in config:
                 raise ConfigError(f"load_config: required section {section!r} missing from {path}")
     return config
@@ -192,12 +152,14 @@ def merge_configs(*configs: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def save_config(config: Mapping[str, Any], path: str | os.PathLike[str]) -> None:
-    """Save a configuration to a YAML file atomically.
+    """Write a configuration to a YAML file.
 
-    The function opens the destination in write mode, which truncates
-    any existing file. No fsync is issued; callers that require
-    crash-consistent writes should call ``os.fsync`` on the underlying
-    file descriptor themselves.
+    The function opens the destination in write mode, truncating any
+    existing file. The write is **not** crash-consistent: no fsync is
+    issued and the rename is not atomic, so a process crash between
+    open and close can leave a half-written file. Callers that need
+    durability should write to a sibling temp file and ``os.replace``
+    it into place.
 
     Args:
         config: The configuration to serialise.
@@ -214,7 +176,7 @@ def save_config(config: Mapping[str, Any], path: str | os.PathLike[str]) -> None
         >>> save_config({"training": {"epochs": 50}}, "configs/min.yaml")
     """
     try:
-        import yaml  # PyYAML is an optional dependency at runtime.
+        import yaml  # PyYAML is declared in pyproject [dependencies].
     except ImportError as exc:
         raise ConfigError(
             "save_config: PyYAML is not installed; install with `pip install pyyaml`"

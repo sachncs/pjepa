@@ -6,19 +6,19 @@ from pathlib import Path
 
 import pytest
 
-from pjepa.config import ConfigSchema, load_config, merge_configs, save_config
+from pjepa.config import load_config, merge_configs, save_config
 from pjepa.exceptions import ConfigError
 
 __all__ = [
     "test_bad_missing_file",
     "test_bad_required_section_missing",
     "test_bad_yaml_not_mapping",
+    "test_empty_yaml_returns_empty_dict",
     "test_happy_load_yaml",
     "test_merge_deep",
     "test_merge_type_collision",
     "test_round_trip_save_load",
     "test_save_to_missing_directory",
-    "test_schema_invalid_identifier",
 ]
 
 
@@ -51,9 +51,8 @@ def test_bad_yaml_not_mapping(tmp_path: Path) -> None:
 def test_bad_required_section_missing(tmp_path: Path) -> None:
     """A required section absent from the file raises ConfigError."""
     path = _write_yaml(tmp_path, "training:\n  epochs: 10\n")
-    schema = ConfigSchema(required=("experiment",))
     with pytest.raises(ConfigError):
-        load_config(path, schema)
+        load_config(path, required_sections=("experiment",))
 
 
 def test_round_trip_save_load(tmp_path: Path) -> None:
@@ -75,12 +74,6 @@ def test_merge_type_collision() -> None:
     """A type collision between mapping and non-mapping raises ConfigError."""
     with pytest.raises(ConfigError):
         merge_configs({"a": {"b": 1}}, {"a": "scalar"})
-
-
-def test_schema_invalid_identifier() -> None:
-    """An invalid section name raises ValueError at construction time."""
-    with pytest.raises(ValueError):
-        ConfigSchema(required=("1bad",))
 
 
 def test_save_to_missing_directory(tmp_path: Path) -> None:
