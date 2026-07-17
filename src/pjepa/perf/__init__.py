@@ -27,7 +27,7 @@ from pjepa.perf.benchmark import (
     compare_benchmarks,
 )
 from pjepa.perf.cache import DatasetCache, cache_key, memmap_array
-from pjepa.perf.compile import safe_compile
+from pjepa.perf.compile import CompileOutcome, safe_compile
 from pjepa.perf.ema import EMATarget
 from pjepa.perf.scatter import fused_scatter_add, fused_scatter_mean
 from pjepa.perf.sharding import (
@@ -40,6 +40,7 @@ from pjepa.perf.sharding import (
 from pjepa.perf.sync import sync_mps
 
 __all__ = [
+    "CompileOutcome",
     "DatasetCache",
     "EMATarget",
     "Microbenchmark",

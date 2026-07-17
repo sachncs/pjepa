@@ -25,6 +25,7 @@ __all__ = [
     "test_happy_ema_target_update",
     "test_happy_fused_scatter_add_basic",
     "test_happy_fused_scatter_mean_basic",
+    "test_happy_safe_compile_outcome_compiled_flag",
     "test_happy_safe_compile_runs",
     "test_happy_sync_mps_noop",
     "test_round_trip_ema_shadow_starts_as_copy",
@@ -33,10 +34,12 @@ __all__ = [
 
 
 def test_happy_safe_compile_runs() -> None:
-    """safe_compile returns a module that can be invoked."""
+    """safe_compile returns an outcome whose module can be invoked."""
     mod = torch.nn.Linear(4, 4)
     out = safe_compile(mod)
-    assert out is not None
+    assert out.module is not None
+    assert out.compiled is True
+    assert out.reason == ""
 
 
 def test_happy_autocast_disabled_is_noop() -> None:
@@ -146,4 +149,12 @@ def test_cross_backend_safe_compile_cpu() -> None:
     """safe_compile is callable on any backend."""
     mod = torch.nn.Linear(4, 4)
     out = safe_compile(mod)
-    out(torch.randn((2, 4)))
+    out.module(torch.randn((2, 4)))
+
+
+def test_happy_safe_compile_outcome_compiled_flag() -> None:
+    """safe_compile's outcome carries a compiled flag callers can check."""
+    mod = torch.nn.Sequential(torch.nn.Linear(4, 4), torch.nn.ReLU(), torch.nn.Linear(4, 4))
+    out = safe_compile(mod)
+    assert out.compiled is True
+    assert out.module is mod or out.module is not None

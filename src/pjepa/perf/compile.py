@@ -8,7 +8,9 @@ The wrapper selects a compile mode based on the active backend:
   rarely worth the cost).
 
 On a compilation failure the wrapper logs a warning and returns
-the uncompiled module so callers always receive a usable object.
+the uncompiled module wrapped in a :class:`CompileOutcome` so callers
+can detect the fallback via ``outcome.compiled is False`` instead of
+silently training on a non-compiled graph.
 
 ## Exceptions
 
@@ -20,12 +22,32 @@ The function only catches the specific
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import torch
 
 from pjepa.hardware import detect_backend
 from pjepa.logging_setup import get_logger
 
-__all__ = ["safe_compile"]
+__all__ = ["CompileOutcome", "safe_compile"]
+
+
+@dataclass(frozen=True)
+class CompileOutcome:
+    """Result of a :func:`safe_compile` call.
+
+    Attributes:
+        module: The compiled module, or the original module if
+            compilation failed and the wrapper fell back.
+        compiled: ``True`` when ``torch.compile`` produced a compiled
+            module; ``False`` when the wrapper returned the original
+            module unchanged.
+        reason: Human-readable explanation; empty on success.
+    """
+
+    module: torch.nn.Module
+    compiled: bool
+    reason: str
 
 
 def safe_compile(
@@ -33,7 +55,7 @@ def safe_compile(
     *,
     mode: str | None = None,
     fullgraph: bool = False,
-) -> torch.nn.Module:
+) -> CompileOutcome:
     """Compile ``module`` using ``torch.compile`` with a backend-appropriate mode.
 
     Args:
@@ -47,8 +69,10 @@ def safe_compile(
           raises on a graph break.
 
     Returns:
-        The compiled module, or the uncompiled module on
-        compilation failure.
+        A :class:`CompileOutcome` whose ``module`` field is the
+        compiled module on success or the original module on
+        fallback. Callers should check ``outcome.compiled`` when
+        they care whether compilation actually happened.
     """
     backend = detect_backend()
     chosen_mode = (
@@ -61,7 +85,7 @@ def safe_compile(
             "compiled module",
             extra={"event": "compile.success", "backend": backend.value, "mode": chosen_mode},
         )
-        return compiled
+        return CompileOutcome(module=compiled, compiled=True, reason="")
     except (RuntimeError, ImportError) as exc:
         log.warning(
             "compile failed; returning uncompiled module",
@@ -73,4 +97,4 @@ def safe_compile(
                 "error_type": type(exc).__name__,
             },
         )
-        return module
+        return CompileOutcome(module=module, compiled=False, reason=str(exc))
