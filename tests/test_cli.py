@@ -7,26 +7,29 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from pjepa.cli.app import app
+from pjepa.cli.app import (
+    EXIT_CONFIG,
+    EXIT_DISPATCH,
+    EXIT_RUNTIME,
+    RUNNERS,
+    app,
+)
 
 __all__ = [
     "test_app_lists_expected_subcommands",
     "test_baseline_smoke_accepts_yaml_path",
     "test_benchmark_distortion_dispatches",
     "test_benchmark_rejects_unknown_name",
-    "test_eval_missing_run_dir_does_not_crash",
+    "test_exit_codes_are_distinct",
     "test_hardware_command_runs",
     "test_pretrain_command_reports_resolved_config",
+    "test_runners_table_covers_every_command",
     "test_train_rejects_unknown_dataset",
     "test_version_flag_prints_version",
 ]
 
 
 runner = CliRunner()
-
-
-def _no_args_callback(command_name: str) -> None:
-    """Helper that asserts no-args is help when the command expects no args."""
 
 
 def test_version_flag_prints_version() -> None:
@@ -52,9 +55,29 @@ def test_app_lists_expected_subcommands() -> None:
         "ablation",
         "sensitivity",
         "aggregate",
-        "eval",
     ):
         assert command in result.stdout
+
+
+def test_exit_codes_are_distinct() -> None:
+    """Distinct exit codes let CI tell config / dispatch / runtime failures apart."""
+    assert EXIT_CONFIG != EXIT_DISPATCH != EXIT_RUNTIME != EXIT_CONFIG
+    assert {EXIT_CONFIG, EXIT_DISPATCH, EXIT_RUNTIME} == {2, 3, 4}
+
+
+def test_runners_table_covers_every_command() -> None:
+    """The single RUNNERS table is the source of truth for dispatch."""
+    assert "train.tu" in RUNNERS
+    assert "train.cl" in RUNNERS
+    assert "train.ogb" in RUNNERS
+    assert RUNNERS["train.ogb"][1] == "run_ogb_experiment"
+    assert "tune.tu" in RUNNERS
+    assert "decoupling" in RUNNERS
+    assert "ablation" in RUNNERS
+    assert "sensitivity" in RUNNERS
+    assert "benchmark.retrieval" in RUNNERS
+    assert "benchmark.distortion" in RUNNERS
+    assert "benchmark.encoder-ablation" in RUNNERS
 
 
 def test_hardware_command_runs() -> None:
@@ -75,22 +98,15 @@ def test_benchmark_distortion_dispatches() -> None:
 def test_benchmark_rejects_unknown_name() -> None:
     """The benchmark command rejects names outside the documented set."""
     result = runner.invoke(app, ["benchmark", "does-not-exist"])
-    assert result.exit_code == 2
+    assert result.exit_code == EXIT_CONFIG
     assert "unknown benchmark" in result.stdout
 
 
 def test_train_rejects_unknown_dataset() -> None:
     """The train command rejects dataset families outside the documented set."""
     result = runner.invoke(app, ["train", "unknown", "configs/default.yaml"])
-    assert result.exit_code == 2
+    assert result.exit_code == EXIT_CONFIG
     assert "unknown dataset" in result.stdout
-
-
-def test_eval_missing_run_dir_does_not_crash() -> None:
-    """`pjepa eval <dataset> <missing>` reports missing-run-dir without crashing."""
-    result = runner.invoke(app, ["eval", "tu", "/tmp/__pjepa_does_not_exist__"])
-    assert result.exit_code == 0
-    assert "missing-run-dir" in result.stdout
 
 
 def test_pretrain_command_reports_resolved_config(tmp_path: Path) -> None:
@@ -102,7 +118,6 @@ def test_pretrain_command_reports_resolved_config(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["command"] == "pretrain"
     assert payload["epochs"] == 7
-    # The smoke payload reports whether the pretraining loop was exercised.
     assert "smoke" in payload
 
 
@@ -140,7 +155,5 @@ def test_pretrain_missing_config_does_not_raise(tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert payload["command"] == "pretrain"
-    # Smoke mode defaults to 2 epochs when no config is supplied; the
-    # command always produces a JSON payload with a ``smoke`` key.
     assert payload["epochs"] == 2
     assert "smoke" in payload

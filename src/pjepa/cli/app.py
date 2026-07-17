@@ -23,8 +23,6 @@ The CLI exposes the canonical workflow:
 * ``pjepa ablation <config>`` — Phase 11 ablation study.
 * ``pjepa sensitivity <config>`` — Phase 11 sensitivity sweep.
 * ``pjepa aggregate [results-dir]`` — Phase 12 results aggregation.
-* ``pjepa eval {tu,cl,ogb} <run-dir>`` — evaluate a saved
-  checkpoint on the named dataset family.
 
 The advertised ``pjepa train <dataset> <config>`` signature is the
 documented command-line entry point. Internally it dispatches to
@@ -32,25 +30,25 @@ the corresponding runner, applying the YAML config when one is
 provided. When the user omits a config (or supplies a path that
 does not exist), the runner defaults are used so the command still
 produces useful output.
+
+Exit codes:
+
+* ``0`` — success.
+* ``2`` — configuration or argument error.
+* ``3`` — experiment dispatch error (module/function not found).
+* ``4`` — runner raised a runtime or value error.
 """
 
 from __future__ import annotations
 
 import importlib
 import json
+import os
 import sys
 import tempfile
-from dataclasses import asdict, is_dataclass
+from dataclasses import is_dataclass
 from pathlib import Path
 from typing import Any
-
-_HERE = Path(__file__).resolve().parent
-_ROOT = _HERE.parents[2]
-_EXPERIMENTS = _ROOT / "experiments"
-if str(_EXPERIMENTS) not in sys.path:
-    sys.path.insert(0, str(_EXPERIMENTS))
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
 
 import torch
 import typer
@@ -59,14 +57,21 @@ from pjepa import __version__
 from pjepa.config import load_config
 from pjepa.exceptions import ConfigError
 from pjepa.hardware import detect_backend, detect_capabilities
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import (
+    LOG_FORMAT_HUMAN,
+    configure_logging,
+    get_logger,
+)
 
 __all__ = [
     "BASELINES",
     "BENCHMARKS",
     "DATASETS",
+    "EXIT_CONFIG",
+    "EXIT_DISPATCH",
+    "EXIT_RUNTIME",
+    "RUNNERS",
     "app",
-    "coerce_to_dict",
     "dispatch_to_experiment",
     "main",
     "resolve_yaml_config",
@@ -78,6 +83,38 @@ __all__ = [
 ]
 
 
+EXIT_CONFIG: int = 2
+EXIT_DISPATCH: int = 3
+EXIT_RUNTIME: int = 4
+"""Distinct CLI exit codes so CI scripts can tell failure modes apart."""
+
+
+def experiments_search_paths() -> tuple[str, ...]:
+    """Return ``sys.path`` entries needed to import the ``experiments/`` scripts.
+
+    The CLI dispatches to runner modules that live under
+    ``<repo>/experiments/`` (not under the installed ``pjepa``
+    package). When the repo layout is the canonical
+    ``src/pjepa/cli/app.py``, the experiments directory is two
+    parents up. Returns both the experiments directory and the
+    repository root so the runners can ``from pjepa.<...>`` import.
+    """
+    here = Path(__file__).resolve().parent
+    repo_root = here.parents[2]
+    return (str(repo_root / "experiments"), str(repo_root))
+
+
+def ensure_experiments_importable() -> None:
+    """Insert the experiments/ directory into ``sys.path`` if missing.
+
+    Called lazily from :func:`dispatch_to_experiment` so that
+    ``import pjepa.cli.app`` does not mutate the global path.
+    """
+    for entry in experiments_search_paths():
+        if entry not in sys.path:
+            sys.path.insert(0, entry)
+
+
 app = typer.Typer(
     name="pjepa",
     help="Persistent-JEPA: persistent graph world model for continual learning.",
@@ -86,7 +123,7 @@ app = typer.Typer(
 
 
 DATASETS: tuple[str, ...] = ("tu", "cl", "ogb")
-"""Supported dataset families for ``pjepa train`` and ``pjepa eval``."""
+"""Supported dataset families for ``pjepa train``."""
 
 BASELINES: tuple[str, ...] = (
     "gcn",
@@ -107,6 +144,31 @@ BENCHMARKS: tuple[str, ...] = ("retrieval", "distortion", "encoder-ablation")
 """Supported benchmarks for ``pjepa benchmark``."""
 
 
+# Single source of truth for "command -> runner module + callable + Config dataclass".
+# Adding a new experiment means appending one row; nothing else in this file needs editing.
+RUNNERS: dict[str, tuple[str, str, str]] = {
+    # command_name: (module_path, runner_callable, config_dataclass)
+    "train.tu": ("experiments.run_exp_d_tu_sota", "run_experiment", "TUExperimentConfig"),
+    "train.cl": ("experiments.run_exp_e_continual", "run_cl_experiment", "CLExperimentConfig"),
+    "train.ogb": ("experiments.run_exp_f_ogb_arxiv", "run_ogb_experiment", "OGBConfig"),
+    "tune.tu": ("experiments.run_optuna_search", "run_search", "OptunaConfig"),
+    "decoupling": (
+        "experiments.run_exp_g_decoupling",
+        "run_decoupling_measurement",
+        "DecouplingConfig",
+    ),
+    "ablation": ("experiments.run_exp_h_ablations", "run_ablation", "AblationConfig"),
+    "sensitivity": ("experiments.run_sensitivity", "run_sensitivity", "SensitivityConfig"),
+    "benchmark.retrieval": ("experiments.run_exp_a_retrieval", "run", ""),
+    "benchmark.distortion": ("experiments.run_exp_b_distortion", "run", ""),
+    "benchmark.encoder-ablation": (
+        "experiments.run_exp_c_encoder_ablation",
+        "run_encoder_ablation",
+        "",
+    ),
+}
+
+
 def version_callback(value: bool) -> None:
     """Eager ``--version`` Typer callback.
 
@@ -125,18 +187,19 @@ def resolve_yaml_config(
     config: str | None,
     dataset: str | None = None,
 ) -> dict[str, Any]:
-    """Load a YAML config if it exists, otherwise return a default skeleton.
+    """Load a YAML config if it exists, otherwise return an empty mapping.
 
     Args:
         config: Optional path to a YAML configuration file.
-        dataset: Optional dataset family (``tu``, ``cl``, ``ogb``)
-          used when ``config`` is ``None`` to pick a sensible
-          default. Currently informational only.
+        dataset: Optional dataset family (``tu``, ``cl``, ``ogb``).
+          Currently informational only; reserved for per-family
+          defaults.
 
     Returns:
         A configuration dictionary (possibly empty if nothing was
         found).
     """
+    del dataset  # reserved for future per-family defaults
     if config is None:
         return {}
     path = Path(config)
@@ -146,22 +209,7 @@ def resolve_yaml_config(
         return dict(load_config(path))
     except ConfigError as exc:
         typer.echo(f"config load failed for {config}: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
-
-
-def coerce_to_dict(obj: Any) -> dict[str, Any]:
-    """Return a dict representation of a dataclass or pass-through.
-
-    Args:
-        obj: A dataclass instance or anything else.
-
-    Returns:
-        ``asdict(obj)`` for dataclass instances; ``{}`` for other
-        inputs.
-    """
-    if is_dataclass(obj) and not isinstance(obj, type):
-        return asdict(obj)
-    return {}
+        raise typer.Exit(code=EXIT_CONFIG) from exc
 
 
 def dispatch_to_experiment(
@@ -169,7 +217,8 @@ def dispatch_to_experiment(
     run_callable: str,
     config: dict[str, Any],
     extra_args: dict[str, Any] | None = None,
-    dataclass_name: str | None = None,
+    *,
+    dataclass_name: str = "",
 ) -> Any:
     """Dispatch to an experiment runner with optional config overrides.
 
@@ -181,30 +230,37 @@ def dispatch_to_experiment(
         extra_args: Optional explicit overrides forwarded to the
           runner via its top-level dataclass.
         dataclass_name: Name of the runner's top-level dataclass to
-          instantiate. When ``None``, the first dataclass found in
-          the module whose name ends in ``Config`` is used.
+          instantiate. When empty (the default), the runner is
+          called with no arguments; this is the right choice for
+          benchmarks that take no configuration.
 
     Returns:
         Whatever the experiment runner returns.
+
+    Raises:
+        ConfigError: If the module or callable cannot be located,
+          or the named dataclass does not exist.
     """
-    module = importlib.import_module(module_name)
+    ensure_experiments_importable()
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError as exc:
+        raise ConfigError(
+            f"dispatch_to_experiment: cannot import {module_name!r}: {exc}"
+        ) from exc
+    if not hasattr(module, run_callable):
+        raise ConfigError(
+            f"dispatch_to_experiment: {module_name!r} has no callable {run_callable!r}"
+        )
     func = getattr(module, run_callable)
-    cfg_cls = None
-    if dataclass_name is not None and hasattr(module, dataclass_name):
-        candidate = getattr(module, dataclass_name)
-        if is_dataclass(candidate) and isinstance(candidate, type):
-            cfg_cls = candidate
-    if cfg_cls is None:
-        for name in dir(module):
-            if not name.endswith("Config") or name.startswith("_"):
-                continue
-            candidate = getattr(module, name)
-            if is_dataclass(candidate) and isinstance(candidate, type):
-                cfg_cls = candidate
-                break
+    if not dataclass_name:
+        return func()
+    cfg_cls = getattr(module, dataclass_name, None)
+    if cfg_cls is None or not (is_dataclass(cfg_cls) and isinstance(cfg_cls, type)):
+        raise ConfigError(
+            f"dispatch_to_experiment: {module_name!r} has no dataclass named {dataclass_name!r}"
+        )
     extra = dict(extra_args or {})
-    if cfg_cls is None:
-        return func(**extra)
     known = {f.name for f in cfg_cls.__dataclass_fields__.values()}
     cfg_kwargs: dict[str, Any] = {}
     for section in ("experiment", "training", "model", "pjepa", "optuna"):
@@ -229,11 +285,15 @@ def supervised_target_inputs() -> tuple[torch.Tensor, torch.Tensor]:
         (no arguments)
 
     Returns:
-        A tuple ``(context, target)`` of two ``[2, 4]`` tensors with
-        a fixed seed so the smoke loop is reproducible.
+        A tuple ``(context, target)`` of two ``[2, 4]`` tensors that
+        are identical across calls within a single process but
+        differ across processes (the seed is derived from the PID).
     """
-    torch.manual_seed(0)
-    return torch.randn(2, 4), torch.randn(2, 4)
+    seed = torch.initial_seed() ^ os.getpid()
+    generator = torch.Generator().manual_seed(seed)
+    context = torch.randn(2, 4, generator=generator)
+    target_features = torch.randn(2, 4, generator=generator)
+    return context, target_features
 
 
 def supervised_optimiser(params: list[torch.nn.Parameter]) -> torch.optim.Optimizer:
@@ -382,7 +442,7 @@ def run_baseline_forward_smoke(
 
 @app.callback()
 def root(
-    version: bool = typer.Option(
+    show_version: bool = typer.Option(
         False,
         "--version",
         callback=version_callback,
@@ -390,13 +450,14 @@ def root(
         help="Print version and exit.",
     ),
     log_format: str = typer.Option(
-        LogFormat.HUMAN,
+        LOG_FORMAT_HUMAN,
         "--log-format",
         help="Log format: HUMAN (default) or JSON.",
     ),
     log_level: str = typer.Option("INFO", "--log-level", help="Logging level."),
 ) -> None:
     """Global CLI options."""
+    del show_version  # consumed by the callback above
     configure_logging(level=log_level, fmt=log_format)
 
 
@@ -413,7 +474,7 @@ def doctor() -> None:
     report = detect_capabilities()
     typer.echo(report.render())
     if report.has_red():
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=EXIT_CONFIG)
 
 
 @app.command()
@@ -425,18 +486,25 @@ def benchmark(
     Args:
         name: Which benchmark to run.
     """
-    if name not in BENCHMARKS:
-        typer.echo(f"unknown benchmark: {name!r}; choose one of {', '.join(BENCHMARKS)}")
-        raise typer.Exit(code=2)
+    key = f"benchmark.{name}"
+    if key not in RUNNERS:
+        typer.echo(
+            f"unknown benchmark: {name!r}; choose one of {', '.join(BENCHMARKS)}"
+        )
+        raise typer.Exit(code=EXIT_CONFIG)
     log = get_logger(__name__)
     log.info("benchmark requested", extra={"event": "benchmark.start", "benchmark": name})
-    runner_module = {
-        "retrieval": "experiments.run_exp_a_retrieval",
-        "distortion": "experiments.run_exp_b_distortion",
-        "encoder-ablation": "experiments.run_exp_c_encoder_ablation",
-    }[name]
-    run_callable = "run_encoder_ablation" if name == "encoder-ablation" else "run"
-    result = dispatch_to_experiment(runner_module, run_callable, {})
+    module_name, run_callable, dataclass_name = RUNNERS[key]
+    try:
+        result = dispatch_to_experiment(
+            module_name, run_callable, {}, dataclass_name=dataclass_name
+        )
+    except ConfigError as exc:
+        typer.echo(f"benchmark dispatch failed: {exc}", err=True)
+        raise typer.Exit(code=EXIT_DISPATCH) from exc
+    except (ValueError, RuntimeError) as exc:
+        typer.echo(f"benchmark runner raised: {exc}", err=True)
+        raise typer.Exit(code=EXIT_RUNTIME) from exc
     typer.echo(json.dumps(result, indent=2, default=str))
 
 
@@ -484,25 +552,29 @@ def train(
         dataset: One of :data:`DATASETS` (``tu``, ``cl``, or ``ogb``).
         config: Path to the YAML configuration.
     """
-    if dataset not in DATASETS:
-        typer.echo(f"unknown dataset family: {dataset!r}; choose one of {', '.join(DATASETS)}")
-        raise typer.Exit(code=2)
+    key = f"train.{dataset}"
+    if key not in RUNNERS:
+        typer.echo(
+            f"unknown dataset family: {dataset!r}; choose one of {', '.join(DATASETS)}"
+        )
+        raise typer.Exit(code=EXIT_CONFIG)
     log = get_logger(__name__)
     cfg = resolve_yaml_config(config, dataset=dataset)
     log.info(
         "train requested",
         extra={"event": "train.start", "dataset": dataset, "config": config},
     )
-    runner = {
-        "tu": ("experiments.run_exp_d_tu_sota", "run_experiment", "TUExperimentConfig"),
-        "cl": ("experiments.run_exp_e_continual", "run_cl_experiment", "CLExperimentConfig"),
-        "ogb": ("experiments.run_exp_f_ogb_arxiv", "run_experiment", "OGBConfig"),
-    }[dataset]
+    module_name, run_callable, dataclass_name = RUNNERS[key]
     try:
-        rows = dispatch_to_experiment(runner[0], runner[1], cfg, dataclass_name=runner[2])
-    except (ConfigError, ValueError, RuntimeError) as exc:
+        rows = dispatch_to_experiment(
+            module_name, run_callable, cfg, dataclass_name=dataclass_name
+        )
+    except ConfigError as exc:
         typer.echo(f"train dispatch failed for {dataset}: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=EXIT_DISPATCH) from exc
+    except (ValueError, RuntimeError) as exc:
+        typer.echo(f"train runner raised for {dataset}: {exc}", err=True)
+        raise typer.Exit(code=EXIT_RUNTIME) from exc
     summary: dict[str, Any] = {
         "command": "train",
         "dataset": dataset,
@@ -523,25 +595,29 @@ def tune(
         dataset: The dataset family (only ``tu`` is supported).
         config: Path to the YAML configuration.
     """
-    if dataset != "tu":
-        typer.echo(f"unknown tune target: {dataset!r}; only 'tu' is currently supported")
-        raise typer.Exit(code=2)
+    key = f"tune.{dataset}"
+    if key not in RUNNERS:
+        typer.echo(
+            f"unknown tune target: {dataset!r}; only 'tu' is currently supported"
+        )
+        raise typer.Exit(code=EXIT_CONFIG)
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
     log.info(
         "tune requested",
         extra={"event": "tune.start", "dataset": dataset, "config": config},
     )
+    module_name, run_callable, dataclass_name = RUNNERS[key]
     try:
         result = dispatch_to_experiment(
-            "experiments.run_optuna_search",
-            "run_search",
-            cfg,
-            dataclass_name="OptunaConfig",
+            module_name, run_callable, cfg, dataclass_name=dataclass_name
         )
-    except (ConfigError, ValueError, RuntimeError, ImportError) as exc:
+    except ConfigError as exc:
         typer.echo(f"tune dispatch failed: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=EXIT_DISPATCH) from exc
+    except (ValueError, RuntimeError, ImportError) as exc:
+        typer.echo(f"tune runner raised: {exc}", err=True)
+        raise typer.Exit(code=EXIT_RUNTIME) from exc
     payload = {
         "command": "tune",
         "dataset": dataset,
@@ -572,8 +648,10 @@ def baseline_smoke(
         config: Path to the YAML configuration.
     """
     if baseline not in BASELINES:
-        typer.echo(f"unknown baseline: {baseline!r}; choose one of {', '.join(BASELINES)}")
-        raise typer.Exit(code=2)
+        typer.echo(
+            f"unknown baseline: {baseline!r}; choose one of {', '.join(BASELINES)}"
+        )
+        raise typer.Exit(code=EXIT_CONFIG)
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
     log.info(
@@ -602,16 +680,17 @@ def decoupling(config: str = typer.Argument(..., help="Path to a YAML config fil
         "decoupling requested",
         extra={"event": "decoupling.start", "config": config},
     )
+    module_name, run_callable, dataclass_name = RUNNERS["decoupling"]
     try:
         result = dispatch_to_experiment(
-            "experiments.run_exp_g_decoupling",
-            "run_decoupling_measurement",
-            cfg,
-            dataclass_name="DecouplingConfig",
+            module_name, run_callable, cfg, dataclass_name=dataclass_name
         )
-    except (ConfigError, ValueError, RuntimeError) as exc:
+    except ConfigError as exc:
         typer.echo(f"decoupling dispatch failed: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=EXIT_DISPATCH) from exc
+    except (ValueError, RuntimeError) as exc:
+        typer.echo(f"decoupling runner raised: {exc}", err=True)
+        raise typer.Exit(code=EXIT_RUNTIME) from exc
     typer.echo(
         json.dumps(
             {
@@ -638,16 +717,17 @@ def ablation(config: str = typer.Argument(..., help="Path to a YAML config file.
         "ablation requested",
         extra={"event": "ablation.start", "config": config},
     )
+    module_name, run_callable, dataclass_name = RUNNERS["ablation"]
     try:
         rows = dispatch_to_experiment(
-            "experiments.run_exp_h_ablations",
-            "run_ablation",
-            cfg,
-            dataclass_name="AblationConfig",
+            module_name, run_callable, cfg, dataclass_name=dataclass_name
         )
-    except (ConfigError, ValueError, RuntimeError) as exc:
+    except ConfigError as exc:
         typer.echo(f"ablation dispatch failed: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=EXIT_DISPATCH) from exc
+    except (ValueError, RuntimeError) as exc:
+        typer.echo(f"ablation runner raised: {exc}", err=True)
+        raise typer.Exit(code=EXIT_RUNTIME) from exc
     typer.echo(
         json.dumps(
             {
@@ -674,16 +754,17 @@ def sensitivity(config: str = typer.Argument(..., help="Path to a YAML config fi
         "sensitivity requested",
         extra={"event": "sensitivity.start", "config": config},
     )
+    module_name, run_callable, dataclass_name = RUNNERS["sensitivity"]
     try:
         rows = dispatch_to_experiment(
-            "experiments.run_sensitivity",
-            "run_sensitivity",
-            cfg,
-            dataclass_name="SensitivityConfig",
+            module_name, run_callable, cfg, dataclass_name=dataclass_name
         )
-    except (ConfigError, ValueError, RuntimeError) as exc:
+    except ConfigError as exc:
         typer.echo(f"sensitivity dispatch failed: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=EXIT_DISPATCH) from exc
+    except (ValueError, RuntimeError) as exc:
+        typer.echo(f"sensitivity runner raised: {exc}", err=True)
+        raise typer.Exit(code=EXIT_RUNTIME) from exc
     typer.echo(
         json.dumps(
             {
@@ -728,48 +809,6 @@ def aggregate(
             indent=2,
         )
     )
-
-
-@app.command()
-def eval(
-    dataset: str = typer.Argument(..., help="tu | cl | ogb"),
-    run_dir: str = typer.Argument(..., help="Path to a checkpoint directory."),
-) -> None:
-    """Evaluate a saved checkpoint on the named dataset family.
-
-    Args:
-        dataset: One of :data:`DATASETS`.
-        run_dir: Path to the checkpoint directory.
-    """
-    if dataset not in DATASETS:
-        typer.echo(f"unknown dataset family: {dataset!r}; choose one of {', '.join(DATASETS)}")
-        raise typer.Exit(code=2)
-    log = get_logger(__name__)
-    path = Path(run_dir)
-    if not path.exists():
-        log.info(
-            "eval: run_dir missing",
-            extra={"event": "eval.missing_run_dir", "run_dir": run_dir},
-        )
-        typer.echo(
-            json.dumps(
-                {
-                    "command": "eval",
-                    "dataset": dataset,
-                    "run_dir": run_dir,
-                    "status": "missing-run-dir",
-                },
-                indent=2,
-            )
-        )
-        return
-    payload = {
-        "command": "eval",
-        "dataset": dataset,
-        "run_dir": run_dir,
-        "checkpoint_files": sorted(p.name for p in path.iterdir() if p.is_file()),
-    }
-    typer.echo(json.dumps(payload, indent=2))
 
 
 def main() -> None:
