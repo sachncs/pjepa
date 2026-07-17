@@ -53,6 +53,7 @@ A non-positive ``capacity`` is rejected with
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import torch
@@ -110,8 +111,8 @@ class GEM:
     def project_gradient(
         self,
         gradient: torch.Tensor,
-        model_output_fn,
-        loss_fn,
+        model_output_fn: Callable[[torch.Tensor], torch.Tensor],
+        loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
     ) -> torch.Tensor:
         """Project ``gradient`` so it does not increase loss on memory samples.
 
