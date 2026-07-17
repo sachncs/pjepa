@@ -89,13 +89,6 @@ def set_publication_style() -> None:
 
     Returns:
         None.
-
-    Example:
-        >>> from pjepa.eval.style import set_publication_style
-        >>> set_publication_style()
-        >>> import matplotlib.pyplot as plt
-        >>> plt.plot([0, 1], [0, 1])
-        >>> plt.savefig("figure.png")
     """
     log = get_logger(__name__)
     try:
@@ -149,8 +142,8 @@ def color_for(index: int) -> str:
     Example:
         >>> color_for(0)
         '#1f77b4'
-        >>> color_for(7)
-        '#1f77b4'
+        >>> color_for(1)
+        '#ff7f0e'
     """
     if not PUBLICATION_COLOR_PALETTE:
         return "#1f77b4"

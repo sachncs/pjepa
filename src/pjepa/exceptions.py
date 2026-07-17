@@ -4,8 +4,7 @@ Every error raised from inside the library is an instance of
 :class:`PJEPAError` or one of its subclasses. Tests can therefore catch
 the base class to assert "any pjepa failure" or catch a specific
 subclass to assert "this particular kind of failure". Bare ``except:``
-clauses in library code are forbidden by the project's quality standards
-(see ``plans/04_quality_standards.md``); callers should catch the
+clauses in library code are forbidden; callers should catch the
 narrowest applicable subclass.
 
 The hierarchy below is intentionally flat — every subclass inherits
@@ -59,10 +58,8 @@ class ConfigError(PJEPAError):
     """Raised when a configuration is missing, malformed, or invalid.
 
     Typical triggers are a missing YAML file, a missing required
-    section reported by :func:`pjepa.config.load_config`, an invalid
-    section identifier rejected by
-    :class:`pjepa.config.ConfigSchema`, and seeding arguments outside
-    the documented range.
+    section reported by :func:`pjepa.config.load_config`, and seeding
+    arguments outside the documented range.
     """
 
 

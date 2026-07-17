@@ -62,11 +62,6 @@ def register(name: str) -> Callable[[type[Encoder]], type[Encoder]]:
 
     Raises:
         ContractError: If ``name`` is empty or already registered.
-
-    Example:
-        >>> @register("my_encoder")
-        ... class MyEncoder(...):
-        ...     ...
     """
 
     def decorator(cls: type[Encoder]) -> type[Encoder]:

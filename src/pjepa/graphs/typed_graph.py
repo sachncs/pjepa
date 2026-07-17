@@ -167,9 +167,6 @@ class TypedAttributedGraph:
 
         Raises:
             GraphError: If a provided field is not a valid attribute.
-
-        Example:
-            >>> g2 = g.with_features(global_features=torch.zeros(8))
         """
         kwargs["version"] = self.version + 1
         try:
@@ -198,12 +195,6 @@ class TypedAttributedGraph:
 
         Raises:
             GraphError: If ``vertex_mask`` has the wrong shape.
-
-        Example:
-            >>> mask = torch.tensor([True, False, True])
-            >>> sub = g.subgraph(mask)
-            >>> sub.num_vertices()
-            2
         """
         if vertex_mask.shape != (self.num_vertices(),):
             raise GraphError(

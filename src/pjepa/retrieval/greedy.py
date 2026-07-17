@@ -42,11 +42,6 @@ class RetrievalResult:
         iterations: The number of greedy iterations actually performed
             (may be less than the budget when the graph is too small
             or when further additions no longer improve the utility).
-
-    Example:
-        >>> result = GreedyRetrieval(budget=8).select(graph, observation)
-        >>> result.working.num_vertices() <= 8
-        True
     """
 
     working: WorkingGraph
@@ -68,10 +63,6 @@ class GreedyRetrieval:
 
     Raises:
         GraphError: At construction time if ``budget`` is negative.
-
-    Example:
-        >>> retriever = GreedyRetrieval(budget=32)
-        >>> result = retriever.select(persistent, observation)
     """
 
     def __init__(self, budget: int) -> None:

@@ -66,11 +66,6 @@ def dpo_loss(
     Raises:
         ValueError: If the input tensors do not share the same shape,
             or if ``label_smoothing`` is outside ``[0, 0.5)``.
-
-    Example:
-        >>> loss = dpo_loss(c_lp, r_lp, c_ref, r_ref)
-        >>> loss.requires_grad
-        True
     """
     cfg = config or DPOConfig()
     if not (

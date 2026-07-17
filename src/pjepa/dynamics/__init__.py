@@ -76,10 +76,6 @@ def contractivity_bound(eta_g: float, eta_o: float, epsilon: float, t: int) -> f
 
     Raises:
         GraphError: If any input is negative.
-
-    Example:
-        >>> contractivity_bound(0.5, 0.1, 0.05, 10)
-        0.01099...
     """
     for name, value in (("eta_g", eta_g), ("eta_o", eta_o), ("epsilon", epsilon), ("t", t)):
         if value < 0:
@@ -122,12 +118,6 @@ def fixed_point_iteration(
 
     Raises:
         GraphError: If ``max_steps`` is non-positive.
-
-    Example:
-        >>> op = lambda g: g
-        >>> final, steps = fixed_point_iteration(g, op)
-        >>> steps
-        1
     """
     if max_steps <= 0:
         raise GraphError(f"fixed_point_iteration: max_steps must be positive; got {max_steps}")

@@ -41,10 +41,6 @@ class BisimulationMetric:
         relation_set: The names of relation views to consider (the
             SSCG relation set ``R`` in the paper). Currently unused
             but reserved for future multi-view extensions.
-
-    Example:
-        >>> metric = BisimulationMetric(epsilon=1e-4, max_iters=50)
-        >>> d = bisimulation_distance(g1, g2, metric)
     """
 
     epsilon: float = 1e-4
@@ -104,11 +100,6 @@ def bisimulation_distance(
     Raises:
         NumericalError: If the computed distance contains non-finite
             values.
-
-    Example:
-        >>> d = bisimulation_distance(g1, g2)
-        >>> d >= 0.0
-        True
     """
     del metric  # Reserved for forward compatibility.
     # MPS does not support float64; fall back to float32 on that backend.

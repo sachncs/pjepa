@@ -46,9 +46,6 @@ class CommitRecord:
             it. Epoch seconds are the conventional choice.
         cost: The rewrite cost recorded by the verification step.
             Non-negative by construction.
-
-    Example:
-        >>> record = CommitRecord(version=1, timestamp=0.0, cost=0.1)
     """
 
     version: int
@@ -66,9 +63,6 @@ class CommitRejected:
             ``"delta_j is non-negative"``.
         cost: The cost the verification step computed. Non-negative
             by construction.
-
-    Example:
-        >>> rejection = CommitRejected(reason="bisimilarity violated", cost=0.5)
     """
 
     reason: str
@@ -91,10 +85,6 @@ class PersistentState:
             commits, in order.
         rejections: A tuple of :class:`CommitRejected` for rejected
             candidates, in order.
-
-    Example:
-        >>> state = PersistentState(graph=g0)
-        >>> state = state.commit(candidate, cost=0.0, timestamp=1.0)
     """
 
     graph: TypedAttributedGraph
@@ -149,9 +139,6 @@ class PersistentState:
         Raises:
             GraphError: If ``cost`` is negative, or if ``delta_j``
                 is non-negative when supplied.
-
-        Example:
-            >>> state2 = state.commit(candidate, cost=0.1, timestamp=1.0)
         """
         if cost < 0:
             raise GraphError(f"PersistentState.commit: cost must be non-negative; got {cost}")
@@ -181,9 +168,6 @@ class PersistentState:
 
         Raises:
             GraphError: If ``cost`` is negative or ``reason`` is empty.
-
-        Example:
-            >>> state2 = state.reject("bisimilarity violated", cost=0.5)
         """
         if cost < 0:
             raise GraphError(f"PersistentState.reject: cost must be non-negative; got {cost}")

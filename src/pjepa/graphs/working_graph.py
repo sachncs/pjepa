@@ -43,11 +43,6 @@ class WorkingGraph:
     Raises:
         GraphError: At construction time if ``budget < 0`` or if
             the underlying graph already exceeds the budget.
-
-    Example:
-        >>> working = WorkingGraph(graph=sub, budget=64, parent_version=1)
-        >>> working.is_within_budget()
-        True
     """
 
     graph: TypedAttributedGraph
