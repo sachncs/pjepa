@@ -37,6 +37,7 @@ def get_global_seed() -> int:
 
     Example:
         >>> set_global_seed(42)
+        42
         >>> get_global_seed()
         42
     """
@@ -102,15 +103,10 @@ def seed_for(component: str, base: int | None = None) -> int:
     Returns:
         A 32-bit non-negative integer that can be passed to
         :func:`torch.Generator.manual_seed` or equivalent.
-
-    Example:
-        >>> set_global_seed(123)
-        >>> seed_for("encoder")
-        2519165639
     """
     if not isinstance(component, str) or not component:
         raise ConfigError("seed_for: component must be a non-empty string")
-    root_seed = _DEFAULT_SEED if base is None else base
+    root_seed = get_global_seed() if base is None else base
     ss = np.random.SeedSequence([root_seed, hash(component) & 0xFFFFFFFF])
     child = ss.spawn(1)[0]
     return int(child.generate_state(1)[0])
