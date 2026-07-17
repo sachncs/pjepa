@@ -11,7 +11,7 @@ license = {text = "Apache-2.0"}
 authors = [
     {name = "Sachin", email = "sachncs@gmail.com"},
 ]
-requires-python = ">=3.10,<3.15"
+requires-python = ">=3.10,<3.13"
 keywords = [
     "graph-neural-networks",
     "continual-learning",
@@ -21,7 +21,7 @@ keywords = [
     "developmental-ai",
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: Apache Software License",
@@ -55,6 +55,7 @@ dev = [
     "pytype>=2024.10",
     "mutmut>=2.4",
     "pip-audit>=2.7",
+    "pip-tools>=7.4",
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
     "build>=1.0",
@@ -69,9 +70,8 @@ ogb = [
 pjepa = "pjepa.cli:main"
 
 [project.urls]
-"Paper" = "https://github.com/sachncs/persistent-jepa"
-"Source" = "https://github.com/sachncs/persistent-jepa"
-"Issues" = "https://github.com/sachncs/persistent-jepa/issues"
+"Source" = "https://github.com/sachncs/jepa"
+"Issues" = "https://github.com/sachncs/jepa/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -118,7 +118,8 @@ convention = "google"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra --strict-markers --tb=short"
+addopts = "-ra --strict-markers --tb=short --doctest-modules"
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS"]
 testpaths = ["tests"]
 markers = [
     "mps_sequential: tests that require exclusive MPS access",
