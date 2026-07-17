@@ -5,10 +5,10 @@ module obtains a logger via :func:`get_logger` and emits structured
 records through the configuration established by
 :func:`configure_logging`. Two formats are supported:
 
-* :data:`LogFormat.HUMAN` — coloured, human-readable lines on
-  stderr (default for development).
-* :data:`LogFormat.JSON` — one JSON object per line on stderr
-  (default for CI / production).
+* ``"HUMAN"`` — coloured, human-readable lines on stderr (default
+  for development).
+* ``"JSON"`` — one JSON object per line on stderr (default for
+  CI / production).
 
 Both modes route through Python's standard :mod:`logging` framework
 so that third-party libraries (for example, PyTorch and PyG)
@@ -22,10 +22,18 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from typing import Any, ClassVar, Final
+import threading
+from typing import Any, Final, Literal
+
+LogFormat = Literal["HUMAN", "JSON"]
+"""Supported log-format identifiers. Use one of ``"HUMAN"`` or ``"JSON"``."""
+
+LOG_FORMAT_HUMAN: LogFormat = "HUMAN"
+LOG_FORMAT_JSON: LogFormat = "JSON"
 
 __all__ = [
-    "LOGGING_CONFIGURED",
+    "LOG_FORMAT_HUMAN",
+    "LOG_FORMAT_JSON",
     "STANDARD_RECORD_KEYS",
     "HumanLogFormatter",
     "JsonLogFormatter",
@@ -36,36 +44,31 @@ __all__ = [
 ]
 
 
-class LogFormat(str):
-    """String constants for the supported log formats.
-
-    Inheriting from ``str`` lets the constants flow through APIs that
-    expect a plain ``str`` and still compare equal to their values.
-    """
-
-    HUMAN: ClassVar[str] = "HUMAN"
-    JSON: ClassVar[str] = "JSON"
-
-
+LOGGING_LOCK = threading.Lock()
 LOGGING_CONFIGURED: bool = False
-"""Tracks whether :func:`configure_logging` has run at least once."""
+"""Tracks whether :func:`configure_logging` has run at least once.
+
+Module-level mutable state is protected by :data:`LOGGING_LOCK` so
+two threads that both call :func:`get_logger` for the first time do
+not double-configure the package logger.
+"""
 
 
-def configure_logging(level: str = "INFO", fmt: str = LogFormat.HUMAN) -> None:
+def configure_logging(level: str = "INFO", fmt: LogFormat = LOG_FORMAT_HUMAN) -> None:
     """Configure the ``pjepa`` package logger.
 
     The function is idempotent: calling it multiple times replaces the
     handlers on the ``pjepa`` logger but leaves the root logger
     untouched so that PyTorch and other libraries retain their
-    default behaviour.
+    default behaviour. The function is safe to call concurrently from
+    multiple threads.
 
     Args:
         level: A standard logging level name — ``"DEBUG"``,
           ``"INFO"``, ``"WARNING"``, ``"ERROR"``, or ``"CRITICAL"``.
           The value is upper-cased before being passed to
           :meth:`logging.Logger.setLevel`.
-        fmt: Either :data:`LogFormat.HUMAN` or
-          :data:`LogFormat.JSON`.
+        fmt: Either ``"HUMAN"`` or ``"JSON"``.
 
     Returns:
         None.
@@ -74,32 +77,32 @@ def configure_logging(level: str = "INFO", fmt: str = LogFormat.HUMAN) -> None:
         ValueError: If ``fmt`` is neither ``HUMAN`` nor ``JSON``.
 
     Example:
-        >>> configure_logging("INFO", LogFormat.JSON)
+        >>> configure_logging("INFO", LOG_FORMAT_JSON)
     """
     global LOGGING_CONFIGURED
-    if fmt not in (LogFormat.HUMAN, LogFormat.JSON):
+    if fmt not in (LOG_FORMAT_HUMAN, LOG_FORMAT_JSON):
         raise ValueError(f"configure_logging: unknown format {fmt!r}")
 
-    package_logger = logging.getLogger("pjepa")
-    package_logger.setLevel(level.upper())
-    package_logger.propagate = False
+    with LOGGING_LOCK:
+        package_logger = logging.getLogger("pjepa")
+        package_logger.setLevel(level.upper())
+        package_logger.propagate = False
 
-    for handler in list(package_logger.handlers):
-        package_logger.removeHandler(handler)
+        for handler in list(package_logger.handlers):
+            package_logger.removeHandler(handler)
 
-    handler = logging.StreamHandler(stream=sys.stderr)
-    handler.setFormatter(JsonLogFormatter() if fmt == LogFormat.JSON else HumanLogFormatter())
-    package_logger.addHandler(handler)
-    LOGGING_CONFIGURED = True
+        handler = logging.StreamHandler(stream=sys.stderr)
+        handler.setFormatter(JsonLogFormatter() if fmt == LOG_FORMAT_JSON else HumanLogFormatter())
+        package_logger.addHandler(handler)
+        LOGGING_CONFIGURED = True
 
 
 def get_logger(name: str) -> logging.Logger:
     """Return a logger under the ``pjepa`` namespace.
 
-    The configuration is initialised lazily to
-    :data:`LogFormat.HUMAN` on first use so that test modules and
-    notebooks that import ``pjepa`` never fail because of a missing
-    logging configuration.
+    The configuration is initialised lazily to ``"HUMAN"`` on first
+    use so that test modules and notebooks that import ``pjepa``
+    never fail because of a missing logging configuration.
 
     Args:
         name: A dotted module path, typically ``__name__``.
@@ -165,10 +168,12 @@ STANDARD_RECORD_KEYS: Final[frozenset[str]] = frozenset(
         "relativeCreated",
         "thread",
         "threadName",
+        "taskName",
         "processName",
         "process",
-        "event",
         "message",
+        "color_message",
+        "event",
     )
 )
 """Attributes of :class:`logging.LogRecord` that formatters must ignore."""

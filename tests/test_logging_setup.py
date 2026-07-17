@@ -8,7 +8,12 @@ import logging
 
 import pytest
 
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger, log_event
+from pjepa.logging_setup import (
+    LOG_FORMAT_HUMAN,
+    configure_logging,
+    get_logger,
+    log_event,
+)
 
 __all__ = [
     "test_bad_format_rejected",
@@ -21,7 +26,7 @@ __all__ = [
 
 def test_human_format_renders() -> None:
     """HUMAN format emits a readable string on stderr."""
-    configure_logging("INFO", LogFormat.HUMAN)
+    configure_logging("INFO", LOG_FORMAT_HUMAN)
     log = get_logger("test_module")
     log.info("ready")
     assert log.name == "pjepa.test_module"
