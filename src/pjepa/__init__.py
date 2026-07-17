@@ -38,14 +38,34 @@ from pjepa.compat import (
     PJEPAEncoder,
     make_typed_graph,
 )
+from pjepa.encoders import (
+    DualGeometricEncoder,
+    EuclideanMPNN,
+    HyperbolicProjection,
+    JEPAPredictor,
+)
+from pjepa.graphs import (
+    PersistentState,
+    TypedAttributedGraph,
+    WorkingGraph,
+)
+from pjepa.retrieval import GreedyRetrieval
 from pjepa.version import __version__
 
 __all__ = [
+    "DualGeometricEncoder",
+    "EuclideanMPNN",
     "Graph",
     "GraphState",
+    "GreedyRetrieval",
+    "HyperbolicProjection",
+    "JEPAPredictor",
     "PJEPAAugmentation",
     "PJEPAEncoder",
     "PersistentGraph",
+    "PersistentState",
+    "TypedAttributedGraph",
+    "WorkingGraph",
     "__version__",
     "make_typed_graph",
 ]
