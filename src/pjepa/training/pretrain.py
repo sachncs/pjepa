@@ -332,7 +332,8 @@ def pretrain_loop(
         for step, (context, target_features) in enumerate(batches, start=1):
             if augmentation is not None:
                 context = augmentation_call(augmentation, context)
-            predicted = predictor(context)
+            z = encoder(context)
+            predicted = predictor(z)
             loss = torch.nn.functional.smooth_l1_loss(predicted, target_features)
             optimizer.zero_grad()
             loss.backward()
