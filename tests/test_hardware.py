@@ -47,7 +47,7 @@ def test_bad_device_raises_when_cuda_missing() -> None:
 
 
 def test_ugly_empty_caps_report() -> None:
-    """A CapabilityReport with no probes reports GREEN everywhere."""
+    """A CapabilityReport with no probes is not green; no probes is not 'all pass'."""
     report = CapabilityReport(
         backend=Backend.CPU,
         device_name="test",
@@ -57,7 +57,7 @@ def test_ugly_empty_caps_report() -> None:
         cpu_count=4,
         probes=(),
     )
-    assert report.is_green() is True
+    assert report.is_green() is False
     assert report.has_red() is False
 
 

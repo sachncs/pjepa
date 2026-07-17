@@ -137,11 +137,14 @@ class CapabilityReport:
     def is_green(self) -> bool:
         """Return ``True`` when every probe is GREEN.
 
-        An empty probe list is treated as all-green; this matches the
-        behaviour expected by the unit tests of an empty
-        :class:`CapabilityReport`.
+        An empty probe list returns ``False`` because "no probes run"
+        is not the same as "every probe passed". Callers that want to
+        treat a report as uninformative should check ``len(probes)``
+        before calling :meth:`is_green`.
         """
-        return all(p.status is ProbeStatus.GREEN for p in self.probes)
+        return len(self.probes) > 0 and all(
+            p.status is ProbeStatus.GREEN for p in self.probes
+        )
 
     def has_red(self) -> bool:
         """Return ``True`` when at least one probe is RED."""
@@ -339,16 +342,16 @@ def probe_compile() -> ProbeResult:
 
 
 def probe_hyperbolic() -> ProbeResult:
-    """Probe Poincare ball operations via the optional ``geoopt`` dependency.
+    """Probe Poincare ball operations via ``geoopt``.
 
     Returns:
         A :class:`ProbeResult` that is GREEN when random points
-        sampled on the ball satisfy the unit-radius constraint,
-        YELLOW when ``geoopt`` is not installed, and RED otherwise.
+        sampled on the ball satisfy the unit-radius constraint and
+        RED otherwise.
     """
     backend = detect_backend()
     try:
-        import geoopt  # type: ignore[import-not-found]  # geoopt is optional.
+        import geoopt
 
         ball = geoopt.PoincareBallExact()
         x = ball.random((4, 3)).to(current_device(backend))
@@ -359,12 +362,6 @@ def probe_hyperbolic() -> ProbeResult:
                 detail="point outside ball",
             )
         return ProbeResult(name="hyperbolic", status=ProbeStatus.GREEN)
-    except ImportError:
-        return ProbeResult(
-            name="hyperbolic",
-            status=ProbeStatus.YELLOW,
-            detail="geoopt not installed",
-        )
     except (RuntimeError, NotImplementedError, ValueError, TypeError) as exc:
         return ProbeResult(
             name="hyperbolic",
@@ -377,14 +374,11 @@ def probe_pyg_scatter() -> ProbeResult:
     """Probe PyTorch-Geometric ``scatter`` on the active backend.
 
     Returns:
-        GREEN when the scatter yields the expected shape, YELLOW when
-        ``torch_geometric`` is not installed, RED otherwise.
+        GREEN when the scatter yields the expected shape, RED otherwise.
     """
     backend = detect_backend()
     try:
-        from torch_geometric.utils import (  # type: ignore[import-not-found]
-            scatter,  # torch_geometric is an optional dependency.
-        )
+        from torch_geometric.utils import scatter
 
         idx = torch.tensor([0, 1, 0, 1], device=current_device(backend))
         src = torch.ones((4, 2), device=current_device(backend))
@@ -398,12 +392,6 @@ def probe_pyg_scatter() -> ProbeResult:
                 detail=f"unexpected shape {tuple(out.shape)}",
             )
         return ProbeResult(name="pyg_scatter", status=ProbeStatus.GREEN)
-    except ImportError:
-        return ProbeResult(
-            name="pyg_scatter",
-            status=ProbeStatus.YELLOW,
-            detail="torch_geometric not installed",
-        )
     except (RuntimeError, NotImplementedError, ValueError, TypeError) as exc:
         return ProbeResult(
             name="pyg_scatter",
@@ -462,12 +450,11 @@ def device_name_for(backend: Backend) -> str:
         backend: The backend whose device name should be reported.
 
     Returns:
-        For CUDA the value of ``torch.cuda.get_device_name(0)`` if any
-        CUDA device is available, otherwise the literal ``"CPU"``;
-        for MPS the literal ``"Apple Silicon (MPS)"``; for CPU the
-        literal ``"CPU"``.
+        For CUDA the value of ``torch.cuda.get_device_name(0)``; for
+        MPS the literal ``"Apple Silicon (MPS)"``; for CPU the literal
+        ``"CPU"``.
     """
-    if backend is Backend.CUDA and torch.cuda.is_available():
+    if backend is Backend.CUDA:
         return torch.cuda.get_device_name(0)
     if backend is Backend.MPS:
         return "Apple Silicon (MPS)"
