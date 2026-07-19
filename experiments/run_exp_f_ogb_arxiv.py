@@ -50,16 +50,18 @@ from torch import nn
 
 from pjepa.baselines import BGRL, GCN, GraphMAE, GraphSAGE
 from pjepa.data.ogb import (
+    CSRAdj,
     NeighborSample,
     OGBArxiv,
     load_ogb_arxiv,
     neighbor_sample,
+    precompute_adjacency,
 )
 from pjepa.encoders import DualGeometricEncoder, JEPAPredictor, TargetEncoder
 from pjepa.eval import bonferroni_correction, paired_bootstrap_ci, wilcoxon_signed_rank
 from pjepa.exceptions import ConfigError, DataError, GraphError
 from pjepa.graphs import PersistentState, TypedAttributedGraph
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.perf import assert_rss_cap, load_sharded_state_dict, shard_state_dict
 from pjepa.utils.seeding import set_global_seed
 
@@ -94,6 +96,15 @@ __all__ = [
     "train_node_classifier",
     "train_persistent_jepa_with_probe",
 ]
+
+
+def _detect_device() -> torch.device:
+    """Return the best available compute device: CUDA > MPS > CPU."""
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
 
 
 OGB_METHODS: tuple[str, ...] = (
@@ -256,6 +267,8 @@ def train_node_classifier(
     dataset: OGBArxiv,
     config: OGBConfig,
     training_labels: torch.Tensor,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> nn.Module:
     """Train a node-classification model end-to-end via neighbour sampling.
 
@@ -269,10 +282,15 @@ def train_node_classifier(
         dataset: The OGB-arxiv dataset.
         config: The experiment configuration.
         training_labels: The safe label tensor (test indices zeroed).
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         ``model`` after the final ``optimizer.step``.
     """
+    if device is not None:
+        model = model.to(device)
+        training_labels = training_labels.to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
@@ -292,8 +310,11 @@ def train_node_classifier(
                 num_hops=config.num_hops,
                 num_neighbors=config.num_neighbors,
                 num_total_nodes=num_nodes,
+                csr=csr,
             )
             sub = build_labeled_subgraph(graph, sample, training_labels)
+            if device is not None:
+                sub = sub.to(device)
             sub_logits = model.node_logits(sub)
             local_targets = map_global_to_local(sample, batch_idx)
             target_labels = training_labels[batch_idx]
@@ -310,6 +331,8 @@ def predict_node_classifier(
     dataset: OGBArxiv,
     indices: torch.Tensor,
     batch_size: int,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> torch.Tensor:
     """Predict labels for ``indices`` using neighbour-sampled subgraphs.
 
@@ -323,10 +346,14 @@ def predict_node_classifier(
         dataset: The OGB-arxiv dataset.
         indices: ``[N_q]`` ``long`` tensor of query indices.
         batch_size: Mini-batch size for the inference loop.
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         A ``[N_q]`` ``long`` prediction tensor aligned with ``indices``.
     """
+    if device is not None:
+        model = model.to(device)
     model.eval()
     graph = dataset.graph
     num_nodes = graph.num_vertices()
@@ -339,12 +366,15 @@ def predict_node_classifier(
             num_hops=2,
             num_neighbors=-1,
             num_total_nodes=num_nodes,
+            csr=csr,
         )
         sub = TypedAttributedGraph(
             vertex_features=graph.vertex_features[sample.node_ids],
             edge_index=sample.edge_index,
             edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
         )
+        if device is not None:
+            sub = sub.to(device)
         sub_logits = model.node_logits(sub)
         local_idx = map_global_to_local(sample, batch_idx)
         all_preds[start : start + batch_idx.shape[0]] = sub_logits[local_idx].argmax(dim=-1)
@@ -355,6 +385,8 @@ def train_gcn_supervised(
     dataset: OGBArxiv,
     config: OGBConfig,
     training_labels: torch.Tensor,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> GCN:
     """Train a two-layer GCN with neighbour sampling.
 
@@ -362,6 +394,8 @@ def train_gcn_supervised(
         dataset: The OGB-arxiv dataset.
         config: The experiment configuration.
         training_labels: The safe label tensor (test indices zeroed).
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         The trained :class:`GCN`.
@@ -371,13 +405,15 @@ def train_gcn_supervised(
         hidden_dim=config.hidden_dim,
         num_classes=dataset.num_classes,
     )
-    return train_node_classifier(model, dataset, config, training_labels)
+    return train_node_classifier(model, dataset, config, training_labels, csr=csr, device=device)
 
 
 def train_graphsage_supervised(
     dataset: OGBArxiv,
     config: OGBConfig,
     training_labels: torch.Tensor,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> GraphSAGE:
     """Train a GraphSAGE encoder with neighbour sampling.
 
@@ -385,6 +421,8 @@ def train_graphsage_supervised(
         dataset: The OGB-arxiv dataset.
         config: The experiment configuration.
         training_labels: The safe label tensor (test indices zeroed).
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         The trained :class:`GraphSAGE`.
@@ -395,7 +433,7 @@ def train_graphsage_supervised(
         num_layers=config.num_layers,
         num_classes=dataset.num_classes,
     )
-    return train_node_classifier(model, dataset, config, training_labels)
+    return train_node_classifier(model, dataset, config, training_labels, csr=csr, device=device)
 
 
 def train_bgrl_with_probe(
@@ -403,6 +441,8 @@ def train_bgrl_with_probe(
     config: OGBConfig,
     training_labels: torch.Tensor,
     seed: int = 0,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> BGRL:
     """Train BGRL via self-supervised pre-training then fit a linear probe.
 
@@ -420,6 +460,8 @@ def train_bgrl_with_probe(
         training_labels: The safe label tensor (test indices zeroed).
         seed: Per-run seed; seeded into a ``torch.Generator`` for the
           pretraining view sampling.
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         The trained :class:`BGRL` with its ``classifier`` head fit to
@@ -431,6 +473,9 @@ def train_bgrl_with_probe(
         num_layers=config.num_layers,
         num_classes=dataset.num_classes,
     )
+    if device is not None:
+        model = model.to(device)
+        training_labels = training_labels.to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
@@ -450,6 +495,7 @@ def train_bgrl_with_probe(
                 num_neighbors=config.num_neighbors,
                 num_total_nodes=num_nodes,
                 generator=generator,
+                csr=csr,
             )
             feats = subgraph_features(graph, sample)
             sub_edges = sample.edge_index
@@ -463,6 +509,9 @@ def train_bgrl_with_probe(
                 edge_index=sub_edges,
                 edge_features=torch.zeros((sub_edges.shape[1], 1)),
             )
+            if device is not None:
+                view_a = view_a.to(device)
+                view_b = view_b.to(device)
             optimizer.zero_grad()
             loss = model.loss(view_a, view_b)
             loss.backward()
@@ -482,12 +531,15 @@ def train_bgrl_with_probe(
         num_hops=2,
         num_neighbors=-1,
         num_total_nodes=num_nodes,
+        csr=csr,
     )
     sub_full = TypedAttributedGraph(
         vertex_features=graph.vertex_features[sample.node_ids],
         edge_index=sample.edge_index,
         edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
     )
+    if device is not None:
+        sub_full = sub_full.to(device)
     with torch.no_grad():
         embeddings = model.online_encoder.encode(sub_full)
     local_train = sample.seed_to_local[train_idx]
@@ -512,6 +564,8 @@ def train_graphmae_with_probe(
     dataset: OGBArxiv,
     config: OGBConfig,
     training_labels: torch.Tensor,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> tuple[GraphMAE, nn.Linear]:
     """Pretrain a GraphMAE encoder and fit a linear probe on top.
 
@@ -525,6 +579,8 @@ def train_graphmae_with_probe(
         dataset: The OGB-arxiv dataset.
         config: The experiment configuration.
         training_labels: The safe label tensor (test indices zeroed).
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         A tuple ``(encoder, probe)`` where ``encoder`` is the
@@ -537,6 +593,9 @@ def train_graphmae_with_probe(
         num_layers=config.num_layers,
         mask_ratio=0.5,
     )
+    if device is not None:
+        encoder = encoder.to(device)
+        training_labels = training_labels.to(device)
     optimizer = torch.optim.AdamW(
         encoder.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
@@ -554,6 +613,7 @@ def train_graphmae_with_probe(
                 num_hops=config.num_hops,
                 num_neighbors=config.num_neighbors,
                 num_total_nodes=num_nodes,
+                csr=csr,
             )
             feats = subgraph_features(graph, sample)
             sub = TypedAttributedGraph(
@@ -561,8 +621,10 @@ def train_graphmae_with_probe(
                 edge_index=sample.edge_index,
                 edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
             )
+            if device is not None:
+                sub = sub.to(device)
             out = encoder(sub)
-            target = feats
+            target = sub.vertex_features
             mask = out["mask"]
             if mask.any():
                 loss = ((out["reconstruction"][mask] - target[mask]) ** 2).mean()
@@ -572,6 +634,8 @@ def train_graphmae_with_probe(
             loss.backward()
             optimizer.step()
     probe = nn.Linear(config.hidden_dim, dataset.num_classes)
+    if device is not None:
+        probe = probe.to(device)
     encoder.eval()
     sample = neighbor_sample(
         graph.edge_index,
@@ -579,12 +643,15 @@ def train_graphmae_with_probe(
         num_hops=2,
         num_neighbors=-1,
         num_total_nodes=num_nodes,
+        csr=csr,
     )
     sub = TypedAttributedGraph(
         vertex_features=graph.vertex_features[sample.node_ids],
         edge_index=sample.edge_index,
         edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
     )
+    if device is not None:
+        sub = sub.to(device)
     with torch.no_grad():
         embeddings = encoder.encode(sub)
     local_train = sample.seed_to_local[train_idx]
@@ -667,6 +734,8 @@ def train_persistent_jepa_with_probe(
     dataset: OGBArxiv,
     config: OGBConfig,
     training_labels: torch.Tensor,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> tuple[TargetEncoder, PersistentJEPAClassifier]:
     """Train Persistent-JEPA on OGB-arxiv.
 
@@ -681,6 +750,8 @@ def train_persistent_jepa_with_probe(
         dataset: The OGB-arxiv dataset.
         config: The experiment configuration.
         training_labels: The safe label tensor (test indices zeroed).
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         A tuple ``(target, probe)`` where ``target`` is the trained
@@ -698,12 +769,19 @@ def train_persistent_jepa_with_probe(
         output_dim=config.hidden_dim,
     )
     target = TargetEncoder(encoder, momentum=0.99)
+    if device is not None:
+        encoder = encoder.to(device)
+        predictor = predictor.to(device)
+        target.shadow.to(device)
+        training_labels = training_labels.to(device)
     optimizer = torch.optim.AdamW(
         list(encoder.parameters()) + list(predictor.parameters()),
         lr=config.learning_rate,
         weight_decay=config.weight_decay,
     )
     probe = PersistentJEPAClassifier(config.hidden_dim, dataset.num_classes)
+    if device is not None:
+        probe = probe.to(device)
     probe_optimizer = torch.optim.AdamW(
         probe.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
@@ -727,6 +805,7 @@ def train_persistent_jepa_with_probe(
                 num_hops=config.num_hops,
                 num_neighbors=config.num_neighbors,
                 num_total_nodes=num_nodes,
+                csr=csr,
             )
             feats = subgraph_features(graph, sample)
             sub = TypedAttributedGraph(
@@ -734,6 +813,8 @@ def train_persistent_jepa_with_probe(
                 edge_index=sample.edge_index,
                 edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
             )
+            if device is not None:
+                sub = sub.to(device)
             # JEPA pretraining step: encoder receives gradients via the
             # predictor loss; the target encoder is updated as an EMA
             # *after* the optimiser step.
@@ -787,6 +868,8 @@ def predict_persistent_jepa(
     dataset: OGBArxiv,
     indices: torch.Tensor,
     batch_size: int,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> torch.Tensor:
     """Run a prediction through the Persistent-JEPA target + probe.
 
@@ -799,10 +882,17 @@ def predict_persistent_jepa(
         dataset: The OGB-arxiv dataset.
         indices: ``[N_q]`` ``long`` tensor of query indices.
         batch_size: Mini-batch size for the inference loop.
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         A ``[N_q]`` ``long`` prediction tensor aligned with ``indices``.
     """
+    if device is not None:
+        probe = probe.to(device)
+        # TargetEncoder wraps nn.Modules; move both halves
+        target.online.to(device)
+        target.shadow.to(device)
     target.shadow.eval()
     probe.eval()
     graph = dataset.graph
@@ -816,12 +906,15 @@ def predict_persistent_jepa(
             num_hops=2,
             num_neighbors=-1,
             num_total_nodes=num_nodes,
+            csr=csr,
         )
         sub = TypedAttributedGraph(
             vertex_features=graph.vertex_features[sample.node_ids],
             edge_index=sample.edge_index,
             edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
         )
+        if device is not None:
+            sub = sub.to(device)
         emb, _ = target.shadow(sub)
         local_idx = map_global_to_local(sample, batch_idx)
         logits = probe(emb[local_idx])
@@ -836,6 +929,8 @@ def predict_graphmae_probe(
     dataset: OGBArxiv,
     indices: torch.Tensor,
     batch_size: int,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> torch.Tensor:
     """Predict labels via the GraphMAE encoder + linear probe.
 
@@ -845,10 +940,15 @@ def predict_graphmae_probe(
         dataset: The OGB-arxiv dataset.
         indices: ``[N_q]`` ``long`` tensor of query indices.
         batch_size: Mini-batch size for the inference loop.
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         A ``[N_q]`` ``long`` prediction tensor aligned with ``indices``.
     """
+    if device is not None:
+        encoder = encoder.to(device)
+        probe = probe.to(device)
     encoder.eval()
     probe.eval()
     graph = dataset.graph
@@ -862,12 +962,15 @@ def predict_graphmae_probe(
             num_hops=2,
             num_neighbors=-1,
             num_total_nodes=num_nodes,
+            csr=csr,
         )
         sub = TypedAttributedGraph(
             vertex_features=graph.vertex_features[sample.node_ids],
             edge_index=sample.edge_index,
             edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
         )
+        if device is not None:
+            sub = sub.to(device)
         emb = encoder.encode(sub)
         local_idx = map_global_to_local(sample, batch_idx)
         logits = probe(emb[local_idx])
@@ -881,6 +984,8 @@ def train_method_dispatch(
     config: OGBConfig,
     training_labels: torch.Tensor,
     seed: int = 0,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> tuple[Any, Any]:
     """Train ``method`` on ``dataset`` and return ``(encoder, head)``.
 
@@ -894,6 +999,8 @@ def train_method_dispatch(
         config: The experiment configuration.
         training_labels: The safe label tensor (test indices zeroed).
         seed: Per-run seed for the BGRL pretraining generator.
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         A tuple ``(encoder, head)``.
@@ -902,16 +1009,24 @@ def train_method_dispatch(
         ConfigError: When ``method`` is not in :data:`OGB_METHODS`.
     """
     if method == "GCN":
-        return train_gcn_supervised(dataset, config, training_labels), None
+        return train_gcn_supervised(dataset, config, training_labels, csr=csr, device=device), None
     if method == "GraphSAGE":
-        return train_graphsage_supervised(dataset, config, training_labels), None
+        return train_graphsage_supervised(
+            dataset, config, training_labels, csr=csr, device=device
+        ), None
     if method == "BGRL":
-        return train_bgrl_with_probe(dataset, config, training_labels, seed=seed), None
+        return train_bgrl_with_probe(
+            dataset, config, training_labels, seed=seed, csr=csr, device=device
+        ), None
     if method == "GraphMAE":
-        encoder, probe = train_graphmae_with_probe(dataset, config, training_labels)
+        encoder, probe = train_graphmae_with_probe(
+            dataset, config, training_labels, csr=csr, device=device
+        )
         return encoder, probe
     if method == "PersistentJEPA":
-        target, probe = train_persistent_jepa_with_probe(dataset, config, training_labels)
+        target, probe = train_persistent_jepa_with_probe(
+            dataset, config, training_labels, csr=csr, device=device
+        )
         return target, probe
     raise ConfigError(f"train_method_dispatch: unknown method {method!r}")
 
@@ -923,6 +1038,8 @@ def predict_method_dispatch(
     dataset: OGBArxiv,
     indices: torch.Tensor,
     batch_size: int,
+    csr: CSRAdj | None = None,
+    device: torch.device | None = None,
 ) -> torch.Tensor:
     """Run inference for ``method`` on ``indices``.
 
@@ -934,6 +1051,8 @@ def predict_method_dispatch(
         dataset: The OGB-arxiv dataset.
         indices: ``[N_q]`` ``long`` tensor of query indices.
         batch_size: Mini-batch size for the inference loop.
+        csr: Optional pre-computed CSR adjacency for fast sampling.
+        device: Device to move model and batch tensors to.
 
     Returns:
         A ``[N_q]`` ``long`` prediction tensor aligned with ``indices``.
@@ -942,11 +1061,17 @@ def predict_method_dispatch(
         ConfigError: When ``method`` is not in :data:`OGB_METHODS`.
     """
     if method in ("GCN", "GraphSAGE", "BGRL"):
-        return predict_node_classifier(encoder, dataset, indices, batch_size)
+        return predict_node_classifier(
+            encoder, dataset, indices, batch_size, csr=csr, device=device
+        )
     if method == "GraphMAE":
-        return predict_graphmae_probe(encoder, head, dataset, indices, batch_size)
+        return predict_graphmae_probe(
+            encoder, head, dataset, indices, batch_size, csr=csr, device=device
+        )
     if method == "PersistentJEPA":
-        return predict_persistent_jepa(encoder, head, dataset, indices, batch_size)
+        return predict_persistent_jepa(
+            encoder, head, dataset, indices, batch_size, csr=csr, device=device
+        )
     raise ConfigError(f"predict_method_dispatch: unknown method {method!r}")
 
 
@@ -1377,6 +1502,8 @@ def run_ogb_experiment(
     val_idx = torch.tensor(dataset.val_indices, dtype=torch.long)
     test_idx = torch.tensor(dataset.test_indices, dtype=torch.long)
     training_labels = mask_test_labels(safe_supervised_labels(dataset.graph), dataset.test_indices)
+    csr = precompute_adjacency(dataset.graph)
+    device = _detect_device()
     val_targets = (
         dataset.graph.vertex_labels[val_idx] if dataset.graph.vertex_labels is not None else None
     )
@@ -1400,15 +1527,29 @@ def run_ogb_experiment(
             )
             start = time.time()
             encoder, head = train_method_dispatch(
-                method, dataset, effective, training_labels, seed=seed
+                method, dataset, effective, training_labels, seed=seed, csr=csr, device=device
             )
             elapsed = time.time() - start
 
             val_preds = predict_method_dispatch(
-                method, encoder, head, dataset, val_idx, effective.batch_size
+                method,
+                encoder,
+                head,
+                dataset,
+                val_idx,
+                effective.batch_size,
+                csr=csr,
+                device=device,
             )
             test_preds = predict_method_dispatch(
-                method, encoder, head, dataset, test_idx, effective.batch_size
+                method,
+                encoder,
+                head,
+                dataset,
+                test_idx,
+                effective.batch_size,
+                csr=csr,
+                device=device,
             )
             val_acc = per_class_accuracy(val_preds, val_targets)
             test_acc = per_class_accuracy(test_preds, test_targets)
@@ -1496,7 +1637,7 @@ def main() -> int:
         help="Run the fast smoke configuration (synthetic-only).",
     )
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     config = OGBConfig(
         methods=tuple(args.methods),
         n_seeds=args.seeds,

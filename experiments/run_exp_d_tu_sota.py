@@ -73,17 +73,27 @@ from pjepa.eval import (
 from pjepa.eval.plots import plot_heatmap, plot_radar
 from pjepa.exceptions import ConfigError, DataError
 from pjepa.graphs import PersistentState, TypedAttributedGraph, WorkingGraph
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
-from pjepa.objectives import FreeEnergy, description_length
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
+from pjepa.objectives import description_length
 from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
 from pjepa.rewriting import HRG, FourConditions, accept_candidate
 from pjepa.utils.seeding import set_global_seed
+
+
+def _detect_device() -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
 
 __all__ = [
     "TU_DATASETS",
     "TU_METHODS",
     "PlanTables",
     "TUExperimentConfig",
+    "_detect_device",
     "aggregate_results",
     "build_encoder",
     "build_persistent_jepa_triple",
@@ -406,7 +416,14 @@ def build_pooled_features(
     Returns:
         A 1-D ``[euclidean_dim]`` tensor of pooled features.
     """
-    e, _ = encoder(graph)
+    device = next(encoder.parameters()).device
+    g = TypedAttributedGraph(
+        vertex_features=graph.vertex_features.to(device),
+        edge_index=graph.edge_index.to(device),
+        edge_features=graph.edge_features.to(device),
+        vertex_labels=graph.vertex_labels.to(device) if graph.vertex_labels is not None else None,
+    )
+    e, _ = encoder(g)
     return e.mean(dim=0)
 
 
@@ -442,7 +459,7 @@ def _free_energy_tensor(
     """
     if graph.num_vertices() == 0:
         return torch.zeros((), dtype=observation.dtype, device=observation.device)
-    mean_feat = graph.vertex_features.mean(dim=0)
+    mean_feat = graph.vertex_features.to(observation.device).mean(dim=0)
     nll = ((mean_feat - observation.squeeze(0)) ** 2).mean()
     dl_value = torch.tensor(
         float(description_length(graph)),
@@ -506,6 +523,10 @@ def train_persistent_jepa(
 
     input_dim = train_pairs[0][0].vertex_features.shape[1]
     encoder, predictor, target = build_persistent_jepa_triple(input_dim, hidden_dim, num_layers)
+    device = _detect_device()
+    encoder.to(device)
+    predictor.to(device)
+    target.shadow.to(device)
     target.momentum = float(min(max(ema_momentum, 0.0), 1.0))
 
     if config.run_jepa_pretraining:
@@ -542,11 +563,11 @@ def train_persistent_jepa(
         torch.nn.ReLU(),
         torch.nn.Linear(64, num_classes),
     )
+    classifier.to(device)
     joint_params = list(encoder.parameters()) + list(classifier.parameters())
     joint_optimizer = torch.optim.AdamW(joint_params, lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(joint_optimizer, T_max=config.epochs)
     loss_fn = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
-    free_energy = FreeEnergy(beta_ib=beta_ib, lambda_mdl=lambda_mdl, gamma_forward=gamma_forward)
     thresholds = FourConditions(
         beta_ib=beta_ib,
         lambda_mdl=lambda_mdl,
@@ -575,8 +596,8 @@ def train_persistent_jepa(
             labels: list[int] = []
             reg_terms: list[torch.Tensor] = []
             for g, lbl in batch:
-                obs = g.vertex_features.mean(dim=0, keepdim=True)
-                utility = FacilityLocationUtility(vertex_features=g.vertex_features)
+                obs = g.vertex_features.to(device).mean(dim=0, keepdim=True)
+                utility = FacilityLocationUtility(vertex_features=g.vertex_features.to(device))
                 retrieval = retriever.select(g, obs, utility=utility)
                 working: WorkingGraph = retrieval.working
                 if working.num_vertices() > 0:
@@ -617,17 +638,16 @@ def train_persistent_jepa(
                             gamma_forward=gamma_forward,
                         )
                     )
-                free_energy(persistent.graph, obs)
                 feats.append(emb)
                 labels.append(lbl)
             x = torch.stack(feats)
-            y = torch.tensor(labels, dtype=torch.long)
+            y = torch.tensor(labels, dtype=torch.long, device=device)
             logits = classifier(x)
             ce = loss_fn(logits, y)
             if reg_terms:
                 aux = torch.stack(reg_terms).clamp(max=1.0).mean()
             else:
-                aux = torch.zeros((), dtype=ce.dtype)
+                aux = torch.zeros((), dtype=ce.dtype, device=device)
             loss = ce + reg_weight * aux
             joint_optimizer.zero_grad()
             loss.backward()
@@ -638,7 +658,7 @@ def train_persistent_jepa(
     classifier.eval()
     with torch.no_grad():
         test_x = torch.stack([build_pooled_features(encoder, g) for g, _ in test_pairs])
-        test_y = torch.tensor([lbl for _, lbl in test_pairs], dtype=torch.long)
+        test_y = torch.tensor([lbl for _, lbl in test_pairs], dtype=torch.long, device=device)
         preds = classifier(test_x).argmax(dim=-1)
     return mean_per_class_accuracy(preds.tolist(), test_y.tolist())
 
@@ -1257,7 +1277,7 @@ def main() -> int:
         help="Number of bootstrap resamples.",
     )
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     config = TUExperimentConfig(
         datasets=tuple(args.datasets),
         n_seeds=args.seeds,

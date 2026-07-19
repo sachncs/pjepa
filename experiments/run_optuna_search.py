@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from pjepa.data.tu import load_tu_dataset
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.training.optuna_search import (
     OPTUNA_SEARCH_SPACE,
     OptunaSearch,
@@ -242,7 +242,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=None)
     parser.add_argument("--output-dir", default="results/optuna")
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     config = OptunaConfig(
         datasets=tuple(args.datasets),
         n_trials=args.n_trials,

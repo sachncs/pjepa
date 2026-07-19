@@ -52,7 +52,7 @@ from pjepa.eval import (
     set_publication_style,
 )
 from pjepa.graphs import PersistentState, TypedAttributedGraph
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
 from pjepa.rewriting import HRG, accept_candidate
 from pjepa.utils.seeding import set_global_seed
@@ -642,7 +642,7 @@ def main() -> int:
         default=SensitivityConfig.bootstrap_resamples,
     )
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     if args.smoke:
         cfg = default_smoke_config(output_dir=args.output_dir)
     else:

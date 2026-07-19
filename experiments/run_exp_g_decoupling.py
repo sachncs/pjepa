@@ -44,7 +44,7 @@ import torch
 from pjepa.encoders import DualGeometricEncoder, EuclideanMPNN
 from pjepa.eval import color_for, set_publication_style
 from pjepa.graphs import TypedAttributedGraph
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
 from pjepa.utils.seeding import set_global_seed
 
@@ -749,7 +749,7 @@ def main() -> int:
         help="Override the B sweep (space-separated integers).",
     )
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     if args.smoke:
         config = default_smoke_config(output_dir=args.output_dir)
     else:

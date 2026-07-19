@@ -65,7 +65,7 @@ from pjepa.eval import (
 )
 from pjepa.exceptions import ConfigError
 from pjepa.graphs import PersistentState, TypedAttributedGraph
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.retrieval import GreedyRetrieval
 from pjepa.utils.seeding import set_global_seed
 
@@ -1375,7 +1375,7 @@ def main() -> int:
         help="Run the smoke configuration (single dataset, single seed, 2 tasks).",
     )
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     config = CLExperimentConfig(
         datasets=tuple(args.datasets),
         methods=tuple(args.methods),

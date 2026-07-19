@@ -41,7 +41,7 @@ import torch
 
 from pjepa.eval import set_publication_style
 from pjepa.graphs import TypedAttributedGraph
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
 from pjepa.utils.seeding import set_global_seed
 
@@ -418,7 +418,7 @@ def main() -> int:
     parser.add_argument("--observation-dim", type=int, default=4)
     parser.add_argument("--output-dir", default="results")
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     config = RetrievalExperimentConfig(
         ns=tuple(args.ns),
         budgets=tuple(args.budgets),

@@ -42,7 +42,7 @@ import matplotlib.pyplot as plt
 import torch
 
 from pjepa.eval import set_publication_style
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.utils.seeding import set_global_seed
 
 __all__ = [
@@ -520,7 +520,7 @@ def main() -> int:
     parser.add_argument("--seeds", type=int, default=DEFAULT_N_SEEDS)
     parser.add_argument("--output-dir", default="results")
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     config = DistortionExperimentConfig(
         depths=tuple(args.depths),
         branchings=tuple(args.branchings),

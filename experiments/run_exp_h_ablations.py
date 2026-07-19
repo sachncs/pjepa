@@ -74,7 +74,7 @@ from pjepa.eval import (
 )
 from pjepa.exceptions import ConfigError
 from pjepa.graphs import PersistentState, TypedAttributedGraph, WorkingGraph
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
 from pjepa.rewriting import HRG, accept_candidate
 from pjepa.utils.seeding import set_global_seed
@@ -1075,7 +1075,7 @@ def main() -> int:
         default=AblationConfig.bootstrap_resamples,
     )
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     if args.smoke:
         cfg = default_smoke_config(output_dir=args.output_dir)
     else:

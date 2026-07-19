@@ -48,7 +48,7 @@ from pjepa.encoders import (
 )
 from pjepa.eval import color_for, set_publication_style
 from pjepa.graphs import TypedAttributedGraph
-from pjepa.logging_setup import LogFormat, configure_logging, get_logger
+from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.utils.seeding import set_global_seed
 
 __all__ = [
@@ -553,7 +553,7 @@ def main() -> int:
     parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
     parser.add_argument("--output-dir", default="results")
     args = parser.parse_args()
-    configure_logging(level="INFO", fmt=LogFormat.JSON)
+    configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
     config = EncoderAblationConfig(
         depths=tuple(args.depths),
         n_graphs=int(args.n_graphs),
