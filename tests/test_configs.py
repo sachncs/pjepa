@@ -77,7 +77,7 @@ def test_cl_config_has_required_fields() -> None:
     """The CL config has the fields consumed by the CL experiment runner."""
     loaded = load_config(CONFIG_DIR / "cl.yaml")
     assert loaded["experiment"]["datasets"]
-    assert loaded["experiment"]["n_tasks"] == 5
+    assert loaded["experiment"]["n_tasks"] == 2
     assert "lr" in loaded["training"]
 
 

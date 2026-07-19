@@ -11,7 +11,7 @@ experiment:
   seed_model: 42
 
 training:
-  epochs: 200
+  epochs: 100
   batch_size: 32
   optimizer: adamw
   lr: 1.0e-2
@@ -21,7 +21,7 @@ training:
 model:
   encoder: dual_geometric
   hidden_dim: 128
-  num_layers: 4
+  num_layers: 3
   output_dim: 128
   dropout: 0.0
 

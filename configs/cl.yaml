@@ -4,7 +4,7 @@ experiment:
     - PROTEINS
     - MUTAG
     - NCI1
-  n_tasks: 5
+  n_tasks: 2
   seed_split: 0
   seed_model: 42
 
