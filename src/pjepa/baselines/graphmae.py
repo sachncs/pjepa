@@ -116,7 +116,7 @@ class GraphMAE(nn.Module):
         masked_graph = graph.with_features(vertex_features=masked_features)
         h = self.encode(masked_graph)
         reconstruction = self.decoder(h)
-        batch = torch.zeros(h.shape[0], dtype=torch.long)
+        batch = torch.zeros(h.shape[0], dtype=torch.long, device=h.device)
         embedding = global_add_pool(h, batch)
         return {
             "embedding": embedding,

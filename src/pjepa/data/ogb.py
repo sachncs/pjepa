@@ -41,6 +41,7 @@ These helpers keep memory bounded on the full 169K-node graph.
 from __future__ import annotations
 
 import os
+from collections import namedtuple
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,12 +53,46 @@ from pjepa.graphs import TypedAttributedGraph
 
 __all__ = [
     "TEST_LABEL_SENTINEL",
+    "CSRAdj",
     "NeighborSample",
     "OGBArxiv",
     "induce_subgraph",
     "load_ogb_arxiv",
     "neighbor_sample",
+    "precompute_adjacency",
 ]
+
+CSRAdj = namedtuple("CSRAdj", ["indptr", "indices"])
+
+
+def _build_csr_adjacency(edge_index: torch.Tensor, num_nodes: int) -> CSRAdj:
+    """Build CSR adjacency from COO edge_index for fast neighbor lookups."""
+    src = edge_index[0]
+    dst = edge_index[1]
+    order = dst.argsort()
+    sorted_dst = dst[order]
+    sorted_src = src[order]
+    counts = torch.bincount(sorted_dst, minlength=num_nodes)
+    indptr = torch.zeros((num_nodes + 1,), dtype=torch.long)
+    indptr[1:] = counts.cumsum(0)
+    return CSRAdj(indptr=indptr, indices=sorted_src)
+
+
+def _csr_neighbors(csr: CSRAdj, node: int) -> torch.Tensor:
+    """Get all incoming neighbors of a single node from CSR."""
+    return csr.indices[csr.indptr[node] : csr.indptr[node + 1]]
+
+
+def precompute_adjacency(graph: TypedAttributedGraph) -> CSRAdj:
+    """Precompute CSR adjacency for fast neighbor sampling.
+
+    Args:
+        graph: The source graph with an ``edge_index`` attribute.
+
+    Returns:
+        A :class:`CSRAdj` that can be passed to :func:`neighbor_sample`.
+    """
+    return _build_csr_adjacency(graph.edge_index, graph.num_vertices())
 
 
 TEST_LABEL_SENTINEL: int = 0
@@ -261,14 +296,15 @@ def neighbor_sample(
     num_neighbors: int,
     num_total_nodes: int,
     generator: torch.Generator | None = None,
+    csr: CSRAdj | None = None,
 ) -> NeighborSample:
     """Perform ``num_hops`` rounds of neighbour sampling from ``seed_nodes``.
 
-    The algorithm walks the COO adjacency: at hop ``k+1`` it samples
-    at most ``num_neighbors`` incoming neighbours per node added at
-    hop ``k``. The returned subgraph is the induced subgraph on the
-    union of the visited nodes; this matches the GraphSAGE-style
-    sampler used in the OGB-arxiv trainers.
+    The algorithm walks the adjacency (CSR when provided, COO otherwise):
+    at hop ``k+1`` it samples at most ``num_neighbors`` incoming
+    neighbours per node added at hop ``k``. The returned subgraph is
+    the induced subgraph on the union of the visited nodes; this
+    matches the GraphSAGE-style sampler used in the OGB-arxiv trainers.
 
     Args:
         edge_index: ``[2, E]`` ``long`` COO edge-index of the
@@ -283,6 +319,9 @@ def neighbor_sample(
         num_total_nodes: Total vertex count of the source graph
           (used to allocate the visited mask).
         generator: Optional ``torch.Generator`` for reproducibility.
+        csr: Optional pre-computed :class:`CSRAdj`. When provided,
+          neighbour lookups use CSR indexing instead of
+          ``torch.isin`` — dramatically faster on large graphs.
 
     Returns:
         A :class:`NeighborSample` describing the induced subgraph.
@@ -310,8 +349,6 @@ def neighbor_sample(
             hop_depth=torch.empty((0,), dtype=torch.long),
         )
 
-    src = edge_index[0]
-    dst = edge_index[1]
     visited = torch.zeros((num_total_nodes,), dtype=torch.bool)
     visited[seed_nodes] = True
     current_layer = seed_nodes.clone()
@@ -320,14 +357,24 @@ def neighbor_sample(
     for hop in range(num_hops):
         if current_layer.numel() == 0:
             break
-        mask = torch.isin(dst, current_layer)
-        if not mask.any():
-            break
-        candidates_src = src[mask]
-        candidates_dst = dst[mask]
+        if csr is not None:
+            neighbors_list = [_csr_neighbors(csr, int(n)) for n in current_layer.tolist()]
+            if not neighbors_list or all(len(n) == 0 for n in neighbors_list):
+                break
+            candidates_src = torch.cat(neighbors_list)
+            candidates_dst = torch.repeat_interleave(
+                current_layer, torch.tensor([len(n) for n in neighbors_list])
+            )
+        else:
+            src = edge_index[0]
+            dst = edge_index[1]
+            mask = torch.isin(dst, current_layer)
+            if not mask.any():
+                break
+            candidates_src = src[mask]
+            candidates_dst = dst[mask]
         if keep_all:
             sampled_src = candidates_src
-            _ = candidates_dst
         else:
             unique_dst, inverse = torch.unique(candidates_dst, return_inverse=True)
             counts = torch.zeros_like(unique_dst)
@@ -337,7 +384,6 @@ def neighbor_sample(
             rank = torch.arange(inverse.shape[0]) - offsets[inverse]
             keep_mask = rank < num_neighbors
             sampled_src = candidates_src[keep_mask]
-            _ = candidates_dst[keep_mask]
         new_nodes_mask = ~visited[sampled_src]
         new_nodes = sampled_src[new_nodes_mask]
         if new_nodes.numel() == 0:
@@ -429,24 +475,37 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
     except ImportError as exc:
         raise DataError("load_ogb_arxiv: ogb is required; install with `pip install ogb`") from exc
 
-    cache_root = Path(
-        root or os.environ.get("PJEPA_DATA_ROOT") or Path.home() / ".cache" / "pjepa" / "datasets"
-    )
-    cache_root.mkdir(parents=True, exist_ok=True)
-    dataset = PygNodePropPredDataset(name="ogbn-arxiv", root=str(cache_root))
-    data = dataset[0]
-    graph = TypedAttributedGraph(
-        vertex_features=data.x,
-        edge_index=data.edge_index,
-        edge_features=torch.zeros((data.num_edges, 1)),
-        vertex_labels=data.y.long().squeeze(-1),
-    )
-    split = dataset.get_idx_split()
-    return OGBArxiv(
-        graph=graph,
-        train_indices=split["train"].tolist(),
-        val_indices=split["valid"].tolist(),
-        test_indices=split["test"].tolist(),
-        feature_dim=int(data.x.shape[1]),
-        num_classes=int(dataset.num_classes),
-    )
+    # ponytail: ogb 1.3 calls torch.load without weights_only; PyTorch 2.6+ defaults to True
+    _orig_load = torch.load
+
+    def _compat_load(*a, **kw):
+        kw.setdefault("weights_only", False)
+        return _orig_load(*a, **kw)
+
+    torch.load = _compat_load
+    try:
+        cache_root = Path(
+            root
+            or os.environ.get("PJEPA_DATA_ROOT")
+            or Path.home() / ".cache" / "pjepa" / "datasets"
+        )
+        cache_root.mkdir(parents=True, exist_ok=True)
+        dataset = PygNodePropPredDataset(name="ogbn-arxiv", root=str(cache_root))
+        data = dataset[0]
+        graph = TypedAttributedGraph(
+            vertex_features=data.x,
+            edge_index=data.edge_index,
+            edge_features=torch.zeros((data.num_edges, 1)),
+            vertex_labels=data.y.long().squeeze(-1),
+        )
+        split = dataset.get_idx_split()
+        return OGBArxiv(
+            graph=graph,
+            train_indices=split["train"].tolist(),
+            val_indices=split["valid"].tolist(),
+            test_indices=split["test"].tolist(),
+            feature_dim=int(data.x.shape[1]),
+            num_classes=int(dataset.num_classes),
+        )
+    finally:
+        torch.load = _orig_load
