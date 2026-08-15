@@ -23,10 +23,10 @@ Conditions 1 and 4 are *information-theoretic* (they ensure strict descent of ù
 |---|---|
 | `HRG(nonterminals, terminals, productions, start)` | Hyperedge-replacement grammar. |
 | `HRGProduction(lhs, rhs_edge_index, rhs_edge_features)` | A single production rule. |
-| `BisimulationMetric(epsilon, max_iters)` | Bisimulation metric configuration. |
+| `Bisimulation(epsilon, max_iters)` | Bisimulation metric configuration. |
 | `bisimulation_distance(graph_a, graph_b, metric)` | Compute the pseudometric. |
 | `FourConditions(beta_ib, lambda_mdl, gamma_forward, bisimulation_eps, max_cost)` | Acceptance thresholds. |
-| `accept_candidate(candidate, current, observation, grammar, thresholds)` | Evaluate the four conditions. |
+| `accept(candidate, current, observation, grammar, thresholds)` | Evaluate the four conditions. |
 | `DPOConfig` / `dpo_loss` | Knowledge-distillation-style loss for the predictor. |
 
 ## Why HRG?
@@ -47,7 +47,7 @@ Two graphs are *behaviourally bisimilar* if every observation (under the SSCG re
 
 * `bisimulation_distance` uses the value-iteration Bellman operator with a per-vertex signature as the base distance.
 * The runtime uses `float64` on CUDA and falls back to `float32` on MPS (which lacks `float64`).
-* `accept_candidate` returns `(accepted, info)` where `info` contains per-condition values for diagnostics.
+* `accept` returns `(accepted, info)` where `info` contains per-condition values for diagnostics.
 
 ## Example
 
@@ -56,12 +56,12 @@ from pjepa.rewriting import (
     HRG,
     HRGProduction,
     FourConditions,
-    accept_candidate,
+    accept,
 )
 
 hrg = HRG(nonterminals=("S",), terminals=("t",), productions=(), start="S")
 thresholds = FourConditions(bisimulation_eps=0.1)
-accepted, info = accept_candidate(candidate, current, observation, hrg, thresholds)
+accepted, info = accept(candidate, current, observation, hrg, thresholds)
 assert info["reason"] in (
     "all four conditions satisfied",
     "cost exceeds max_cost",

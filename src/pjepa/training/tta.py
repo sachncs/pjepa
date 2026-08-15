@@ -1,4 +1,4 @@
-"""Test-Time Augmentation wrapper.
+"""Test-Time Transform wrapper.
 
 At inference time the input is passed through ``n_aug`` augmentations;
 the predictions are averaged. TTA typically improves accuracy at a
@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import torch
 
-from pjepa.augmentations import Augmentation
+from pjepa.augmentations import Transform
 from pjepa.exceptions import ConfigError
 
 __all__ = ["TTAConfig", "TTAWrapper"]
@@ -60,7 +60,7 @@ class TTAWrapper(torch.nn.Module):
     def __init__(
         self,
         model: torch.nn.Module,
-        augmentation: Augmentation,
+        augmentation: Transform,
         config: TTAConfig | None = None,
     ) -> None:
         super().__init__()

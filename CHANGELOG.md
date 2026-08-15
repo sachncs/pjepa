@@ -6,6 +6,78 @@ Each entry includes the commit SHA (short), the date (UTC), and the rationale.
 
 ## [Unreleased]
 
+### Changed
+- **Class-name consistency pass.** The public API has been
+  flattened to single-word names. Concrete renames:
+  ``TypedAttributedGraph`` → ``Graph``,
+  ``PersistentState`` → ``State``,
+  ``WorkingGraph`` → ``Working``,
+  ``EuclideanMPNN`` → ``Euclidean``,
+  ``HyperbolicProjection`` → ``Hyperbolic``,
+  ``DualGeometricEncoder`` → ``DualGeometric``,
+  ``JEPAPredictor`` → ``Predictor``,
+  ``TargetEncoder`` → ``Target``,
+  ``GreedyRetrieval`` → ``Retrieval``,
+  ``RetrievalUtility`` → ``Utility``,
+  ``RetrievalResult`` → ``Result``,
+  ``FacilityLocationUtility`` → ``Facility``,
+  ``InformationGainUtility`` → ``InfoGain``,
+  ``BisimulationMetric`` → ``Bisimulation``,
+  ``ReplayBuffer`` → ``Buffer``,
+  ``Transition`` → ``Step`` (with backward-compatible alias),
+  ``SleepCadence`` → ``Sleep``,
+  ``Augmentation`` → ``Transform``,
+  ``AugmentationPipeline`` → ``Pipeline``. Module filenames
+  reflect the new names (``graphs/graph.py``,
+  ``encoders/euclidean_mpnn.py`` → ``encoders/euclidean.py``,
+  etc.). Backward-compatible aliases (``make_typed_graph``,
+  ``PersistentGraph``, ``ReplayBuffer``, ``SleepCadence``,
+  ``Transition``, ``RetrievalResult``) are kept in
+  ``pjepa.compat`` and the respective subpackage ``__init__``
+  files.
+- **Polymorphic base classes.** The major hierarchies now
+  expose abstract base classes that subclasses extend:
+  ``Encoder`` (encoders), ``Head`` (predictor + target),
+  ``Utility`` (retrieval utilities), ``Criterion`` (rewriting
+  acceptance criteria), ``Storage`` (replay backends),
+  ``Cadence`` (sleep-cadence strategies). ``Encoder`` and
+  ``Utility`` are real ``ABC`` subclasses rather than
+  ``Protocol`` declarations.
+- **Removed the `_output_dim` underscore-prefixed storage on
+  the encoder base class.** Subclasses now set the public
+  ``output_width`` attribute; the ``output_dim`` property reads
+  from there. Storage attribute renames in the OGB module
+  follow the same convention.
+- **README Quick Start example corrected.** The previously
+  broken sample (referenced non-existent ``from_dataset``,
+  ``feature_dim``, ``working_view``, ``latent_dim`` API) has
+  been replaced with a runnable example against the new
+  public API.
+- **Repository URLs aligned.** The clone path, the docs site
+  URL, and ``CITATION.cff`` all point at ``sachncs/jepa``
+  (was ``sachncs/persistent-jepa`` in some places).
+- **Makefile ``profile`` target fixed.** The objective-snake
+  form of the ``pretrain_loop`` invocation has been replaced
+  with a passing-arg call that wires up an optimiser, a
+  batches iterator, and the renamed ``Predictor`` /
+  ``Target`` classes.
+- **Two unformatted files reformatted.** ``src/pjepa/cli/app.py``
+  and ``src/pjepa/hardware.py`` now pass ``ruff format --check``.
+- **Test count updated to 470** (was 436) in the README and
+  the project tree banner.
+
+### Added
+- ``experiments/train_real.py`` — a real, k-fold-CV
+  supervised training run on PROTEINS that exercises the
+  framework's graph-classification pipeline end-to-end. The
+  default invocation is a 3-seed × 10-fold × 200-epoch
+  head-to-head of ``gin`` vs ``dual_geometric`` (60 fits,
+  ~2 hours on a single CPU), with results written to
+  ``results/proteins/summary.csv``. When the run completes,
+  the resulting accuracy is reported in this changelog.
+
+## [1.0.0] — 2026-07-13
+
 ### Added
 - `setup.sh` and `cleanup.sh` at the repository root. `setup.sh`
   creates the configured virtual environment, installs the project

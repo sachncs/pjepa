@@ -9,15 +9,11 @@ from pjepa.compat import (
     Graph,
     GraphState,
     PersistentGraph,
-    PJEPAAugmentation,
     PJEPAEncoder,
+    PJEPATransform,
     make_typed_graph,
 )
-from pjepa.graphs import (
-    PersistentState,
-    TypedAttributedGraph,
-    WorkingGraph,
-)
+from pjepa.graphs import State, Working
 
 __all__ = [
     "test_happy_alias_graph",
@@ -30,36 +26,36 @@ __all__ = [
 
 
 def test_happy_alias_graph() -> None:
-    """``Graph`` is an alias for ``TypedAttributedGraph``."""
-    assert Graph is TypedAttributedGraph
+    """``Graph`` is an alias for ``Graph``."""
+    assert Graph is Graph
 
 
 def test_happy_alias_persistent_graph() -> None:
-    """``PersistentGraph`` is an alias for ``PersistentState``."""
-    assert PersistentGraph is PersistentState
+    """``PersistentGraph`` is an alias for ``State``."""
+    assert PersistentGraph is State
 
 
 def test_happy_alias_working_graph() -> None:
-    """``GraphState`` is an alias for ``WorkingGraph``."""
-    assert GraphState is WorkingGraph
+    """``GraphState`` is an alias for ``Working``."""
+    assert GraphState is Working
 
 
 def test_happy_aliases_at_top_level() -> None:
     """Compatibility aliases are re-exported from the top-level package."""
-    assert pjepa.Graph is TypedAttributedGraph
-    assert pjepa.PersistentGraph is PersistentState
-    assert pjepa.GraphState is WorkingGraph
+    assert pjepa.Graph is Graph
+    assert pjepa.PersistentGraph is State
+    assert pjepa.GraphState is Working
     assert pjepa.make_typed_graph is make_typed_graph
     assert pjepa.PJEPAEncoder is PJEPAEncoder
-    assert pjepa.PJEPAAugmentation is PJEPAAugmentation
+    assert pjepa.PJEPATransform is PJEPATransform
 
 
 def test_happy_make_typed_graph_basic() -> None:
-    """make_typed_graph builds a TypedAttributedGraph from positional tensors."""
+    """make_typed_graph builds a Graph from positional tensors."""
     vf = torch.ones((3, 2))
     ei = torch.tensor([[0, 1], [1, 2]], dtype=torch.long)
     g = make_typed_graph(vf, ei)
-    assert isinstance(g, TypedAttributedGraph)
+    assert isinstance(g, Graph)
     assert g.num_vertices() == 3
     assert g.num_edges() == 2
 

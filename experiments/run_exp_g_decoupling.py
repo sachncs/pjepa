@@ -7,7 +7,7 @@ the per-step wall-clock must remain bounded (or grow only with
 
 The experiment builds a chain graph of size ``N``, constructs a
 ``B``-bounded working graph via the framework's greedy retrieval,
-encodes that working graph through :class:`DualGeometricEncoder`,
+encodes that working graph through :class:`DualGeometric`,
 and reports the per-step wall-clock. A warm-up call is performed
 before the timed trials so the first iteration's allocator /
 device-side compilation cost is excluded; after each timed trial
@@ -41,11 +41,11 @@ from pathlib import Path
 
 import torch
 
-from pjepa.encoders import DualGeometricEncoder, EuclideanMPNN
+from pjepa.encoders import DualGeometric, Euclidean
 from pjepa.eval import color_for, set_publication_style
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
-from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
+from pjepa.retrieval import Facility, Retrieval
 from pjepa.utils.seeding import set_global_seed
 
 __all__ = [
@@ -80,7 +80,7 @@ def sync_compute_device() -> None:
         torch.cuda.synchronize()
 
 
-def build_chain_graph(n_vertices: int, feature_dim: int, seed: int) -> TypedAttributedGraph:
+def build_chain_graph(n_vertices: int, feature_dim: int, seed: int) -> Graph:
     """Build a chain graph with ``n_vertices`` nodes and random features.
 
     A chain graph has ``n_vertices - 1`` undirected edges represented
@@ -95,7 +95,7 @@ def build_chain_graph(n_vertices: int, feature_dim: int, seed: int) -> TypedAttr
         seed: Seed for the feature ``torch.Generator``.
 
     Returns:
-        A populated :class:`TypedAttributedGraph`.
+        A populated :class:`Graph`.
     """
     g = torch.Generator().manual_seed(int(seed))
     if n_vertices < 2:
@@ -105,7 +105,7 @@ def build_chain_graph(n_vertices: int, feature_dim: int, seed: int) -> TypedAttr
     edge_index = (
         torch.tensor(edges, dtype=torch.long).T if edges else torch.zeros((2, 0), dtype=torch.long)
     )
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=torch.randn((n_vertices, feature_dim), generator=g),
         edge_index=edge_index,
         edge_features=torch.zeros((edge_index.shape[1], 1)),
@@ -113,14 +113,14 @@ def build_chain_graph(n_vertices: int, feature_dim: int, seed: int) -> TypedAttr
 
 
 def _build_bounded_working_graph(
-    graph: TypedAttributedGraph, budget: int, seed: int
-) -> TypedAttributedGraph:
+    graph: Graph, budget: int, seed: int
+) -> Graph:
     """Return a ``B``-bounded working graph for ``graph``.
 
-    The working graph is constructed via :class:`GreedyRetrieval`
-    with :class:`FacilityLocationUtility` — the framework's
+    The working graph is constructed via :class:`Retrieval`
+    with :class:`Facility` — the framework's
     headline retrieval / utility pair. The returned graph respects
-    the ``WorkingGraph`` budget invariant (its vertex count is
+    the ``Working`` budget invariant (its vertex count is
     ``<= budget``); for very small ``N`` it is the graph itself.
 
     Args:
@@ -130,14 +130,14 @@ def _build_bounded_working_graph(
           for future stochastic-retrieval extensions).
 
     Returns:
-        A :class:`TypedAttributedGraph` with at most ``budget``
+        A :class:`Graph` with at most ``budget``
         vertices.
     """
     del seed
     if graph.num_vertices() <= budget:
         return graph
-    utility = FacilityLocationUtility(vertex_features=graph.vertex_features)
-    retriever = GreedyRetrieval(budget=budget)
+    utility = Facility(vertex_features=graph.vertex_features)
+    retriever = Retrieval(budget=budget)
     observation = graph.vertex_features.mean(dim=0, keepdim=True)
     result = retriever.select(graph, observation, utility=utility)
     return result.working.graph
@@ -175,7 +175,7 @@ def measure_dual_encoder_inference_time(
         A dict with ``mean_seconds`` and ``std_seconds`` (sample
         standard deviation across ``n_trials`` trials).
     """
-    encoder = DualGeometricEncoder(
+    encoder = DualGeometric(
         input_dim=feature_dim, euclidean_dim=64, hyperbolic_dim=16, num_layers=3
     )
     encoder.eval()
@@ -214,7 +214,7 @@ def measure_greedy_retrieval_time(
     """Measure greedy submodular retrieval time on a graph of size ``n_vertices``.
 
     Each trial builds a fresh chain graph and runs
-    :class:`GreedyRetrieval` with a :class:`FacilityLocationUtility`
+    :class:`Retrieval` with a :class:`Facility`
     over the entire chain (the retrieval cost must grow with ``B``
     but is the *selection* cost, not the *inference* cost). A single
     warm-up call is performed (untimed) before the timed trials so
@@ -233,8 +233,8 @@ def measure_greedy_retrieval_time(
     times: list[float] = []
     for trial in range(n_trials):
         g = build_chain_graph(n_vertices, feature_dim, seed=seed * 1000 + trial)
-        utility = FacilityLocationUtility(vertex_features=g.vertex_features)
-        retriever = GreedyRetrieval(budget=budget)
+        utility = Facility(vertex_features=g.vertex_features)
+        retriever = Retrieval(budget=budget)
         observation = torch.zeros((1, feature_dim))
         # Warm-up (untimed) — initialises the retrieval bookkeeping.
         _ = retriever.select(g, observation, utility=utility)
@@ -267,7 +267,7 @@ def measure_euclidean_encoder_inference_time(
     Returns:
         A dict with ``mean_seconds`` and ``std_seconds``.
     """
-    encoder = EuclideanMPNN(input_dim=feature_dim, hidden_dim=64, num_layers=3, output_dim=64)
+    encoder = Euclidean(input_dim=feature_dim, hidden_dim=64, num_layers=3, output_dim=64)
     encoder.eval()
     times: list[float] = []
     for trial in range(n_trials):

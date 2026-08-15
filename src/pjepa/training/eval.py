@@ -36,7 +36,7 @@ import torch
 from sklearn.linear_model import LogisticRegression
 
 from pjepa.exceptions import DataError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["LinearProbeResult", "linear_probe_eval"]
 
@@ -59,7 +59,7 @@ class LinearProbeResult:
     test_size: int
 
 
-def encode_graph(graph: TypedAttributedGraph, encoder: torch.nn.Module) -> torch.Tensor:
+def encode_graph(graph: Graph, encoder: torch.nn.Module) -> torch.Tensor:
     """Encode a single graph to a 1-D embedding tensor.
 
     The encoder's output is expected to be ``[1, D]`` (batch of
@@ -84,8 +84,8 @@ def encode_graph(graph: TypedAttributedGraph, encoder: torch.nn.Module) -> torch
 
 def linear_probe_eval(
     encoder: torch.nn.Module,
-    train_graphs: list[tuple[TypedAttributedGraph, int]],
-    test_graphs: list[tuple[TypedAttributedGraph, int]],
+    train_graphs: list[tuple[Graph, int]],
+    test_graphs: list[tuple[Graph, int]],
 ) -> LinearProbeResult:
     """Run a linear-probe evaluation.
 

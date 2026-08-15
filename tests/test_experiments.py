@@ -25,7 +25,7 @@ from experiments.run_exp_d_tu_sota import (
     train_classifier,
 )
 from pjepa.exceptions import ConfigError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = [
     "test_bad_tu_experiment_unknown_method",
@@ -76,7 +76,7 @@ def test_happy_kfold_disjoint() -> None:
     """K-fold produces disjoint train and test sets."""
     pairs = [
         (
-            TypedAttributedGraph(torch.randn((2, 2)), torch.zeros((2, 0), dtype=torch.long)),
+            Graph(torch.randn((2, 2)), torch.zeros((2, 0), dtype=torch.long)),
             i,
         )
         for i in range(20)
@@ -89,7 +89,7 @@ def test_happy_kfold_disjoint() -> None:
 
 def test_happy_kfold_raises_on_nonpositive_k() -> None:
     """kfold raises ConfigError for non-positive k."""
-    pairs = [(TypedAttributedGraph(torch.randn((2, 2)), torch.zeros((2, 0), dtype=torch.long)), 0)]
+    pairs = [(Graph(torch.randn((2, 2)), torch.zeros((2, 0), dtype=torch.long)), 0)]
     with pytest.raises(ConfigError):
         for _ in kfold(pairs, k=0, seed_split=0):
             pass
@@ -97,11 +97,11 @@ def test_happy_kfold_raises_on_nonpositive_k() -> None:
 
 def test_happy_concatenate_graphs() -> None:
     """concatenate_graphs correctly merges features and edges."""
-    g1 = TypedAttributedGraph(
+    g1 = Graph(
         torch.tensor([[1.0, 2.0], [3.0, 4.0]]),
         torch.tensor([[0], [1]], dtype=torch.long),
     )
-    g2 = TypedAttributedGraph(
+    g2 = Graph(
         torch.tensor([[5.0, 6.0]]),
         torch.tensor([[], []], dtype=torch.long),
     )
@@ -161,7 +161,7 @@ def test_build_persistent_jepa_triple_dim_match() -> None:
     encoder, predictor, target = build_persistent_jepa_triple(
         input_dim=4, hidden_dim=8, num_layers=2
     )
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((3, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -181,7 +181,7 @@ def test_feature_batches_yields_aligned_triples() -> None:
     """feature_batches yields ``(chunk, context, target)`` of equal length."""
     pairs = [
         (
-            TypedAttributedGraph(
+            Graph(
                 vertex_features=torch.randn((2, 3)),
                 edge_index=torch.zeros((2, 0), dtype=torch.long),
             ),
@@ -196,9 +196,9 @@ def test_feature_batches_yields_aligned_triples() -> None:
 
 
 def test_build_encoder_dim_match() -> None:
-    """build_encoder returns a DualGeometricEncoder with the requested dim."""
+    """build_encoder returns a DualGeometric with the requested dim."""
     enc = build_encoder(input_dim=4, hidden_dim=8, num_layers=2)
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((3, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -212,7 +212,7 @@ def test_encode_baseline_handles_naive() -> None:
     import torch.nn as nn
 
     model = nn.Sequential(nn.Linear(3, 2))
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((4, 3)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )

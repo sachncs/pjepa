@@ -59,11 +59,11 @@ from pathlib import Path
 
 import torch
 
-from pjepa.augmentations.base import AugmentationPipeline, PipelineMode
+from pjepa.augmentations.base import Pipeline, PipelineMode
 from pjepa.augmentations.feature import DropFeature
 from pjepa.augmentations.structural import DropEdge, DropNode
 from pjepa.data.tu import load_tu_dataset
-from pjepa.encoders import DualGeometricEncoder, EuclideanMPNN, JEPAPredictor, TargetEncoder
+from pjepa.encoders import DualGeometric, Euclidean, Predictor, Target
 from pjepa.eval import (
     bonferroni_correction,
     color_for,
@@ -73,10 +73,10 @@ from pjepa.eval import (
     wilcoxon_signed_rank,
 )
 from pjepa.exceptions import ConfigError
-from pjepa.graphs import PersistentState, TypedAttributedGraph, WorkingGraph
+from pjepa.graphs import State, Graph, Working
 from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
-from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
-from pjepa.rewriting import HRG, accept_candidate
+from pjepa.retrieval import Facility, Retrieval
+from pjepa.rewriting import HRG, accept
 from pjepa.utils.seeding import set_global_seed
 
 __all__ = [
@@ -212,13 +212,13 @@ def build_encoder_for_variant(variant: str, input_dim: int) -> torch.nn.Module:
         A ``torch.nn.Module`` encoder.
     """
     if variant == "minus_hyperbolic":
-        return EuclideanMPNN(
+        return Euclidean(
             input_dim=input_dim,
             hidden_dim=128,
             num_layers=4,
             output_dim=128,
         )
-    return DualGeometricEncoder(
+    return DualGeometric(
         input_dim=input_dim,
         euclidean_dim=128,
         hyperbolic_dim=32,
@@ -264,7 +264,7 @@ def embed_dim_for_variant(variant: str) -> int:
     return 128 + 32
 
 
-def encode_and_mean_pool(encoder: torch.nn.Module, graph: TypedAttributedGraph) -> torch.Tensor:
+def encode_and_mean_pool(encoder: torch.nn.Module, graph: Graph) -> torch.Tensor:
     """Mean-pool the per-vertex encoder output into a 1-D tensor.
 
     The dual-geometric encoder returns a ``(e, h)`` tuple; this
@@ -289,7 +289,7 @@ def encode_and_mean_pool(encoder: torch.nn.Module, graph: TypedAttributedGraph) 
     return out
 
 
-def canonical_wl_hash(graph: TypedAttributedGraph, iterations: int = 2) -> str:
+def canonical_wl_hash(graph: Graph, iterations: int = 2) -> str:
     """Return a canonical 1-Weisfeiler-Lehman hash of ``graph``.
 
     The algorithm matches the standard 1-WL relabelling procedure:
@@ -337,8 +337,8 @@ def canonical_wl_hash(graph: TypedAttributedGraph, iterations: int = 2) -> str:
 
 def verify_candidate_for_variant(
     variant: str,
-    candidate: TypedAttributedGraph,
-    current: TypedAttributedGraph,
+    candidate: Graph,
+    current: Graph,
     observation: torch.Tensor,
     grammar: HRG,
 ) -> tuple[bool, str]:
@@ -352,7 +352,7 @@ def verify_candidate_for_variant(
       WL hash equals the current's WL hash (the canonical 1-WL
       equivalence test).
     * Every other variant defers to
-      :func:`pjepa.rewriting.accept_candidate`, which evaluates
+      :func:`pjepa.rewriting.accept`, which evaluates
       the four conditions in order: cost, ``Δ𝒥``, grammar
       conformance, bisimulation.
 
@@ -374,7 +374,7 @@ def verify_candidate_for_variant(
         if current_hash == candidate_hash:
             return True, "wl_hash match"
         return False, "wl_hash differs"
-    accepted, info = accept_candidate(
+    accepted, info = accept(
         candidate=candidate,
         current=current,
         observation=observation,
@@ -406,12 +406,12 @@ def random_subset_indices(num_vertices: int, budget: int, seed: int) -> torch.Te
 
 def select_working_graph_for_variant(
     variant: str,
-    persistent: PersistentState | None,
-    graph: TypedAttributedGraph,
+    persistent: State | None,
+    graph: Graph,
     observation: torch.Tensor,
     budget: int,
     seed: int,
-) -> WorkingGraph:
+) -> Working:
     """Pick the working graph for this ablation variant.
 
     Behaviour:
@@ -433,7 +433,7 @@ def select_working_graph_for_variant(
         seed: The seed for the random selection.
 
     Returns:
-        A populated :class:`WorkingGraph`.
+        A populated :class:`Working`.
     """
     if variant == "minus_submodular_retrieval":
         idx = random_subset_indices(graph.num_vertices(), budget, seed=seed)
@@ -441,26 +441,26 @@ def select_working_graph_for_variant(
         if idx.numel() > 0:
             mask[idx] = True
         sub = graph.subgraph(mask)
-        return WorkingGraph(graph=sub, budget=budget, parent_version=graph.version)
+        return Working(graph=sub, budget=budget, parent_version=graph.version)
     if variant == "minus_persistent":
-        utility = FacilityLocationUtility(vertex_features=graph.vertex_features)
-        retriever = GreedyRetrieval(budget=budget)
+        utility = Facility(vertex_features=graph.vertex_features)
+        retriever = Retrieval(budget=budget)
         result = retriever.select(graph, observation, utility=utility)
         return result.working
     if persistent is None or persistent.num_vertices() == 0:
-        utility = FacilityLocationUtility(vertex_features=graph.vertex_features)
-        retriever = GreedyRetrieval(budget=budget)
+        utility = Facility(vertex_features=graph.vertex_features)
+        retriever = Retrieval(budget=budget)
         result = retriever.select(graph, observation, utility=utility)
         return result.working
-    utility = FacilityLocationUtility(vertex_features=persistent.graph.vertex_features)
-    retriever = GreedyRetrieval(budget=budget)
+    utility = Facility(vertex_features=persistent.graph.vertex_features)
+    retriever = Retrieval(budget=budget)
     result = retriever.select(persistent.graph, observation, utility=utility)
     return result.working
 
 
 def build_variant_model(
     variant: str, input_dim: int, num_classes: int
-) -> tuple[torch.nn.Module, torch.nn.Module, JEPAPredictor | None, TargetEncoder | None]:
+) -> tuple[torch.nn.Module, torch.nn.Module, Predictor | None, Target | None]:
     """Return ``(encoder, classifier, predictor, target)`` for ``variant``.
 
     The ``minus_ema`` variant drops both the JEPA predictor and the
@@ -481,21 +481,21 @@ def build_variant_model(
     classifier = build_classifier_head(embed_dim, num_classes)
     if variant == "minus_ema":
         return encoder, classifier, None, None
-    predictor = JEPAPredictor(input_dim=embed_dim, hidden_dim=embed_dim * 2, output_dim=embed_dim)
-    target = TargetEncoder(encoder, momentum=0.99)
+    predictor = Predictor(input_dim=embed_dim, hidden_dim=embed_dim * 2, output_dim=embed_dim)
+    target = Target(encoder, momentum=0.99)
     return encoder, classifier, predictor, target
 
 
-def build_jepa_augmentation_pipeline() -> AugmentationPipeline:
+def build_jepa_augmentation_pipeline() -> Pipeline:
     """Composite graph augmentation pipeline for the JEPA pretraining step.
 
     Each of the three augmentations (DropEdge, DropNode, DropFeature)
     is selected with equal probability by ``RANDOM_SAMPLE_ONE``.
 
     Returns:
-        A configured :class:`AugmentationPipeline`.
+        A configured :class:`Pipeline`.
     """
-    return AugmentationPipeline(
+    return Pipeline(
         [
             DropEdge(strength=0.2),
             DropNode(strength=0.2),
@@ -507,9 +507,9 @@ def build_jepa_augmentation_pipeline() -> AugmentationPipeline:
 
 def pretrain_jepa_one_epoch(
     encoder: torch.nn.Module,
-    predictor: JEPAPredictor,
-    target: TargetEncoder,
-    train_pairs: list[tuple[TypedAttributedGraph, int]],
+    predictor: Predictor,
+    target: Target,
+    train_pairs: list[tuple[Graph, int]],
     config: AblationConfig,
 ) -> None:
     """Run a single JEPA pretraining epoch across ``train_pairs``.
@@ -548,8 +548,8 @@ def pretrain_jepa_one_epoch(
 
 def train_one_variant(
     variant: str,
-    train_pairs: list[tuple[TypedAttributedGraph, int]],
-    test_pairs: list[tuple[TypedAttributedGraph, int]],
+    train_pairs: list[tuple[Graph, int]],
+    test_pairs: list[tuple[Graph, int]],
     num_classes: int,
     config: AblationConfig,
     seed: int,
@@ -567,7 +567,7 @@ def train_one_variant(
     * Every other variant pretrains via
       :func:`pretrain_jepa_one_epoch`, then commits working graphs
       via :func:`verify_candidate_for_variant` and the persistent
-      graph is grown via :meth:`PersistentState.commit`.
+      graph is grown via :meth:`State.commit`.
 
     Args:
         variant: The ablation variant.
@@ -584,7 +584,7 @@ def train_one_variant(
         return 0.0
     input_dim = train_pairs[0][0].vertex_features.shape[1]
     encoder, classifier, predictor, target = build_variant_model(variant, input_dim, num_classes)
-    persistent: PersistentState | None = None
+    persistent: State | None = None
     grammar = HRG(nonterminals=("S",), terminals=("a",), productions=(), start="S")
 
     if variant != "minus_ema" and predictor is not None and target is not None:
@@ -595,7 +595,7 @@ def train_one_variant(
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, config.epochs))
     loss_fn = torch.nn.CrossEntropyLoss()
 
-    replay_buffer: list[tuple[TypedAttributedGraph, torch.Tensor]] = []
+    replay_buffer: list[tuple[Graph, torch.Tensor]] = []
     replay_capacity = max(1, config.budget * 4)
     bs = max(1, min(config.batch_size, len(train_pairs)))
     for _epoch in range(config.epochs):
@@ -645,7 +645,7 @@ def train_one_variant(
                                     delta_j=-1e-3,
                                 )
                         else:
-                            persistent = PersistentState(graph=candidate)
+                            persistent = State(graph=candidate)
                         feats = encode_and_mean_pool(encoder, candidate)
                     else:
                         feats = encode_and_mean_pool(encoder, g)

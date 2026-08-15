@@ -1,6 +1,6 @@
 """Typed attributed graphs.
 
-A :class:`TypedAttributedGraph` is an immutable, fully-typed
+A :class:`Graph` is an immutable, fully-typed
 container for the graph data structures used throughout the framework.
 The class is intentionally minimal: it stores vertex and edge
 features plus optional labels and a global feature vector, but does
@@ -20,11 +20,11 @@ device and calling :meth:`with_features` only when needed.
 
 Example::
     >>> import torch
-    >>> from pjepa.graphs import TypedAttributedGraph
+    >>> from pjepa.graphs import Graph
     >>> v = torch.randn((3, 4))
     >>> ei = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
     >>> e = torch.randn((4, 2))
-    >>> g = TypedAttributedGraph(v, ei, e)
+    >>> g = Graph(v, ei, e)
     >>> g.num_vertices()
     3
 """
@@ -37,11 +37,11 @@ import torch
 
 from pjepa.exceptions import GraphError
 
-__all__ = ["TypedAttributedGraph", "graph_from_edge_index"]
+__all__ = ["Graph", "graph_from_edge_index"]
 
 
 @dataclass(frozen=True)
-class TypedAttributedGraph:
+class Graph:
     """Immutable typed attributed graph.
 
     All tensor-shaped fields are 2-D: the leading dimension indexes
@@ -90,49 +90,42 @@ class TypedAttributedGraph:
         """
         if self.vertex_features.ndim != 2:
             raise GraphError(
-                f"TypedAttributedGraph: vertex_features must be 2-D; "
-                f"got shape {tuple(self.vertex_features.shape)}"
+                f"Graph: vertex_features must be 2-D; got shape {tuple(self.vertex_features.shape)}"
             )
         if self.edge_index.ndim != 2 or self.edge_index.shape[0] != 2:
             raise GraphError(
-                f"TypedAttributedGraph: edge_index must be [2, E]; "
-                f"got shape {tuple(self.edge_index.shape)}"
+                f"Graph: edge_index must be [2, E]; got shape {tuple(self.edge_index.shape)}"
             )
         if self.edge_index.dtype != torch.long:
-            raise GraphError(
-                f"TypedAttributedGraph: edge_index dtype must be long; got {self.edge_index.dtype}"
-            )
+            raise GraphError(f"Graph: edge_index dtype must be long; got {self.edge_index.dtype}")
         n_vertices = self.vertex_features.shape[0]
         if n_vertices > 0 and self.edge_index.numel() > 0:
             max_idx = int(self.edge_index.max().item())
             if max_idx >= n_vertices:
-                raise GraphError(
-                    f"TypedAttributedGraph: edge index {max_idx} exceeds vertex count {n_vertices}"
-                )
+                raise GraphError(f"Graph: edge index {max_idx} exceeds vertex count {n_vertices}")
         if self.edge_features.ndim != 2:
             raise GraphError(
-                f"TypedAttributedGraph: edge_features must be 2-D; "
-                f"got shape {tuple(self.edge_features.shape)}"
+                f"Graph: edge_features must be 2-D; got shape {tuple(self.edge_features.shape)}"
             )
         if (
             self.edge_features.numel() > 0
             and self.edge_features.shape[0] != self.edge_index.shape[1]
         ):
             raise GraphError(
-                f"TypedAttributedGraph: edge_features first dim "
+                f"Graph: edge_features first dim "
                 f"{self.edge_features.shape[0]} does not match edge count "
                 f"{self.edge_index.shape[1]}"
             )
         if self.vertex_labels is not None and self.vertex_labels.shape[0] != n_vertices:
             raise GraphError(
-                f"TypedAttributedGraph: vertex_labels length "
+                f"Graph: vertex_labels length "
                 f"{self.vertex_labels.shape[0]} does not match vertex count "
                 f"{n_vertices}"
             )
         if self.edge_labels is not None and self.edge_labels.numel() > 0:
             if self.edge_labels.shape[0] != self.edge_index.shape[1]:
                 raise GraphError(
-                    f"TypedAttributedGraph: edge_labels length "
+                    f"Graph: edge_labels length "
                     f"{self.edge_labels.shape[0]} does not match edge count "
                     f"{self.edge_index.shape[1]}"
                 )
@@ -149,12 +142,12 @@ class TypedAttributedGraph:
         """Return the number of edges in the graph."""
         return int(self.edge_index.shape[1])
 
-    def with_features(self, **kwargs: object) -> TypedAttributedGraph:
+    def with_features(self, **kwargs: object) -> Graph:
         """Return a copy with selected fields replaced; bumps the version.
 
         The new instance is a *new* graph with ``version = self.version + 1``;
         the original is left untouched. If the caller tries to set a
-        field that does not exist on :class:`TypedAttributedGraph`
+        field that does not exist on :class:`Graph`
         the underlying ``dataclasses.replace`` raises ``TypeError``;
         that is re-raised as :class:`GraphError` for uniform handling.
 
@@ -162,7 +155,7 @@ class TypedAttributedGraph:
             **kwargs: Field names to update on the new instance.
 
         Returns:
-            A new :class:`TypedAttributedGraph` with the requested
+            A new :class:`Graph` with the requested
             fields replaced and ``version + 1``.
 
         Raises:
@@ -172,9 +165,9 @@ class TypedAttributedGraph:
         try:
             return replace(self, **kwargs)
         except TypeError as exc:
-            raise GraphError(f"TypedAttributedGraph.with_features: {exc}") from exc
+            raise GraphError(f"Graph.with_features: {exc}") from exc
 
-    def subgraph(self, vertex_mask: torch.Tensor) -> TypedAttributedGraph:
+    def subgraph(self, vertex_mask: torch.Tensor) -> Graph:
         """Return the vertex-induced subgraph on the given boolean mask.
 
         Edges whose endpoints fall outside the mask are dropped; edge
@@ -190,7 +183,7 @@ class TypedAttributedGraph:
                 the vertices to keep.
 
         Returns:
-            A new :class:`TypedAttributedGraph` containing only the
+            A new :class:`Graph` containing only the
             selected vertices and edges between them.
 
         Raises:
@@ -198,7 +191,7 @@ class TypedAttributedGraph:
         """
         if vertex_mask.shape != (self.num_vertices(),):
             raise GraphError(
-                f"TypedAttributedGraph.subgraph: mask shape "
+                f"Graph.subgraph: mask shape "
                 f"{tuple(vertex_mask.shape)} does not match vertex count "
                 f"{self.num_vertices()}"
             )
@@ -207,7 +200,7 @@ class TypedAttributedGraph:
 
         new_vertices = self.vertex_features[vertex_mask]
         if new_vertices.shape[0] == 0:
-            return TypedAttributedGraph(
+            return Graph(
                 vertex_features=torch.zeros((0, self.vertex_features.shape[1])),
                 edge_index=torch.zeros((2, 0), dtype=torch.long),
                 edge_features=torch.zeros((0, self.edge_features.shape[1])),
@@ -231,7 +224,7 @@ class TypedAttributedGraph:
         new_edges = old_to_new[new_edges]
         new_edge_features = self.edge_features[edge_mask]
 
-        return TypedAttributedGraph(
+        return Graph(
             vertex_features=new_vertices,
             edge_index=new_edges,
             edge_features=new_edge_features,
@@ -243,10 +236,10 @@ class TypedAttributedGraph:
             version=self.version + 1,
         )
 
-    def to(self, device: torch.device) -> TypedAttributedGraph:
+    def to(self, device: torch.device) -> Graph:
         """Move every tensor to the given device.
 
-        Returns a new :class:`TypedAttributedGraph`; the ``version``
+        Returns a new :class:`Graph`; the ``version``
         counter is preserved.
 
         Args:
@@ -255,7 +248,7 @@ class TypedAttributedGraph:
         Returns:
             A copy with every tensor moved to ``device``.
         """
-        return TypedAttributedGraph(
+        return Graph(
             vertex_features=self.vertex_features.to(device),
             edge_index=self.edge_index.to(device),
             edge_features=self.edge_features.to(device),
@@ -275,7 +268,7 @@ def graph_from_edge_index(
     num_vertices: int,
     vertex_dim: int = 0,
     edge_dim: int = 0,
-) -> TypedAttributedGraph:
+) -> Graph:
     """Construct a graph from an edge index, optionally synthesising features.
 
     The helper is intended for tests and for ingesting raw adjacency
@@ -294,7 +287,7 @@ def graph_from_edge_index(
             Zero yields zero-row tensors.
 
     Returns:
-        A new :class:`TypedAttributedGraph` with the requested
+        A new :class:`Graph` with the requested
         topology and zero-initialised features.
 
     Raises:
@@ -311,4 +304,4 @@ def graph_from_edge_index(
         )
     v = torch.zeros((num_vertices, vertex_dim))
     e = torch.zeros((edge_index.shape[1], edge_dim))
-    return TypedAttributedGraph(vertex_features=v, edge_index=edge_index, edge_features=e)
+    return Graph(vertex_features=v, edge_index=edge_index, edge_features=e)

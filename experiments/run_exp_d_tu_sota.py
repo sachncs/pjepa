@@ -20,7 +20,7 @@ Implementation notes — Persistent-JEPA path (Phase 8 plan):
 * The **EMA target encoder** is the source of the JEPA pretraining
   target: the predictor is trained to match ``target.shadow(g)``, not
   ``encoder(g)``. The online encoder is updated by backprop; the
-  target is updated by :meth:`TargetEncoder.update` after every step.
+  target is updated by :meth:`Target.update` after every step.
 * **Batch alignment**: the pretraining and joint loops iterate over
   the same batched chunks and operate on the graphs in the chunk, not
   on a re-sliced ``train_pairs`` prefix.
@@ -32,7 +32,7 @@ Implementation notes — Persistent-JEPA path (Phase 8 plan):
   is invoked on every candidate rewrite that the persistent graph
   can absorb; the cost is computed against the bisimulation proxy and
   the candidate is rejected if any condition fails. The
-  ``accept_candidate`` helper enforces this contract.
+  ``accept`` helper enforces this contract.
 * **Reference-method bootstrap pairing**: all per-dataset pairwise
   comparisons use ``reference_method`` (default ``"PersistentJEPA"``)
   as the reference; the column ``mean_diff_vs_reference`` records the
@@ -56,14 +56,14 @@ from typing import Any
 import torch
 
 from pjepa.augmentations.base import (
-    AugmentationPipeline,
+    Pipeline,
     PipelineMode,
 )
 from pjepa.augmentations.feature import DropFeature
 from pjepa.augmentations.structural import DropEdge, DropNode
 from pjepa.baselines import GCN, GIN, GraphCL, GraphMAE, InfoGraph
 from pjepa.data.tu import load_tu_dataset
-from pjepa.encoders import DualGeometricEncoder, JEPAPredictor, TargetEncoder
+from pjepa.encoders import DualGeometric, Predictor, Target
 from pjepa.eval import (
     bonferroni_correction,
     mean_per_class_accuracy,
@@ -72,11 +72,11 @@ from pjepa.eval import (
 )
 from pjepa.eval.plots import plot_heatmap, plot_radar
 from pjepa.exceptions import ConfigError, DataError
-from pjepa.graphs import PersistentState, TypedAttributedGraph, WorkingGraph
+from pjepa.graphs import State, Graph, Working
 from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.objectives import description_length
-from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
-from pjepa.rewriting import HRG, FourConditions, accept_candidate
+from pjepa.retrieval import Facility, Retrieval
+from pjepa.rewriting import HRG, FourConditions, accept
 from pjepa.utils.seeding import set_global_seed
 
 
@@ -217,7 +217,7 @@ def build_baseline(
     raise ConfigError(f"build_baseline: unknown method {method!r}")
 
 
-def encode_baseline(model: torch.nn.Module, graph: TypedAttributedGraph) -> torch.Tensor:
+def encode_baseline(model: torch.nn.Module, graph: Graph) -> torch.Tensor:
     """Return per-graph logits for a baseline model.
 
     The wrapper handles the model-specific quirks: ``Naive`` consumes
@@ -252,8 +252,8 @@ def encode_baseline(model: torch.nn.Module, graph: TypedAttributedGraph) -> torc
 
 def train_classifier(
     model: torch.nn.Module,
-    train_pairs: list[tuple[TypedAttributedGraph, int]],
-    test_pairs: list[tuple[TypedAttributedGraph, int]],
+    train_pairs: list[tuple[Graph, int]],
+    test_pairs: list[tuple[Graph, int]],
     epochs: int,
     learning_rate: float,
     batch_size: int = 32,
@@ -314,14 +314,14 @@ def train_classifier(
     return mean_per_class_accuracy(preds.tolist(), test_y.tolist())
 
 
-def build_augmentation_pipeline() -> AugmentationPipeline:
+def build_augmentation_pipeline() -> Pipeline:
     """The default composite graph augmentation pipeline.
 
     Returns:
         A pipeline that randomly samples one of ``DropEdge``,
         ``DropNode`` and ``DropFeature`` at strength 0.2.
     """
-    return AugmentationPipeline(
+    return Pipeline(
         [
             DropEdge(strength=0.2),
             DropNode(strength=0.2),
@@ -335,7 +335,7 @@ def build_persistent_jepa_triple(
     input_dim: int,
     hidden_dim: int,
     num_layers: int,
-) -> tuple[DualGeometricEncoder, JEPAPredictor, TargetEncoder]:
+) -> tuple[DualGeometric, Predictor, Target]:
     """Build the (encoder, predictor, target) triple for Persistent-JEPA.
 
     The predictor's output dimension equals the encoder's Euclidean
@@ -351,23 +351,23 @@ def build_persistent_jepa_triple(
     Returns:
         A tuple ``(encoder, predictor, target)``.
     """
-    encoder = DualGeometricEncoder(
+    encoder = DualGeometric(
         input_dim=input_dim,
         euclidean_dim=int(hidden_dim),
         hyperbolic_dim=32,
         num_layers=int(num_layers),
     )
-    predictor = JEPAPredictor(
+    predictor = Predictor(
         input_dim=int(hidden_dim),
         hidden_dim=max(64, int(hidden_dim) * 2),
         output_dim=int(hidden_dim),
     )
-    target = TargetEncoder(encoder, momentum=0.99)
+    target = Target(encoder, momentum=0.99)
     return encoder, predictor, target
 
 
-def build_encoder(input_dim: int, hidden_dim: int, num_layers: int) -> DualGeometricEncoder:
-    """Build a :class:`DualGeometricEncoder` for graph-level pooling.
+def build_encoder(input_dim: int, hidden_dim: int, num_layers: int) -> DualGeometric:
+    """Build a :class:`DualGeometric` for graph-level pooling.
 
     Args:
         input_dim: Vertex feature dimension of the dataset.
@@ -375,9 +375,9 @@ def build_encoder(input_dim: int, hidden_dim: int, num_layers: int) -> DualGeome
         num_layers: Number of message-passing layers.
 
     Returns:
-        A :class:`DualGeometricEncoder`.
+        A :class:`DualGeometric`.
     """
-    return DualGeometricEncoder(
+    return DualGeometric(
         input_dim=input_dim,
         euclidean_dim=int(hidden_dim),
         hyperbolic_dim=32,
@@ -386,7 +386,7 @@ def build_encoder(input_dim: int, hidden_dim: int, num_layers: int) -> DualGeome
 
 
 def feature_batches(
-    pairs: list[tuple[TypedAttributedGraph, int]],
+    pairs: list[tuple[Graph, int]],
     batch_size: int,
 ):
     """Yield ``(chunk, context_features, target_features)`` batches.
@@ -404,8 +404,8 @@ def feature_batches(
 
 
 def build_pooled_features(
-    encoder: DualGeometricEncoder,
-    graph: TypedAttributedGraph,
+    encoder: DualGeometric,
+    graph: Graph,
 ) -> torch.Tensor:
     """Mean-pool a graph's Euclidean encoding to a 1-D tensor.
 
@@ -417,7 +417,7 @@ def build_pooled_features(
         A 1-D ``[euclidean_dim]`` tensor of pooled features.
     """
     device = next(encoder.parameters()).device
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=graph.vertex_features.to(device),
         edge_index=graph.edge_index.to(device),
         edge_features=graph.edge_features.to(device),
@@ -428,7 +428,7 @@ def build_pooled_features(
 
 
 def _free_energy_tensor(
-    graph: TypedAttributedGraph,
+    graph: Graph,
     observation: torch.Tensor,
     beta_ib: float,
     lambda_mdl: float,
@@ -475,8 +475,8 @@ def _free_energy_tensor(
 
 
 def train_persistent_jepa(
-    train_pairs: list[tuple[TypedAttributedGraph, int]],
-    test_pairs: list[tuple[TypedAttributedGraph, int]],
+    train_pairs: list[tuple[Graph, int]],
+    test_pairs: list[tuple[Graph, int]],
     config: TUExperimentConfig,
     best_params: dict[str, Any] | None = None,
 ) -> float:
@@ -487,7 +487,7 @@ def train_persistent_jepa(
     * the JEPA target encoder / predictor (BYOL-style EMA pretraining)
       when ``config.run_jepa_pretraining`` is true;
     * the working-graph retrieval step
-      (:class:`GreedyRetrieval` with :class:`FacilityLocationUtility`)
+      (:class:`Retrieval` with :class:`Facility`)
       under the configured budget ``B``;
     * the unified :class:`FreeEnergy` functional as a regulariser on
       the committed persistent graph;
@@ -582,8 +582,8 @@ def train_persistent_jepa(
         start="S",
     )
 
-    retriever = GreedyRetrieval(budget=max(1, int(config.budget)))
-    persistent = PersistentState(graph=train_pairs[0][0])
+    retriever = Retrieval(budget=max(1, int(config.budget)))
+    persistent = State(graph=train_pairs[0][0])
 
     n = len(train_pairs)
     batch_size = min(config.batch_size, n)
@@ -597,16 +597,16 @@ def train_persistent_jepa(
             reg_terms: list[torch.Tensor] = []
             for g, lbl in batch:
                 obs = g.vertex_features.to(device).mean(dim=0, keepdim=True)
-                utility = FacilityLocationUtility(vertex_features=g.vertex_features.to(device))
+                utility = Facility(vertex_features=g.vertex_features.to(device))
                 retrieval = retriever.select(g, obs, utility=utility)
-                working: WorkingGraph = retrieval.working
+                working: Working = retrieval.working
                 if working.num_vertices() > 0:
                     emb = build_pooled_features(encoder, working.graph)
                 else:
                     emb = build_pooled_features(encoder, g)
                 accepted = True
                 if persistent.graph.num_vertices() > 0 and working.num_vertices() > 0:
-                    accepted, _info = accept_candidate(
+                    accepted, _info = accept(
                         candidate=working.graph,
                         current=persistent.graph,
                         observation=obs,
@@ -663,7 +663,7 @@ def train_persistent_jepa(
     return mean_per_class_accuracy(preds.tolist(), test_y.tolist())
 
 
-def concatenate_graphs(graphs: list[TypedAttributedGraph]) -> TypedAttributedGraph:
+def concatenate_graphs(graphs: list[Graph]) -> Graph:
     """Concatenate a list of graphs into one larger graph.
 
     Args:
@@ -671,7 +671,7 @@ def concatenate_graphs(graphs: list[TypedAttributedGraph]) -> TypedAttributedGra
           by the cumulative vertex count.
 
     Returns:
-        A new :class:`TypedAttributedGraph` whose vertices are the
+        A new :class:`Graph` whose vertices are the
         union of the inputs.
 
     Raises:
@@ -689,7 +689,7 @@ def concatenate_graphs(graphs: list[TypedAttributedGraph]) -> TypedAttributedGra
     all_edges = (
         torch.cat(edges_list, dim=1) if edges_list else torch.zeros((2, 0), dtype=torch.long)
     )
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=torch.cat(features_list, dim=0),
         edge_index=all_edges,
         edge_features=torch.zeros((all_edges.shape[1], 1)),
@@ -697,7 +697,7 @@ def concatenate_graphs(graphs: list[TypedAttributedGraph]) -> TypedAttributedGra
 
 
 def kfold(
-    pairs: list[tuple[TypedAttributedGraph, int]],
+    pairs: list[tuple[Graph, int]],
     k: int,
     seed_split: int,
 ):
@@ -782,7 +782,7 @@ def run_experiment(config: TUExperimentConfig) -> list[dict[str, object]]:
                 },
             )
             continue
-        pairs: list[tuple[TypedAttributedGraph, int]] = [
+        pairs: list[tuple[Graph, int]] = [
             (tu_graph.graph, tu_graph.label) for tu_graph in raw_graphs
         ]
         best_params = load_best_config_for_dataset(dataset, config.optuna_dir)

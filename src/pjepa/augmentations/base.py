@@ -1,7 +1,7 @@
-"""Augmentation base classes.
+"""Transform base classes.
 
 An augmentation is a callable that transforms a
-:class:`TypedAttributedGraph` into a new graph. The pipeline class
+:class:`Graph` into a new graph. The pipeline class
 supports composing augmentations in three modes: sequential, random
 sample one, and random sample k.
 """
@@ -14,13 +14,13 @@ from collections.abc import Sequence
 import torch
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
-__all__ = ["Augmentation", "AugmentationPipeline", "PipelineMode"]
+__all__ = ["Pipeline", "PipelineMode", "Transform"]
 
 
 class PipelineMode:
-    """Composition modes for :class:`AugmentationPipeline`.
+    """Composition modes for :class:`Pipeline`.
 
     Attributes:
         SEQUENTIAL: Apply every augmentation in declaration order.
@@ -34,7 +34,7 @@ class PipelineMode:
     RANDOM_SAMPLE_K = "random_sample_k"
 
 
-class Augmentation(ABC):
+class Transform(ABC):
     """Base class for all augmentations.
 
     Subclasses must implement :meth:`__call__`; they are free to read
@@ -56,12 +56,12 @@ class Augmentation(ABC):
 
     def __init__(self, strength: float = 0.2, generator: torch.Generator | None = None) -> None:
         if not 0.0 <= strength <= 1.0:
-            raise GraphError(f"Augmentation: strength must be in [0, 1]; got {strength}")
+            raise GraphError(f"Transform: strength must be in [0, 1]; got {strength}")
         self.strength = strength
         self.generator = generator
 
     @abstractmethod
-    def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation to ``graph`` and return the result.
 
         The returned graph may equal ``graph`` (an explicit no-op) but
@@ -70,7 +70,7 @@ class Augmentation(ABC):
         """
 
 
-class AugmentationPipeline:
+class Pipeline:
     """Compose multiple augmentations into a single transform.
 
     Args:
@@ -92,29 +92,27 @@ class AugmentationPipeline:
 
     def __init__(
         self,
-        augmentations: Sequence[Augmentation],
+        augmentations: Sequence[Transform],
         mode: str = PipelineMode.RANDOM_SAMPLE_ONE,
         k: int = 2,
         generator: torch.Generator | None = None,
     ) -> None:
         if not augmentations:
-            raise GraphError("AugmentationPipeline: at least one augmentation is required")
+            raise GraphError("Pipeline: at least one augmentation is required")
         if mode not in (
             PipelineMode.SEQUENTIAL,
             PipelineMode.RANDOM_SAMPLE_ONE,
             PipelineMode.RANDOM_SAMPLE_K,
         ):
-            raise GraphError(f"AugmentationPipeline: unknown mode {mode!r}")
+            raise GraphError(f"Pipeline: unknown mode {mode!r}")
         if k <= 0 or k > len(augmentations):
-            raise GraphError(
-                f"AugmentationPipeline: k must be in [1, {len(augmentations)}]; got {k}"
-            )
+            raise GraphError(f"Pipeline: k must be in [1, {len(augmentations)}]; got {k}")
         self.augmentations = list(augmentations)
         self.mode = mode
         self.k = k
         self.generator = generator
 
-    def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    def __call__(self, graph: Graph) -> Graph:
         """Apply the pipeline to ``graph`` and return the result."""
         if self.mode == PipelineMode.SEQUENTIAL:
             current = graph

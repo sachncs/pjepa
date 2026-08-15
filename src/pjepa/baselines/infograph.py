@@ -25,7 +25,7 @@ import torch
 from torch import nn
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["InfoGraph"]
 
@@ -45,7 +45,7 @@ class InfoGraph(nn.Module):
         self.discriminator = nn.Bilinear(hidden_dim, hidden_dim, 1)
         self.hidden_dim = hidden_dim
 
-    def encode(self, graph: TypedAttributedGraph) -> tuple[torch.Tensor, torch.Tensor]:
+    def encode(self, graph: Graph) -> tuple[torch.Tensor, torch.Tensor]:
         """Return ``(node_embeddings, graph_embedding)``.
 
         Args:

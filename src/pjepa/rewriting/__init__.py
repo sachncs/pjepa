@@ -1,44 +1,49 @@
 """Verified rewriting engine.
 
-This subpackage implements the hyperedge-replacement grammar (HRG),
-the bisimulation metric, the four-conditions acceptance criterion,
+This subpackage implements the hyperedge-replacement grammar
+(:class:`HRG`), the bisimulation metric (:class:`Bisimulation`),
+the four-conditions acceptance criterion (:class:`FourConditions`),
 and the DPO rewriting loss.
+
+The :class:`Criterion` abstract base class is the polymorphic
+root of the acceptance-criterion hierarchy. The concrete
+:class:`FourConditions` is the headline implementation; ablations
+can plug in a relaxed subclass by inheriting from :class:`Criterion`.
 
 Workflow::
 
     candidate = grammar.expand(some_nonterminal)
-    accepted, info = accept_candidate(
-        candidate,
-        current_graph,
-        observation,
-        grammar,
-        thresholds=FourConditions(),
+    criterion = FourConditions()
+    accepted, info = criterion.evaluate(
+        candidate, current_graph, observation, grammar
     )
     if accepted:
         loss = dpo_loss(c_lp, r_lp, c_ref, r_ref)
 
-The ``accepted`` / ``rejected`` decision is purely a function of the
-acceptance criterion; the engine itself never modifies state.
+The ``accepted`` / ``rejected`` decision is purely a function of
+the acceptance criterion; the engine itself never modifies state.
 """
 
 from __future__ import annotations
 
-from pjepa.rewriting.bisimulation import BisimulationMetric, bisimulation_distance
+from pjepa.rewriting.bisimulation import Bisimulation, bisimulation_distance
 from pjepa.rewriting.dpo import DPOConfig, dpo_loss
 from pjepa.rewriting.four_conditions import (
+    Criterion,
     FourConditions,
-    accept_candidate,
+    accept,
     compute_delta_j,
 )
 from pjepa.rewriting.hrg import HRG, HRGProduction
 
 __all__ = [
     "HRG",
-    "BisimulationMetric",
+    "Bisimulation",
+    "Criterion",
     "DPOConfig",
     "FourConditions",
     "HRGProduction",
-    "accept_candidate",
+    "accept",
     "bisimulation_distance",
     "compute_delta_j",
     "dpo_loss",

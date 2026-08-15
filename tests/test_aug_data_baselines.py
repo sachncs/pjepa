@@ -1,4 +1,4 @@
-"""Tests for pjepa.augmentations, pjepa.data, pjepa.baselines.
+"""Tests for pj.augmentations, pj.data, pj.baselines.
 
 Covers the eight-class test taxonomy.
 """
@@ -9,18 +9,18 @@ import pytest
 import torch
 
 from pjepa.augmentations import (
-    AugmentationPipeline,
     ConnectedSubgraph,
     DropEdge,
     DropFeature,
     DropNode,
     FeatureMask,
+    Pipeline,
 )
 from pjepa.augmentations.base import PipelineMode
 from pjepa.baselines import EWC, GCN, GIN, GraphCL, GraphMAE, InfoGraph
 from pjepa.data.cl_splits import make_class_incremental_split
 from pjepa.exceptions import ConfigError, DataError, GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = [
     "test_bad_augmentation_strength_out_of_range",
@@ -61,10 +61,10 @@ __all__ = [
 # ============================== AUGMENTATIONS ==============================
 
 
-def _toy_graph(num_vertices: int = 10, feature_dim: int = 4) -> TypedAttributedGraph:
+def _toy_graph(num_vertices: int = 10, feature_dim: int = 4) -> Graph:
     edges = [(i, (i + 1) % num_vertices) for i in range(num_vertices)]
     ei = torch.tensor(edges, dtype=torch.long).T
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=torch.ones((num_vertices, feature_dim)),
         edge_index=ei,
         edge_features=torch.zeros((ei.shape[1], 1)),
@@ -112,7 +112,7 @@ def test_happy_random_walk_subgraph() -> None:
 def test_happy_pipeline_sequential() -> None:
     """A sequential pipeline applies augmentations in order."""
     g = _toy_graph(20)
-    pipeline = AugmentationPipeline(
+    pipeline = Pipeline(
         [DropEdge(strength=0.2), DropNode(strength=0.2)],
         mode=PipelineMode.SEQUENTIAL,
     )
@@ -123,7 +123,7 @@ def test_happy_pipeline_sequential() -> None:
 def test_happy_pipeline_random_sample_one() -> None:
     """A random-sample-one pipeline picks one augmentation."""
     g = _toy_graph(20)
-    pipeline = AugmentationPipeline(
+    pipeline = Pipeline(
         [DropEdge(strength=0.2), DropNode(strength=0.2)],
         mode=PipelineMode.RANDOM_SAMPLE_ONE,
         generator=torch.Generator().manual_seed(0),
@@ -137,7 +137,7 @@ def test_happy_pipeline_random_sample_one() -> None:
 
 def test_happy_gcn_forward() -> None:
     """GCN returns per-graph logits of the right shape."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     )
@@ -148,7 +148,7 @@ def test_happy_gcn_forward() -> None:
 
 def test_happy_gin_forward() -> None:
     """GIN returns per-graph logits of the right shape."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     )
@@ -159,7 +159,7 @@ def test_happy_gin_forward() -> None:
 
 def test_happy_graphmae_forward() -> None:
     """GraphMAE returns embedding, mask, and reconstruction."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     )
@@ -172,7 +172,7 @@ def test_happy_graphmae_forward() -> None:
 
 def test_happy_graphcl_loss_runs() -> None:
     """GraphCL produces a finite NT-Xent loss for two views."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1], [1, 0]], dtype=torch.long),
     )
@@ -183,7 +183,7 @@ def test_happy_graphcl_loss_runs() -> None:
 
 def test_happy_infograph_loss_runs() -> None:
     """InfoGraph produces a finite MI loss."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1], [1, 0]], dtype=torch.long),
     )
@@ -241,7 +241,7 @@ def test_bad_augmentation_strength_out_of_range() -> None:
 
 def test_bad_drop_node_empty_graph() -> None:
     """DropNode on an empty graph returns the original (cannot drop)."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((0, 3)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -252,13 +252,13 @@ def test_bad_drop_node_empty_graph() -> None:
 def test_bad_pipeline_empty_augmentations() -> None:
     """An empty augmentation list is rejected."""
     with pytest.raises(GraphError):
-        AugmentationPipeline([])
+        Pipeline([])
 
 
 def test_bad_pipeline_zero_k() -> None:
     """A zero k in RANDOM_SAMPLE_K mode is rejected."""
     with pytest.raises(GraphError):
-        AugmentationPipeline([DropEdge(strength=0.1)], mode=PipelineMode.RANDOM_SAMPLE_K, k=0)
+        Pipeline([DropEdge(strength=0.1)], mode=PipelineMode.RANDOM_SAMPLE_K, k=0)
 
 
 def test_bad_ewc_negative_lambda() -> None:
@@ -298,7 +298,7 @@ def test_bad_gcn_zero_dim() -> None:
 
 def test_ugly_drop_edge_no_edges() -> None:
     """DropEdge on a graph with zero edges returns the graph unchanged."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((3, 2)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -308,7 +308,7 @@ def test_ugly_drop_edge_no_edges() -> None:
 
 def test_ugly_random_walk_on_disconnected() -> None:
     """ConnectedSubgraph returns a non-empty result on a disconnected graph."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((5, 2)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -334,10 +334,10 @@ def test_leaky_augmentation_state_isolation() -> None:
 
 
 def test_round_trip_augmentation_pipeline_serialization() -> None:
-    """AugmentationPipeline reconstructs an equivalent pipeline."""
+    """Pipeline reconstructs an equivalent pipeline."""
     augs = [DropEdge(strength=0.2), DropNode(strength=0.2)]
-    pipe = AugmentationPipeline(augs, mode=PipelineMode.SEQUENTIAL)
-    pipe2 = AugmentationPipeline(pipe.augmentations, mode=pipe.mode, k=pipe.k)
+    pipe = Pipeline(augs, mode=PipelineMode.SEQUENTIAL)
+    pipe2 = Pipeline(pipe.augmentations, mode=pipe.mode, k=pipe.k)
     g = _toy_graph(20)
     assert pipe(g).num_vertices() == pipe2(g).num_vertices()
 
@@ -348,7 +348,7 @@ def test_round_trip_augmentation_pipeline_serialization() -> None:
 @pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS not available")
 def test_cross_backend_mps_gcn_forward() -> None:
     """GCN runs on MPS."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     ).to("mps")
@@ -378,7 +378,7 @@ def test_distributional_drop_edge_distribution() -> None:
 
 def test_property_graphmae_mask_is_subset() -> None:
     """GraphMAE's mask is a subset of the vertices."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((10, 4)),
         edge_index=torch.tensor([[i, (i + 1) % 10] for i in range(10)], dtype=torch.long).T,
     )

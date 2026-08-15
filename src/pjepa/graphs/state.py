@@ -4,11 +4,11 @@ The persistent graph is the only object on which learning is
 deposited in the framework. It is the evolved sufficient statistic
 of the observation history. The wrapper here enforces three invariants:
 
-1. The persistent graph only grows via :meth:`PersistentState.commit`,
+1. The persistent graph only grows via :meth:`State.commit`,
    which validates a candidate rewrite against the framework's
    four-conditions acceptance criterion.
 2. The wrapper exposes read-only views; the underlying
-   :class:`TypedAttributedGraph` is already immutable, so the wrapper
+   :class:`Graph` is already immutable, so the wrapper
    just enforces the commit interface.
 3. The wrapper records the version number of every commit so that
    audit trails can be reconstructed. The version of the head graph
@@ -27,9 +27,9 @@ from dataclasses import dataclass, field
 import torch
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs.typed_graph import TypedAttributedGraph
+from pjepa.graphs.graph import Graph
 
-__all__ = ["CommitRecord", "CommitRejected", "PersistentState"]
+__all__ = ["CommitRecord", "CommitRejected", "State"]
 
 
 @dataclass(frozen=True)
@@ -70,24 +70,24 @@ class CommitRejected:
 
 
 @dataclass
-class PersistentState:
+class State:
     """Wrapper around the persistent graph ``G_t``.
 
     Each method that produces a new state (``commit``, ``reject``,
     ``to``) returns a fresh instance rather than mutating in place.
-    Holding a reference to an older :class:`PersistentState` therefore
+    Holding a reference to an older :class:`State` therefore
     pins the configuration at that point in time, which lets training
     loops snapshot and roll back without extra bookkeeping.
 
     Attributes:
-        graph: The current :class:`TypedAttributedGraph`.
+        graph: The current :class:`Graph`.
         history: A tuple of :class:`CommitRecord` for accepted
             commits, in order.
         rejections: A tuple of :class:`CommitRejected` for rejected
             candidates, in order.
     """
 
-    graph: TypedAttributedGraph
+    graph: Graph
     history: tuple[CommitRecord, ...] = field(default_factory=tuple)
     rejections: tuple[CommitRejected, ...] = field(default_factory=tuple)
 
@@ -109,11 +109,11 @@ class PersistentState:
 
     def commit(
         self,
-        candidate: TypedAttributedGraph,
+        candidate: Graph,
         cost: float,
         timestamp: float,
         delta_j: float | None = None,
-    ) -> PersistentState:
+    ) -> State:
         """Replace the persistent graph with ``candidate`` and record the commit.
 
         The acceptance criterion is supplied by the caller via
@@ -121,7 +121,7 @@ class PersistentState:
         accepted only if ``delta_j < 0`` (i.e. the objective strictly
         decreases). When ``delta_j`` is ``None``, the caller asserts
         that the candidate has already been verified — typically by
-        :func:`pjepa.rewriting.four_conditions.accept_candidate` —
+        :func:`pjepa.rewriting.four_conditions.accept` —
         and the wrapper accepts the commit unconditionally.
 
         Args:
@@ -132,7 +132,7 @@ class PersistentState:
                 is accepted iff ``delta_j < 0``.
 
         Returns:
-            A new :class:`PersistentState` whose ``graph`` is
+            A new :class:`State` whose ``graph`` is
             ``candidate`` and whose ``history`` has the new
             :class:`CommitRecord` appended.
 
@@ -141,21 +141,21 @@ class PersistentState:
                 is non-negative when supplied.
         """
         if cost < 0:
-            raise GraphError(f"PersistentState.commit: cost must be non-negative; got {cost}")
+            raise GraphError(f"State.commit: cost must be non-negative; got {cost}")
         if delta_j is not None and delta_j >= 0:
-            raise GraphError(f"PersistentState.commit: delta_j must be < 0; got {delta_j}")
+            raise GraphError(f"State.commit: delta_j must be < 0; got {delta_j}")
         record = CommitRecord(
             version=self.graph.version + 1,
             timestamp=timestamp,
             cost=cost,
         )
-        return PersistentState(
+        return State(
             graph=candidate,
             history=self.history + (record,),
             rejections=self.rejections,
         )
 
-    def reject(self, reason: str, cost: float) -> PersistentState:
+    def reject(self, reason: str, cost: float) -> State:
         """Record a rejected candidate without modifying the graph.
 
         Args:
@@ -163,30 +163,30 @@ class PersistentState:
             cost: The cost the verification step computed.
 
         Returns:
-            A new :class:`PersistentState` with the rejection
+            A new :class:`State` with the rejection
             appended to its audit trail.
 
         Raises:
             GraphError: If ``cost`` is negative or ``reason`` is empty.
         """
         if cost < 0:
-            raise GraphError(f"PersistentState.reject: cost must be non-negative; got {cost}")
+            raise GraphError(f"State.reject: cost must be non-negative; got {cost}")
         if not reason:
-            raise GraphError("PersistentState.reject: reason must be a non-empty string")
+            raise GraphError("State.reject: reason must be a non-empty string")
         rejection = CommitRejected(reason=reason, cost=cost)
-        return PersistentState(
+        return State(
             graph=self.graph,
             history=self.history,
             rejections=self.rejections + (rejection,),
         )
 
-    def to(self, device: torch.device) -> PersistentState:
+    def to(self, device: torch.device) -> State:
         """Move every tensor of the persistent graph to ``device``.
 
         The ``history`` and ``rejections`` tuples are pure data and do
         not need to be moved.
         """
-        return PersistentState(
+        return State(
             graph=self.graph.to(device),
             history=self.history,
             rejections=self.rejections,

@@ -66,7 +66,7 @@ def test_default_source_paths_handles_missing_files(tmp_path: Path) -> None:
 
 def test_first_existing_returns_none_for_missing() -> None:
     """`first_existing_path` returns ``None`` when no path matches."""
-    assert first_existing_path([Path("/tmp/__pjepa_missing_one__")]) is None
+    assert first_existing_path([Path("/tmp/__pj_missing_one__")]) is None
 
 
 def test_first_existing_returns_first_match(tmp_path: Path) -> None:

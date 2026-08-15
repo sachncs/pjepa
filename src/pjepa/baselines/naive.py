@@ -28,7 +28,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["Naive"]
 
@@ -65,7 +65,7 @@ class Naive(nn.Module):
         self.classifier = nn.Linear(classifier_in, num_classes)
         self.embedding_dim = classifier_in
 
-    def embed(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def embed(self, graph: Graph) -> torch.Tensor:
         """Return the pooled graph embedding before the classifier.
 
         Args:
@@ -85,7 +85,7 @@ class Naive(nn.Module):
             pooled = features.mean(dim=0, keepdim=True)
         return self.projection(pooled)
 
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def forward(self, graph: Graph) -> torch.Tensor:
         """Return per-graph logits computed from mean-pooled vertex features.
 
         Args:

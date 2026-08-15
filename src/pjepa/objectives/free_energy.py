@@ -9,7 +9,7 @@ additive terms:
          − γ_forward · forward(G, O)
 
 This module provides a dataclass wrapper plus a callable evaluation
-that operates on :class:`pjepa.graphs.TypedAttributedGraph`. The
+that operates on :class:`pjepa.graphs.Graph`. The
 implementation is intentionally explicit about its terms so
 debugging and ablation are straightforward.
 
@@ -27,7 +27,7 @@ from dataclasses import dataclass
 import torch
 
 from pjepa.exceptions import NumericalError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.objectives.ib_lagrangian import variational_ib_bound
 from pjepa.objectives.mdl import description_length
 
@@ -50,7 +50,7 @@ class FreeEnergy:
 
     def __call__(
         self,
-        graph: TypedAttributedGraph,
+        graph: Graph,
         observation: torch.Tensor,
         posterior_logits: torch.Tensor | None = None,
         prior_logits: torch.Tensor | None = None,

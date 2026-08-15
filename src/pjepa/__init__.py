@@ -1,13 +1,13 @@
-"""Persistent-JEPA (pjepa).
+"""Persistent-JEPA (``pjepa``).
 
-A production-grade implementation of the Persistent Graph World Model for
-continual developmental learning, described in the paper draft at
-``docs/paper/paper.md``.
+A production-grade implementation of the Persistent Graph World
+Model for continual developmental learning, described in the
+paper draft at ``docs/paper/paper.md``.
 
 The package is organised into the following subpackages:
 
 * ``graphs`` — typed attributed graphs, persistent state, working graph.
-* ``encoders`` — Euclidean MPNN, hyperbolic, dual-geometric, JEPA predictor.
+* ``encoders`` — Euclidean, hyperbolic, dual-geometric, JEPA predictor.
 * ``retrieval`` — submodular greedy working-graph retrieval.
 * ``rewriting`` — hyperedge-replacement grammar, bisimulation metric,
   four-conditions acceptance criterion, DPO rewriting.
@@ -24,48 +24,47 @@ The package is organised into the following subpackages:
   table and figure generation.
 * ``augmentations`` — graph augmentations used in self-supervised training.
 
-The public API is what is re-exported here. Internal helpers are kept
-module-private and not listed in :data:`__all__`.
+The public API is what is re-exported here. Compatibility aliases
+for older names are in :mod:`pjepa.compat`.
 """
 
 from __future__ import annotations
 
 from pjepa.compat import (
-    Graph,
     GraphState,
     PersistentGraph,
-    PJEPAAugmentation,
     PJEPAEncoder,
+    PJEPATransform,
     make_typed_graph,
 )
 from pjepa.encoders import (
-    DualGeometricEncoder,
-    EuclideanMPNN,
-    HyperbolicProjection,
-    JEPAPredictor,
+    DualGeometric,
+    Euclidean,
+    Hyperbolic,
+    Predictor,
+    Target,
 )
-from pjepa.graphs import (
-    PersistentState,
-    TypedAttributedGraph,
-    WorkingGraph,
-)
-from pjepa.retrieval import GreedyRetrieval
+from pjepa.graphs import Graph, State, Working
+from pjepa.retrieval import Facility, InfoGain, Retrieval, Utility
 from pjepa.version import __version__
 
 __all__ = [
-    "DualGeometricEncoder",
-    "EuclideanMPNN",
+    "DualGeometric",
+    "Euclidean",
+    "Facility",
     "Graph",
     "GraphState",
-    "GreedyRetrieval",
-    "HyperbolicProjection",
-    "JEPAPredictor",
-    "PJEPAAugmentation",
+    "Hyperbolic",
+    "InfoGain",
     "PJEPAEncoder",
+    "PJEPATransform",
     "PersistentGraph",
-    "PersistentState",
-    "TypedAttributedGraph",
-    "WorkingGraph",
+    "Predictor",
+    "Retrieval",
+    "State",
+    "Target",
+    "Utility",
+    "Working",
     "__version__",
     "make_typed_graph",
 ]

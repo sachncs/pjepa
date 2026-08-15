@@ -30,7 +30,7 @@ import torch
 from torch import nn
 from torch_geometric.nn import GCNConv, global_mean_pool  # type: ignore[import-not-found]
 
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["GCN"]
 
@@ -58,7 +58,7 @@ class GCN(nn.Module):
         self.num_classes = num_classes
         self.hidden_dim = hidden_dim
 
-    def encode(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def encode(self, graph: Graph) -> torch.Tensor:
         """Return per-vertex embeddings of shape ``[N, hidden_dim]``.
 
         Args:
@@ -71,7 +71,7 @@ class GCN(nn.Module):
         h = torch.relu(h)
         return self.conv2(h, graph.edge_index)
 
-    def node_logits(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def node_logits(self, graph: Graph) -> torch.Tensor:
         """Return per-vertex logits of shape ``[N, num_classes]``.
 
         Args:
@@ -82,7 +82,7 @@ class GCN(nn.Module):
         """
         return self.classifier(self.encode(graph))
 
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def forward(self, graph: Graph) -> torch.Tensor:
         """Encode the graph and return per-graph logits.
 
         Args:
@@ -99,7 +99,7 @@ class GCN(nn.Module):
         pooled = global_mean_pool(h, batch)
         return self.classifier(pooled)
 
-    def embed(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def embed(self, graph: Graph) -> torch.Tensor:
         """Return the pooled graph embedding without the classifier.
 
         Args:

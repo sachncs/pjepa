@@ -1,4 +1,4 @@
-"""Tests for pjepa.rewriting."""
+"""Tests for pj.rewriting."""
 
 from __future__ import annotations
 
@@ -6,21 +6,21 @@ import pytest
 import torch
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.rewriting import (
     HRG,
     DPOConfig,
     FourConditions,
     HRGProduction,
-    accept_candidate,
+    accept,
     bisimulation_distance,
     dpo_loss,
 )
 
 __all__ = [
-    "test_bad_accept_candidate_bisimilarity_violated",
-    "test_bad_accept_candidate_cost_exceeds",
-    "test_bad_accept_candidate_non_negative_delta_j",
+    "test_bad_accept_bisimilarity_violated",
+    "test_bad_accept_cost_exceeds",
+    "test_bad_accept_non_negative_delta_j",
     "test_bad_dpo_loss_label_smoothing_out_of_range",
     "test_bad_dpo_loss_shape_mismatch",
     "test_bad_hrg_overlapping_labels",
@@ -29,7 +29,7 @@ __all__ = [
     "test_bad_hrg_unknown_start",
     "test_cross_backend_mps_bisimulation",
     "test_distributional_dpo_loss_bounded",
-    "test_happy_accept_candidate_for_identical_graphs",
+    "test_happy_accept_for_identical_graphs",
     "test_happy_dpo_loss_decreases_for_clear_preference",
     "test_happy_hrg_construction",
     "test_leaky_repeated_bisimulation_no_module_state",
@@ -42,12 +42,10 @@ __all__ = [
 ]
 
 
-def _simple_graph(
-    num_vertices: int = 3, feature_dim: int = 2, seed: int = 0
-) -> TypedAttributedGraph:
+def _simple_graph(num_vertices: int = 3, feature_dim: int = 2, seed: int = 0) -> Graph:
     g = torch.Generator().manual_seed(seed)
     feats = torch.randn((num_vertices, feature_dim), generator=g)
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=feats,
         edge_index=torch.zeros((2, 0), dtype=torch.long),
         edge_features=torch.zeros((0, 1)),
@@ -72,7 +70,7 @@ def test_happy_hrg_construction() -> None:
     assert not hrg.is_nonterminal("t")
 
 
-def test_happy_accept_candidate_for_identical_graphs() -> None:
+def test_happy_accept_for_identical_graphs() -> None:
     """A candidate that strictly decreases Δ𝒥 is accepted."""
     g = _simple_graph(3, 2, seed=1)
     observation = torch.tensor([[1.0, 2.0]])
@@ -81,7 +79,7 @@ def test_happy_accept_candidate_for_identical_graphs() -> None:
     new_features = g.vertex_features * 0.1 + observation * 0.9
     candidate = g.with_features(vertex_features=new_features)
     hrg = _simple_hrg()
-    accepted, info = accept_candidate(
+    accepted, info = accept(
         candidate,
         g,
         observation,
@@ -135,34 +133,34 @@ def test_bad_hrg_production_lhs_not_nonterminal() -> None:
         HRG(nonterminals=("S",), terminals=("t",), productions=(prod,), start="S")
 
 
-def test_bad_accept_candidate_non_negative_delta_j() -> None:
+def test_bad_accept_non_negative_delta_j() -> None:
     """A candidate with Δ𝒥 ≥ 0 is rejected."""
     g = _simple_graph(2, 2, seed=2)
     # Same size, same features — Δ𝒥 will be 0
     candidate = g.with_features(vertex_features=g.vertex_features + 1.0)
     observation = torch.zeros((1, 2))
     hrg = _simple_hrg()
-    accepted, info = accept_candidate(candidate, g, observation, hrg, FourConditions(max_cost=10.0))
+    accepted, info = accept(candidate, g, observation, hrg, FourConditions(max_cost=10.0))
     assert accepted is False
     assert "delta_j" in info["reason"]
 
 
-def test_bad_accept_candidate_cost_exceeds() -> None:
+def test_bad_accept_cost_exceeds() -> None:
     """A candidate whose cost exceeds the threshold is rejected."""
     g = _simple_graph(2, 2, seed=3)
-    candidate = TypedAttributedGraph(
+    candidate = Graph(
         vertex_features=torch.randn((100, 2)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
         edge_features=torch.zeros((0, 1)),
     )
     observation = torch.randn((1, 2))
     hrg = _simple_hrg()
-    accepted, info = accept_candidate(candidate, g, observation, hrg, FourConditions(max_cost=5.0))
+    accepted, info = accept(candidate, g, observation, hrg, FourConditions(max_cost=5.0))
     assert accepted is False
     assert "cost" in info["reason"]
 
 
-def test_bad_accept_candidate_bisimilarity_violated() -> None:
+def test_bad_accept_bisimilarity_violated() -> None:
     """A candidate that fails bisimilarity is rejected (any rejection reason)."""
     g = _simple_graph(3, 2, seed=4)
     observation = torch.randn((1, 2))
@@ -172,7 +170,7 @@ def test_bad_accept_candidate_bisimilarity_violated() -> None:
     # delta_j or bisimulation, depending on the heuristic ordering).
     candidate = g.with_features(vertex_features=observation.expand(3, -1))
     hrg = _simple_hrg()
-    accepted, info = accept_candidate(
+    accepted, info = accept(
         candidate,
         g,
         observation,
@@ -214,11 +212,11 @@ def test_ugly_hrg_empty_productions() -> None:
 
 def test_ugly_empty_graph_bisimulation() -> None:
     """Bisimulation distance on two empty graphs is zero."""
-    g1 = TypedAttributedGraph(
+    g1 = Graph(
         vertex_features=torch.zeros((0, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
-    g2 = TypedAttributedGraph(
+    g2 = Graph(
         vertex_features=torch.zeros((0, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )

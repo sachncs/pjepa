@@ -4,7 +4,7 @@ Implements the clipped-surrogate PPO update of Schulman et al. 2017
 (arXiv:1707.06347). The reward is unclipped (the surrogate is
 clipped instead, which is the standard PPO recipe). The trainer also
 exposes :meth:`compute_gae` for callers that need a true generalised
-advantage estimator — :class:`ReplayBuffer`'s default ``minibatches``
+advantage estimator — :class:`Buffer`'s default ``minibatches``
 does not run GAE and uses the reward directly as both the advantage
 and the return-to-go.
 
@@ -21,7 +21,7 @@ from dataclasses import dataclass
 import torch
 
 from pjepa.exceptions import ConfigError
-from pjepa.scheduler.buffer import ReplayBuffer
+from pjepa.scheduler.buffer import Buffer
 
 __all__ = ["PPOConfig", "PPOTrainer"]
 
@@ -147,14 +147,14 @@ class PPOTrainer:
 
     def update(
         self,
-        buffer: ReplayBuffer,
+        buffer: Buffer,
         optimizer: torch.optim.Optimizer,
     ) -> dict[str, float]:
         """Run one PPO update on a replay buffer.
 
         Iterates ``config.inner_epochs`` passes, each consuming
         minibatches of size ``config.minibatch_size`` from the
-        buffer via :meth:`ReplayBuffer.minibatches`. Aggregates
+        buffer via :meth:`Buffer.minibatches`. Aggregates
         ``policy_loss``, ``value_loss`` and ``entropy`` statistics
         across all minibatches and returns their means.
 

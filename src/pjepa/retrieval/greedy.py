@@ -8,13 +8,14 @@ Nemhauser-Wolsey-Fisher 1978 ``(1 − 1/e) ≈ 0.632`` approximation
 guarantee relative to the optimal subset of the same size.
 
 Complexity is ``O(budget × n × utility_eval_cost)`` for ``n``
-vertices and an arbitrary ``utility``. The implementation uses a
-straightforward linear scan rather than a lazy priority queue; the
-public API would not change when that optimisation is added later.
+vertices and an arbitrary :class:`Utility`. The implementation
+uses a straightforward linear scan rather than a lazy priority
+queue; the public API would not change when that optimisation is
+added later.
 
-The retrieval step is deterministic for a fixed graph, observation,
-budget, and utility instance; the test suite relies on this
-property.
+The retrieval step is deterministic for a fixed graph,
+observation, budget, and utility instance; the test suite relies
+on this property.
 """
 
 from __future__ import annotations
@@ -24,14 +25,14 @@ from dataclasses import dataclass
 import torch
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph, WorkingGraph
-from pjepa.retrieval.utility import FacilityLocationUtility, RetrievalUtility
+from pjepa.graphs import Graph, Working
+from pjepa.retrieval.utility import Facility, Utility
 
-__all__ = ["GreedyRetrieval", "RetrievalResult"]
+__all__ = ["Result", "Retrieval"]
 
 
 @dataclass(frozen=True)
-class RetrievalResult:
+class Result:
     """The output of a greedy retrieval run.
 
     Attributes:
@@ -39,75 +40,97 @@ class RetrievalResult:
             count never exceeds the configured budget.
         utility: The cumulative utility achieved by the greedy
             selection. ``0.0`` for empty input graphs.
-        iterations: The number of greedy iterations actually performed
-            (may be less than the budget when the graph is too small
-            or when further additions no longer improve the utility).
+        iterations: The number of greedy iterations actually
+            performed (may be less than the budget when the graph
+            is too small or when further additions no longer
+            improve the utility).
     """
 
-    working: WorkingGraph
+    working: Working
     utility: float
     iterations: int
 
 
-class GreedyRetrieval:
+#: Backward-compatible alias for the result dataclass.
+RetrievalResult = Result
+
+
+class Retrieval:
     """Greedy retrieval over the persistent graph vertices.
 
     At each step, the algorithm selects the vertex whose addition
-    yields the largest marginal utility gain. For monotone submodular
-    utilities the resulting subset achieves at least ``(1 - 1/e)``
-    times the optimal utility of any subset of the same size.
+    yields the largest marginal utility gain. For monotone
+    submodular utilities the resulting subset achieves at least
+    ``(1 - 1/e)`` times the optimal utility of any subset of the
+    same size.
+
+    The class is a thin wrapper around the greedy loop. It does
+    not maintain state between calls; multiple graphs can be
+    processed sequentially with the same :class:`Retrieval`
+    instance.
 
     Attributes:
         budget: The maximum number of vertices to include in the
             working graph.
 
     Raises:
-        GraphError: At construction time if ``budget`` is negative.
+        GraphError: At construction time if ``budget`` is
+            negative.
     """
 
     def __init__(self, budget: int) -> None:
+        """Initialise the retriever with a budget.
+
+        Args:
+            budget: The maximum number of vertices to include in
+                the working graph.
+
+        Raises:
+            GraphError: If ``budget`` is negative.
+        """
         if budget < 0:
-            raise GraphError(f"GreedyRetrieval: budget must be non-negative; got {budget}")
+            raise GraphError(f"Retrieval: budget must be non-negative; got {budget}")
         self.budget = budget
 
     def select(
         self,
-        graph: TypedAttributedGraph,
+        graph: Graph,
         observation: torch.Tensor,
-        utility: RetrievalUtility | None = None,
-    ) -> RetrievalResult:
-        """Run the greedy algorithm and return a :class:`RetrievalResult`.
+        utility: Utility | None = None,
+    ) -> Result:
+        """Run the greedy algorithm and return a :class:`Result`.
 
         Args:
             graph: The persistent graph state.
-            observation: A tensor whose leading dimension matches the
-                observation batch (``[m, d]`` or ``[d]``).
-            utility: A :class:`RetrievalUtility` instance. ``None``
-                constructs a default :class:`FacilityLocationUtility`
-                from the graph's vertex features.
+            observation: A tensor whose leading dimension matches
+                the observation batch (``[m, d]`` or ``[d]``).
+            utility: A :class:`Utility` instance. ``None``
+                constructs a default :class:`Facility` from the
+                graph's vertex features.
 
         Returns:
-            A populated :class:`RetrievalResult`.
+            A populated :class:`Result`.
 
         Raises:
             GraphError: If the persistent graph has zero vertices
-                and a non-zero budget (in that case the empty result
-                is returned as ``utility=0.0``, ``iterations=0``).
+                and a non-zero budget (in that case the empty
+                result is returned as ``utility=0.0``,
+                ``iterations=0``).
         """
         n = graph.num_vertices()
         feature_dim = graph.vertex_features.shape[1]
         if n == 0:
-            empty = TypedAttributedGraph(
+            empty = Graph(
                 vertex_features=torch.zeros((0, feature_dim)),
                 edge_index=torch.zeros((2, 0), dtype=torch.long),
             )
-            return RetrievalResult(
-                working=WorkingGraph(graph=empty, budget=self.budget, parent_version=graph.version),
+            return Result(
+                working=Working(graph=empty, budget=self.budget, parent_version=graph.version),
                 utility=0.0,
                 iterations=0,
             )
         if utility is None:
-            utility = FacilityLocationUtility(vertex_features=graph.vertex_features)
+            utility = Facility(vertex_features=graph.vertex_features)
 
         selected: list[int] = []
         cumulative_utility = 0.0
@@ -131,8 +154,8 @@ class GreedyRetrieval:
                     best_total = total
             # Stop only when the best marginal gain is non-positive.
             # A negative gain would imply a non-monotone utility;
-            # zero gain implies coverage has been achieved and further
-            # vertices do not help.
+            # zero gain implies coverage has been achieved and
+            # further vertices do not help.
             if best_vertex < 0 or best_marginal <= 0.0:
                 break
             selected.append(best_vertex)
@@ -144,13 +167,13 @@ class GreedyRetrieval:
             mask[torch.tensor(selected, dtype=torch.long)] = True
             working_graph = graph.subgraph(mask)
         else:
-            working_graph = TypedAttributedGraph(
+            working_graph = Graph(
                 vertex_features=torch.zeros((0, feature_dim)),
                 edge_index=torch.zeros((2, 0), dtype=torch.long),
             )
 
-        return RetrievalResult(
-            working=WorkingGraph(
+        return Result(
+            working=Working(
                 graph=working_graph,
                 budget=self.budget,
                 parent_version=graph.version,

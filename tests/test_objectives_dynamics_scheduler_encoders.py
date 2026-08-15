@@ -1,4 +1,4 @@
-"""Tests for pjepa.objectives, dynamics, scheduler, encoders.
+"""Tests for pj.objectives, dynamics, scheduler, encoders.
 
 Covers the eight-class test taxonomy.
 """
@@ -12,20 +12,20 @@ import torch
 
 from pjepa.dynamics import contractivity_bound, fixed_point_iteration
 from pjepa.encoders import (
-    DualGeometricEncoder,
-    EuclideanMPNN,
-    HyperbolicProjection,
-    JEPAPredictor,
-    TargetEncoder,
+    DualGeometric,
+    Euclidean,
+    Hyperbolic,
+    Predictor,
+    Target,
 )
 from pjepa.exceptions import ConfigError, NumericalError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.objectives import FreeEnergy, description_length, ib_lagrangian, variational_ib_bound
 from pjepa.scheduler import (
+    Buffer,
     PPOConfig,
     PPOTrainer,
-    ReplayBuffer,
-    SleepCadence,
+    Sleep,
     Transition,
     should_sleep,
 )
@@ -78,7 +78,7 @@ def test_happy_variational_ib_bound() -> None:
 
 def test_happy_description_length_positive() -> None:
     """description_length is positive for non-trivial graphs."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.tensor([[1.0, 0.0], [0.0, 1.0]]),
         edge_index=torch.tensor([[0, 1], [1, 0]], dtype=torch.long),
         edge_features=torch.tensor([[1.0], [1.0]]),
@@ -88,7 +88,7 @@ def test_happy_description_length_positive() -> None:
 
 def test_happy_free_energy_non_negative() -> None:
     """FreeEnergy on a non-trivial graph is finite and non-negative."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((2, 3)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -108,7 +108,7 @@ def test_happy_contractivity_bound() -> None:
 
 def test_happy_fixed_point_iteration_identity() -> None:
     """An identity operator converges in one step."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((1, 2)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -129,8 +129,8 @@ def test_happy_ppo_clipped_surrogate() -> None:
 
 
 def test_happy_replay_buffer_add_and_sample() -> None:
-    """ReplayBuffer accepts transitions and yields minibatches."""
-    buffer = ReplayBuffer(capacity=10, max_age=100)
+    """Buffer accepts transitions and yields minibatches."""
+    buffer = Buffer(capacity=10, max_age=100)
     for i in range(5):
         buffer.add(
             Transition(
@@ -160,7 +160,7 @@ class _ActorCritic(torch.nn.Module):
 
 def test_happy_sleep_cadence_no_sleep_when_healthy() -> None:
     """A high accept-rate keeps the cadence from firing sleep."""
-    cadence = SleepCadence(rho_min=0.1, alpha_min=0.3, window=8)
+    cadence = Sleep(rho_min=0.1, alpha_min=0.3, window=8)
     for _ in range(8):
         cadence.update(accepted=True, utilisation=0.7)
     assert not should_sleep(cadence)
@@ -170,48 +170,48 @@ def test_happy_sleep_cadence_no_sleep_when_healthy() -> None:
 
 
 def test_happy_euclidean_mpnn_forward() -> None:
-    """EuclideanMPNN returns per-vertex embeddings of the right shape."""
-    g = TypedAttributedGraph(
+    """Euclidean returns per-vertex embeddings of the right shape."""
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     )
-    encoder = EuclideanMPNN(input_dim=4, hidden_dim=16, num_layers=2, output_dim=8)
+    encoder = Euclidean(input_dim=4, hidden_dim=16, num_layers=2, output_dim=8)
     out = encoder(g)
     assert out.shape == (5, 8)
 
 
 def test_happy_hyperbolic_projection_norms() -> None:
-    """HyperbolicProjection produces points with norms strictly < 1."""
-    proj = HyperbolicProjection(input_dim=4, output_dim=3)
+    """Hyperbolic produces points with norms strictly < 1."""
+    proj = Hyperbolic(input_dim=4, output_dim=3)
     out = proj(torch.randn((5, 4)))
     norms = out.norm(dim=-1)
     assert torch.all(norms < 1.0)
 
 
 def test_happy_dual_geometric_encoder() -> None:
-    """DualGeometricEncoder returns a tuple of (Euclidean, hyperbolic) tensors."""
-    g = TypedAttributedGraph(
+    """DualGeometric returns a tuple of (Euclidean, hyperbolic) tensors."""
+    g = Graph(
         vertex_features=torch.randn((4, 3)),
         edge_index=torch.tensor([[0, 1], [1, 2]], dtype=torch.long),
     )
-    enc = DualGeometricEncoder(input_dim=3, euclidean_dim=8, hyperbolic_dim=4, num_layers=2)
+    enc = DualGeometric(input_dim=3, euclidean_dim=8, hyperbolic_dim=4, num_layers=2)
     e, h = enc(g)
     assert e.shape == (4, 8)
     assert h.shape == (4, 4)
 
 
 def test_happy_jepa_predictor_shape() -> None:
-    """JEPAPredictor output dim matches ``output_dim``."""
-    pred = JEPAPredictor(input_dim=10, hidden_dim=16, output_dim=4)
+    """Predictor output dim matches ``output_dim``."""
+    pred = Predictor(input_dim=10, hidden_dim=16, output_dim=4)
     out = pred(torch.randn((3, 10)))
     assert out.shape == (3, 4)
 
 
 def test_happy_target_encoder_ema() -> None:
-    """TargetEncoder EMA moves shadow parameters toward online."""
+    """Target EMA moves shadow parameters toward online."""
     online = torch.nn.Linear(4, 4)
     initial_shadow = online.weight.detach().clone()
-    target = TargetEncoder(online, momentum=0.5)
+    target = Target(online, momentum=0.5)
     with torch.no_grad():
         online.weight.fill_(2.0)
     target.update()
@@ -238,25 +238,25 @@ def test_bad_variational_ib_shape_mismatch() -> None:
 def test_bad_euclidean_mpnn_zero_dim() -> None:
     """Zero dimensions are rejected."""
     with pytest.raises(ValueError):
-        EuclideanMPNN(input_dim=0, hidden_dim=16)
+        Euclidean(input_dim=0, hidden_dim=16)
 
 
 def test_bad_hyperbolic_projection_curvature() -> None:
     """Negative curvature is rejected."""
     with pytest.raises(ValueError):
-        HyperbolicProjection(input_dim=4, curvature=-1.0)
+        Hyperbolic(input_dim=4, curvature=-1.0)
 
 
 def test_bad_replay_buffer_zero_capacity() -> None:
     """A zero-capacity replay buffer is rejected."""
     with pytest.raises(ConfigError):
-        ReplayBuffer(capacity=0)
+        Buffer(capacity=0)
 
 
 def test_bad_sleep_cadence_window() -> None:
     """A non-positive window is rejected."""
     with pytest.raises(ConfigError):
-        SleepCadence(window=0)
+        Sleep(window=0)
 
 
 def test_bad_ppo_zero_minibatch() -> None:
@@ -270,7 +270,7 @@ def test_bad_ppo_zero_minibatch() -> None:
 
 def test_ugly_free_energy_empty_graph() -> None:
     """An empty graph yields an infinite FreeEnergy value."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((0, 3)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -280,7 +280,7 @@ def test_ugly_free_energy_empty_graph() -> None:
 
 def test_ugly_hyperbolic_projection_zero_input() -> None:
     """All-zero input still produces a valid hyperbolic point."""
-    proj = HyperbolicProjection(input_dim=4, output_dim=3)
+    proj = Hyperbolic(input_dim=4, output_dim=3)
     out = proj(torch.zeros((2, 4)))
     assert out.shape == (2, 3)
     assert torch.isfinite(out).all()
@@ -292,7 +292,7 @@ def test_ugly_hyperbolic_projection_zero_input() -> None:
 def test_leaky_ppo_does_not_mutate_outer_state() -> None:
     """PPO update does not leak optimizer state between calls."""
     trainer = PPOTrainer(_ActorCritic(input_dim=4, num_actions=3), PPOConfig())
-    buffer = ReplayBuffer(capacity=4)
+    buffer = Buffer(capacity=4)
     for i in range(4):
         buffer.add(
             Transition(
@@ -315,7 +315,7 @@ def test_leaky_ppo_does_not_mutate_outer_state() -> None:
 def test_round_trip_target_encoder_step() -> None:
     """Target encoder parameters move after update."""
     online = torch.nn.Linear(4, 4)
-    target = TargetEncoder(online, momentum=0.0)
+    target = Target(online, momentum=0.0)
     initial = target.shadow.weight.clone()
     with torch.no_grad():
         online.weight.fill_(5.0)
@@ -329,7 +329,7 @@ def test_round_trip_target_encoder_step() -> None:
 @pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS not available")
 def test_cross_backend_mps_hyperbolic() -> None:
     """Hyperbolic projection runs on MPS tensors."""
-    proj = HyperbolicProjection(input_dim=4, output_dim=3).to("mps")
+    proj = Hyperbolic(input_dim=4, output_dim=3).to("mps")
     out = proj(torch.randn((3, 4), device="mps"))
     assert out.device.type == "mps"
 
@@ -349,14 +349,14 @@ def test_distributional_contractivity_bound_at_t_zero() -> None:
 
 
 def test_property_dual_geometric_dims() -> None:
-    """DualGeometricEncoder exposes the correct euclidean and hyperbolic dims."""
-    enc = DualGeometricEncoder(input_dim=3, euclidean_dim=8, hyperbolic_dim=4)
+    """DualGeometric exposes the correct euclidean and hyperbolic dims."""
+    enc = DualGeometric(input_dim=3, euclidean_dim=8, hyperbolic_dim=4)
     assert enc.euclidean_dim == 8
     assert enc.hyperbolic_dim == 4
 
 
 def test_encoder_protocol_satisfied_by_subclass() -> None:
-    """EuclideanMPNN satisfies the Encoder protocol structurally."""
-    enc = EuclideanMPNN(input_dim=3, hidden_dim=8, num_layers=2, output_dim=4)
+    """Euclidean satisfies the Encoder protocol structurally."""
+    enc = Euclidean(input_dim=3, hidden_dim=8, num_layers=2, output_dim=4)
     assert isinstance(enc, torch.nn.Module)
     assert hasattr(enc, "forward") and hasattr(enc, "to")

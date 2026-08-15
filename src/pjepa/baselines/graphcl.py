@@ -28,7 +28,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["GraphCL"]
 
@@ -61,7 +61,7 @@ class GraphCL(nn.Module):
         self.temperature = temperature
         self.hidden_dim = hidden_dim
 
-    def embed(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def embed(self, graph: Graph) -> torch.Tensor:
         """Return the graph-level embedding (mean of vertex embeddings).
 
         Args:
@@ -78,7 +78,7 @@ class GraphCL(nn.Module):
         h = self.encoder(graph.vertex_features)
         return h.mean(dim=0, keepdim=True)
 
-    def loss(self, view_a: TypedAttributedGraph, view_b: TypedAttributedGraph) -> torch.Tensor:
+    def loss(self, view_a: Graph, view_b: Graph) -> torch.Tensor:
         """Compute the NT-Xent loss between two augmented views.
 
         Args:

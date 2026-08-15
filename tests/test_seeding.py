@@ -1,4 +1,4 @@
-"""Tests for pjepa.utils.seeding.
+"""Tests for pj.utils.seeding.
 
 Covers the eight-class test taxonomy:
 

@@ -31,16 +31,16 @@ These results give the framework *worst-case* guarantees on convergence and stab
 
 | Symbol | Description |
 |---|---|
-| `EvolutionOperator` | Configuration for the analysis (Lipschitz constants, etc.). |
+| `Evolution` | Configuration for the analysis (Lipschitz constants, etc.). |
 | `contractivity_bound(eta_g, eta_o, epsilon, t)` | Upper bound on $d(G_t, G'_t)$. |
 | `fixed_point_iteration(state, operator, max_steps, epsilon)` | Iterate $F$ until a fixed point. |
 
 ### Example
 
 ```python
-from pjepa.dynamics import EvolutionOperator, contractivity_bound
+from pjepa.dynamics import Evolution, contractivity_bound
 
-op = EvolutionOperator(eta_g=0.5, eta_o=0.1)
+op = Evolution(eta_g=0.5, eta_o=0.1)
 bound = contractivity_bound(0.5, 0.1, 0.05, 20)
 assert bound < 0.2  # Trajectories contract.
 ```

@@ -14,9 +14,9 @@ The persistent and working graph primitives.
 
 | Symbol | Description |
 |---|---|
-| `TypedAttributedGraph` | Immutable typed attributed graph dataclass. |
-| `PersistentState` | Wrapper around the persistent graph with commit/reject audit trail. |
-| `WorkingGraph` | Bounded working subgraph enforced to \|V\| ≤ `budget`. |
+| `Graph` | Immutable typed attributed graph dataclass. |
+| `State` | Wrapper around the persistent graph with commit/reject audit trail. |
+| `Working` | Bounded working subgraph enforced to \|V\| ≤ `budget`. |
 
 See [`paper/graphs.md`](../paper/graphs.md) for the architectural rationale.
 
@@ -27,11 +27,11 @@ Encoder protocols and implementations.
 | Symbol | Description |
 |---|---|
 | `Encoder` | Protocol every encoder must satisfy. |
-| `EuclideanMPNN` | GIN-style message-passing neural network. |
-| `HyperbolicProjection` | Maps Euclidean features into the Poincaré ball. |
-| `DualGeometricEncoder` | Combines Euclidean MPNN with hyperbolic projection. |
-| `JEPAPredictor` | Predictor head for the JEPA objective. |
-| `TargetEncoder` | BYOL-style EMA target encoder. |
+| `Euclidean` | GIN-style message-passing neural network. |
+| `Hyperbolic` | Maps Euclidean features into the Poincaré ball. |
+| `DualGeometric` | Combines Euclidean MPNN with hyperbolic projection. |
+| `Predictor` | Predictor head for the JEPA objective. |
+| `Target` | BYOL-style EMA target encoder. |
 
 ## `pjepa.retrieval`
 
@@ -39,13 +39,13 @@ Submodular retrieval with the (1 − 1/e) approximation guarantee.
 
 | Symbol | Description |
 |---|---|
-| `GreedyRetrieval` | Greedy algorithm that achieves the NWF bound. |
-| `RetrievalUtility` | Protocol every retrieval utility must satisfy. |
-| `FacilityLocationUtility` | Provably submodular facility-location utility. |
-| `InformationGainUtility` | Information-gain utility with per-vertex cost. |
+| `Retrieval` | Greedy algorithm that achieves the NWF bound. |
+| `Utility` | Protocol every retrieval utility must satisfy. |
+| `Facility` | Provably submodular facility-location utility. |
+| `InfoGain` | Information-gain utility with per-vertex cost. |
 | `uniform_weights(n)` | Return uniform per-vertex weights. |
 | `facility_location_weights(features, observation)` | Cosine-similarity weights. |
-| `RetrievalResult` | Dataclass returned by `GreedyRetrieval.select`. |
+| `Result` | Dataclass returned by `Retrieval.select`. |
 
 ## `pjepa.rewriting`
 
@@ -55,10 +55,10 @@ Verified rewriting engine.
 |---|---|
 | `HRG` | Hyperedge-replacement grammar class. |
 | `HRGProduction` | A single production rule. |
-| `BisimulationMetric` | Configuration for the bisimulation metric. |
+| `Bisimulation` | Configuration for the bisimulation metric. |
 | `bisimulation_distance(graph_a, graph_b, metric)` | Compute the bisimulation pseudometric. |
 | `FourConditions` | The four acceptance thresholds. |
-| `accept_candidate(candidate, current, observation, grammar, thresholds)` | Evaluate the four-conditions criterion. |
+| `accept(candidate, current, observation, grammar, thresholds)` | Evaluate the four-conditions criterion. |
 | `DPOConfig` | Configuration for the DPO loss. |
 | `dpo_loss(...)` | Compute the DPO loss for preference pairs. |
 
@@ -68,7 +68,7 @@ The unified free-energy functional and its components.
 
 | Symbol | Description |
 |---|---|
-| `FreeEnergy` | The 4-term 𝒥 functional. |
+| `Energy` | The 4-term 𝒥 functional. |
 | `ib_lagrangian(ix_z, iy_z, beta)` | Symbolic IB Lagrangian. |
 | `variational_ib_bound(posterior_logits, prior_logits, beta)` | Variational IB upper bound. |
 | `description_length(graph)` | Description length of a graph under MDL. |
@@ -79,7 +79,7 @@ Evolution operator analysis (Propositions 4–6 of the paper).
 
 | Symbol | Description |
 |---|---|
-| `EvolutionOperator` | Configuration for analysing `F`. |
+| `Evolution` | Configuration for analysing `F`. |
 | `contractivity_bound(eta_g, eta_o, epsilon, t)` | Upper bound on trajectory distance. |
 | `fixed_point_iteration(state, operator, max_steps, epsilon)` | Iterate until a fixed point. |
 
@@ -91,9 +91,9 @@ PPO scheduler with replay buffer and sleep cadence.
 |---|---|
 | `PPOConfig` | PPO hyperparameters. |
 | `PPOTrainer` | Clipped-surrogate PPO trainer. |
-| `ReplayBuffer` | FIFO replay buffer with staleness eviction. |
+| `Buffer` | FIFO replay buffer with staleness eviction. |
 | `Transition` | A single replay-buffer transition. |
-| `SleepCadence` | Sleep-cycle trigger. |
+| `Sleep` | Sleep-cycle trigger. |
 | `should_sleep(cadence)` | Functional alias for `cadence.should_sleep()`. |
 
 ## `pjepa.augmentations`
@@ -103,7 +103,7 @@ Graph and tensor augmentations.
 | Symbol | Description |
 |---|---|
 | `Augmentation` | Abstract base class. |
-| `AugmentationPipeline` | Sequential / random-sample-one / random-sample-k composition. |
+| `Pipeline` | Sequential / random-sample-one / random-sample-k composition. |
 | `PipelineMode` | Composition-mode enumeration. |
 | `DropEdge(strength)` | Drop a fraction of edges. |
 | `DropNode(strength)` | Drop a fraction of vertices. |

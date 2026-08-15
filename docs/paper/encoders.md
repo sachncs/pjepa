@@ -14,8 +14,8 @@ The combined ratio is $\Theta(\log D / (D \log b))$ — polynomial, *widening* w
 
 The dual-geometric encoder concatenates:
 
-1. An **Euclidean MPNN** (`EuclideanMPNN`) producing per-vertex Euclidean embeddings $e_v \in \mathbb{R}^{d_\text{euc}}$.
-2. A **hyperbolic projection** (`HyperbolicProjection`) mapping $e_v$ into the Poincaré ball of curvature $-c$, producing $h_v \in \mathbb{H}^{d_\text{hyp}}$.
+1. An **Euclidean MPNN** (`Euclidean`) producing per-vertex Euclidean embeddings $e_v \in \mathbb{R}^{d_\text{euc}}$.
+2. A **hyperbolic projection** (`Hyperbolic`) mapping $e_v$ into the Poincaré ball of curvature $-c$, producing $h_v \in \mathbb{H}^{d_\text{hyp}}$.
 
 For tasks that don't benefit from hierarchy, the hyperbolic component can be ablated (see `docs/developer/04_adding_a_baseline.md` for the ablation runner).
 
@@ -24,15 +24,15 @@ For tasks that don't benefit from hierarchy, the hyperbolic component can be abl
 | Class | Purpose |
 |---|---|
 | `Encoder` (Protocol) | The interface every encoder must satisfy: `forward(graph)`, `to(device)`. |
-| `EuclideanMPNN` | GIN-style message passing with sum aggregation. |
-| `HyperbolicProjection` | Tanh-map into the Poincaré ball with norm clamping. |
-| `DualGeometricEncoder` | Euclidean + hyperbolic concatenated representation. |
-| `JEPAPredictor` | Predictor head for the JEPA objective. |
-| `TargetEncoder` | BYOL-style EMA target encoder. |
+| `Euclidean` | GIN-style message passing with sum aggregation. |
+| `Hyperbolic` | Tanh-map into the Poincaré ball with norm clamping. |
+| `DualGeometric` | Euclidean + hyperbolic concatenated representation. |
+| `Predictor` | Predictor head for the JEPA objective. |
+| `Target` | BYOL-style EMA target encoder. |
 
 ## Numerical Stability
 
-`HyperbolicProjection` enforces:
+`Hyperbolic` enforces:
 
 * Clamped norms strictly below `1 - 1e-5` (Poincaré ball boundary).
 * `log1p`-based precision in the tanh map.

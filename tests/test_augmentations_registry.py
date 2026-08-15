@@ -1,4 +1,4 @@
-"""Tests for pjepa.augmentations registry, Identity, and Subgraph."""
+"""Tests for pj.augmentations registry, Identity, and Subgraph."""
 
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ from pjepa.augmentations import (
     get_augmentation,
     register,
 )
-from pjepa.augmentations.base import Augmentation
+from pjepa.augmentations.base import Transform
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = [
     "test_bad_registry_duplicate_name",
@@ -31,10 +31,10 @@ __all__ = [
 ]
 
 
-def _toy_graph(num_vertices: int = 16, feature_dim: int = 4) -> TypedAttributedGraph:
+def _toy_graph(num_vertices: int = 16, feature_dim: int = 4) -> Graph:
     edges = [(i, (i + 1) % num_vertices) for i in range(num_vertices)]
     ei = torch.tensor(edges, dtype=torch.long).T
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=torch.ones((num_vertices, feature_dim)),
         edge_index=ei,
         edge_features=torch.zeros((ei.shape[1], 1)),
@@ -63,7 +63,7 @@ def test_happy_subgraph_reduces_vertices() -> None:
 
 def test_ugly_subgraph_empty_graph() -> None:
     """Subgraph on an empty graph returns the empty graph."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((0, 3)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -114,8 +114,8 @@ def test_happy_registry_user_registration() -> None:
     """User-registered augmentations are reachable by name."""
 
     @register("custom-test-aug")
-    class _Custom(Augmentation):
-        def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    class _Custom(Transform):
+        def __call__(self, graph: Graph) -> Graph:
             return graph
 
     try:
@@ -129,16 +129,16 @@ def test_bad_registry_duplicate_name() -> None:
     """Registering the same name twice raises a GraphError."""
 
     @register("dup-aug")
-    class _A(Augmentation):
-        def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    class _A(Transform):
+        def __call__(self, graph: Graph) -> Graph:
             return graph
 
     try:
         with pytest.raises(GraphError):
 
             @register("dup-aug")
-            class _B(Augmentation):
-                def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+            class _B(Transform):
+                def __call__(self, graph: Graph) -> Graph:
                     return graph
     finally:
         evict_augmentation("dup-aug")

@@ -16,10 +16,10 @@ This is the best possible polynomial-time approximation for general submodular m
 
 | Class | Description |
 |---|---|
-| `RetrievalUtility` (Protocol) | `__call__(vertex_subset, observation) -> float`. |
-| `FacilityLocationUtility` | Provably submodular: $f(W) = \sum_i \max_{v \in W} \text{sim}(v, i)$. |
-| `InformationGainUtility` | Information-gain proxy with per-vertex cost. |
-| `GreedyRetrieval(budget)` | Algorithm 1 of the paper. |
+| `Utility` (Protocol) | `__call__(vertex_subset, observation) -> float`. |
+| `Facility` | Provably submodular: $f(W) = \sum_i \max_{v \in W} \text{sim}(v, i)$. |
+| `InfoGain` | Information-gain proxy with per-vertex cost. |
+| `Retrieval(budget)` | Algorithm 1 of the paper. |
 
 ## Algorithm 1
 
@@ -36,10 +36,10 @@ Complexity: $O(B \cdot n \cdot \text{utility\_eval})$.
 The `tests/test_retrieval.py::test_one_minus_one_over_e_on_synthetic` test verifies the $(1 - 1/e)$ guarantee against brute-force optimum on 8-vertex facility-location problems.
 
 ```python
-from pjepa.retrieval import GreedyRetrieval, FacilityLocationUtility
+from pjepa.retrieval import Retrieval, Facility
 
-util = FacilityLocationUtility(vertex_features=features)
-result = GreedyRetrieval(budget=8).select(graph, observation, utility=util)
+util = Facility(vertex_features=features)
+result = Retrieval(budget=8).select(graph, observation, utility=util)
 assert result.utility >= (1 - 1 / e) * opt - 1e-5
 ```
 

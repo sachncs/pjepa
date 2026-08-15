@@ -4,7 +4,7 @@ Covers:
     * The synthetic submodular retrieval quality (Exp A).
     * The hyperbolic-vs-Euclidean tree distortion (Exp B).
     * The encoder ablation on AST-like graphs (Exp C).
-    * The publication-style helper in :mod:`pjepa.eval.style`.
+    * The publication-style helper in :mod:`pj.eval.style`.
 """
 
 from __future__ import annotations
@@ -64,7 +64,7 @@ from pjepa.eval.style import (
     color_for,
     set_publication_style,
 )
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = [
     "test_eval_color_for_wraps_modulo",
@@ -119,13 +119,13 @@ def test_exp_a_brute_force_optimum_matches_greedy_upper_bound() -> None:
     util, obs = random_submodular(n=10, seed=2, feature_dim=3, observation_dim=2)
     opt = brute_force_optimum(util, n=10, budget=3, observation=obs)
     assert opt is not None
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=util.vertex_features,
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
-    from pjepa.retrieval import GreedyRetrieval
+    from pjepa.retrieval import Retrieval
 
-    greedy_value = float(GreedyRetrieval(budget=3).select(g, obs, utility=util).utility)
+    greedy_value = float(Retrieval(budget=3).select(g, obs, utility=util).utility)
     assert greedy_value <= opt + 1e-5
 
 
@@ -227,7 +227,7 @@ def test_exp_c_build_ast_like_graph_features_shape() -> None:
 
 def test_exp_c_build_encoder_known_variants() -> None:
     """Every advertised encoder variant is constructable."""
-    for name in ("EuclideanMPNN", "HyperbolicMPNN", "DualGeometricEncoder"):
+    for name in ("Euclidean", "HyperbolicMPNN", "DualGeometric"):
         enc = build_encoder(name, input_dim=6, output_dim=6)
         assert enc is not None
 
@@ -247,7 +247,7 @@ def test_exp_c_run_smoke_writes_outputs(tmp_path: Path) -> None:
     rows = summary["rows"]
     assert len(rows) == 3
     encoders = {row["encoder"] for row in rows}
-    assert encoders == {"EuclideanMPNN", "HyperbolicMPNN", "DualGeometricEncoder"}
+    assert encoders == {"Euclidean", "HyperbolicMPNN", "DualGeometric"}
     for row in rows:
         assert 0.0 <= row["accuracy"] <= 1.0
         assert row["n_train_graphs"] >= 1
@@ -259,7 +259,7 @@ def test_exp_c_run_smoke_writes_outputs(tmp_path: Path) -> None:
 def test_exp_c_predict_depth_loss_shapes() -> None:
     """predict_depth_loss returns logits and labels of consistent shapes."""
     g = build_ast_like_graph(depth=3, branching=2, seed=0)
-    enc = build_encoder("EuclideanMPNN", input_dim=4, output_dim=4)
+    enc = build_encoder("Euclidean", input_dim=4, output_dim=4)
     logits, labels = predict_depth_loss(enc, [g], depth=3)
     assert logits.shape[0] == g.num_vertices()
     assert labels.shape == (g.num_vertices(),)
@@ -315,16 +315,16 @@ def test_eval_style_is_idempotent() -> None:
 
 
 def test_exp_a_greedy_utility_matches_selector() -> None:
-    """greedy_utility agrees with a direct GreedyRetrieval call."""
+    """greedy_utility agrees with a direct Retrieval call."""
     util, obs = random_submodular(n=8, seed=0, feature_dim=3, observation_dim=2)
     value = greedy_utility(util, n=8, budget=3, observation=obs)
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=util.vertex_features,
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
-    from pjepa.retrieval import GreedyRetrieval
+    from pjepa.retrieval import Retrieval
 
-    expected = float(GreedyRetrieval(budget=3).select(g, obs, utility=util).utility)
+    expected = float(Retrieval(budget=3).select(g, obs, utility=util).utility)
     assert math.isclose(value, expected, rel_tol=1e-9)
 
 
@@ -340,9 +340,9 @@ def test_exp_c_hyperbolic_mpnn_forward() -> None:
 def test_exp_c_train_one_encoder_returns_accuracy() -> None:
     """train_one_encoder returns a finite accuracy in [0, 1]."""
     graphs = [build_ast_like_graph(depth=3, branching=2, seed=k) for k in range(4)]
-    enc = build_encoder("EuclideanMPNN", input_dim=4, output_dim=4)
+    enc = build_encoder("Euclidean", input_dim=4, output_dim=4)
     accuracy = train_one_encoder(
-        "EuclideanMPNN",
+        "Euclidean",
         enc,
         train_graphs=graphs[:3],
         test_graphs=graphs[3:],
@@ -356,7 +356,7 @@ def test_exp_c_train_one_encoder_returns_accuracy() -> None:
 def test_exp_c_evaluate_accuracy_in_unit_interval() -> None:
     """evaluate_accuracy returns a finite value in [0, 1]."""
     g = build_ast_like_graph(depth=3, branching=2, seed=0)
-    enc = build_encoder("EuclideanMPNN", input_dim=4, output_dim=4)
+    enc = build_encoder("Euclidean", input_dim=4, output_dim=4)
     assert 0.0 <= evaluate_accuracy(enc, [g], depth=3) <= 1.0
 
 

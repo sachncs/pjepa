@@ -9,8 +9,8 @@ The project uses Python 3.12 (3.10 and 3.11 are also supported). We
 strongly recommend the included Makefile workflow:
 
 ```bash
-git clone https://github.com/sachncs/persistent-jepa.git
-cd persistent-jepa
+git clone https://github.com/sachncs/jepa.git
+cd jepa
 make install
 ```
 
@@ -112,8 +112,8 @@ Create a file `experiments/my_experiment.py`:
 
 import torch
 
-from pjepa.graphs import TypedAttributedGraph
-from pjepa.retrieval import GreedyRetrieval, FacilityLocationUtility
+from pjepa.graphs import Graph
+from pjepa.retrieval import Retrieval, Facility
 from pjepa.seeding import set_global_seed
 
 
@@ -122,17 +122,17 @@ def main() -> None:
     set_global_seed(42)
 
     # Build a persistent graph with random vertex features.
-    persistent = TypedAttributedGraph(
+    persistent = Graph(
         vertex_features=torch.randn((50, 8)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
 
     # Build a utility function from the vertex features.
-    utility = FacilityLocationUtility(vertex_features=persistent.vertex_features)
+    utility = Facility(vertex_features=persistent.vertex_features)
 
     # Choose a working graph via greedy retrieval.
     observation = torch.randn((1, 8))
-    result = GreedyRetrieval(budget=16).select(
+    result = Retrieval(budget=16).select(
         persistent, observation, utility=utility
     )
 
@@ -182,7 +182,7 @@ satisfies the `Encoder` protocol:
 
 ```python
 from torch import nn
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.encoders.base import Encoder
 
 
@@ -195,7 +195,7 @@ class MyEncoder(nn.Module):
         super().__init__()
         self.proj = nn.Linear(input_dim, self.output_dim)
 
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def forward(self, graph: Graph) -> torch.Tensor:
         return self.proj(graph.vertex_features)
 
     def to(self, device: torch.device) -> "MyEncoder":
@@ -213,7 +213,7 @@ test should follow the eight-class taxonomy:
 ```python
 def test_happy_my_encoder_forward() -> None:
     """My encoder returns per-vertex embeddings of the right shape."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )

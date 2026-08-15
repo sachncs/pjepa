@@ -2,7 +2,7 @@
 
 This module implements the canonical JEPA-style pretraining loop:
 
-* Run :class:`pjepa.encoders.JEPAPredictor` on a context tensor.
+* Run :class:`pjepa.encoders.Predictor` on a context tensor.
 * Compute the Smooth-L1 loss against the target tensor (typically
   produced by a frozen target encoder).
 * Optimise with AdamW.
@@ -26,7 +26,7 @@ sleep-cadence object that can stop the run early.
 ```
 
 The target encoder is :class:`pjepa.perf.EMATarget` (or the
-config-equivalent wrapper in :class:`pjepa.encoders.TargetEncoder`).
+config-equivalent wrapper in :class:`pjepa.encoders.Target`).
 
 ## Complexity
 
@@ -54,15 +54,15 @@ from typing import Protocol, runtime_checkable
 import torch
 from torch import nn
 
-from pjepa.augmentations import AugmentationPipeline, TensorDropFeature
-from pjepa.encoders import JEPAPredictor, TargetEncoder
+from pjepa.augmentations import Pipeline, TensorDropFeature
+from pjepa.encoders import Predictor, Target
 from pjepa.exceptions import ConfigError
 from pjepa.logging_setup import get_logger
 from pjepa.training.checkpoint import Checkpoint, save_checkpoint
 
 __all__ = [
     "PretrainConfig",
-    "SleepCadence",
+    "Sleep",
     "ValidationCallback",
     "augmentation_call",
     "build_tensor_augmentation",
@@ -71,10 +71,10 @@ __all__ = [
 
 
 @runtime_checkable
-class SleepCadence(Protocol):
+class Sleep(Protocol):
     """Protocol for sleep-cadence objects usable by :func:`pretrain_loop`.
 
-    The framework's :class:`pjepa.scheduler.SleepCadence` satisfies
+    The framework's :class:`pjepa.scheduler.Sleep` satisfies
     this protocol out of the box; tests and minimal adapters can
     implement it directly by defining a no-arg ``should_sleep``
     method.
@@ -136,7 +136,7 @@ class PretrainConfig:
           (fraction of features to drop). Range: ``[0, 1]``.
         seed: Optional seed applied to the augmentation generator so
           trials are reproducible.
-        cadence: Optional :class:`SleepCadence` object consulted
+        cadence: Optional :class:`Sleep` object consulted
           once per epoch; when it returns ``True`` the loop stops
           early.
         extras: Additional state to persist in every checkpoint's
@@ -154,19 +154,19 @@ class PretrainConfig:
     augmentation: str = "none"
     augmentation_strength: float = 0.2
     seed: int | None = None
-    cadence: SleepCadence | None = None
+    cadence: Sleep | None = None
     extras: dict[str, object] = field(default_factory=dict)
 
 
 def augmentation_call(
-    augmentation: TensorDropFeature | AugmentationPipeline | Callable[[torch.Tensor], torch.Tensor],
+    augmentation: TensorDropFeature | Pipeline | Callable[[torch.Tensor], torch.Tensor],
     tensor: torch.Tensor,
 ) -> torch.Tensor:
     """Apply a tensor-compatible augmentation to ``tensor``.
 
     The pretraining loop operates on 2-D feature tensors, not on
-    :class:`pjepa.graphs.TypedAttributedGraph`, so the augmentation
-    factories that produce :class:`AugmentationPipeline` instances are
+    :class:`pjepa.graphs.Graph`, so the augmentation
+    factories that produce :class:`Pipeline` instances are
     rejected with a helpful error message. :class:`TensorDropFeature`
     and arbitrary ``Tensor -> Tensor`` callables work as expected.
 
@@ -179,16 +179,16 @@ def augmentation_call(
         The augmented tensor.
 
     Raises:
-        ConfigError: If ``augmentation`` is an :class:`AugmentationPipeline`
+        ConfigError: If ``augmentation`` is an :class:`Pipeline`
           because the pretraining loop is tensor-level.
         ConfigError: If the augmentation does not return a
           :class:`torch.Tensor`.
         ConfigError: If the augmented tensor has a different shape
           than the input.
     """
-    if isinstance(augmentation, AugmentationPipeline):
+    if isinstance(augmentation, Pipeline):
         raise ConfigError(
-            "augmentation_call: AugmentationPipeline expects TypedAttributedGraph inputs; "
+            "augmentation_call: Pipeline expects Graph inputs; "
             "pretrain_loop operates on tensors, use TensorDropFeature instead"
         )
     result = augmentation(tensor)
@@ -247,13 +247,13 @@ def build_tensor_augmentation(
 
 def pretrain_loop(
     encoder: nn.Module,
-    predictor: JEPAPredictor,
-    target: TargetEncoder,
+    predictor: Predictor,
+    target: Target,
     optimizer: torch.optim.Optimizer,
     batches: Iterable[tuple[torch.Tensor, torch.Tensor]],
     config: PretrainConfig | None = None,
     augmentation: TensorDropFeature
-    | AugmentationPipeline
+    | Pipeline
     | Callable[[torch.Tensor], torch.Tensor]
     | None = None,
     val_fn: ValidationCallback | None = None,
@@ -270,7 +270,7 @@ def pretrain_loop(
     3. compute the Smooth-L1 loss ``SmoothL1(predicted, target)``,
     4. backpropagate and update the encoder / predictor parameters,
     5. update the target encoder via EMA
-       (:meth:`TargetEncoder.update`).
+       (:meth:`Target.update`).
 
     A checkpoint is written at the end of every epoch via
     :func:`pjepa.training.checkpoint.save_checkpoint`; the directory
@@ -299,7 +299,7 @@ def pretrain_loop(
 
     Returns:
         A list of per-epoch mean loss values (one float per epoch).
-        If ``SleepCadence.should_sleep()`` returns ``True`` mid-loop
+        If ``Sleep.should_sleep()`` returns ``True`` mid-loop
         the returned list is truncated accordingly.
 
     Raises:

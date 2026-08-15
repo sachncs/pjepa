@@ -3,7 +3,7 @@
 The working graph is the only object on which inference executes. It
 is a fixed-budget vertex-induced subgraph of the persistent graph,
 constructed by the retrieval operator
-(:class:`pjepa.retrieval.GreedyRetrieval`) and discarded at the end
+(:class:`pjepa.retrieval.Retrieval`) and discarded at the end
 of each developmental step. The wrapper enforces the budget invariant
 so that downstream encoders can rely on ``num_vertices() <= budget``
 without re-validation.
@@ -20,13 +20,13 @@ from dataclasses import dataclass
 import torch
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs.typed_graph import TypedAttributedGraph
+from pjepa.graphs.graph import Graph
 
-__all__ = ["WorkingGraph"]
+__all__ = ["Working"]
 
 
 @dataclass(frozen=True)
-class WorkingGraph:
+class Working:
     """A bounded working subgraph derived from the persistent graph.
 
     The wrapper is frozen: every method that returns a new working
@@ -34,7 +34,7 @@ class WorkingGraph:
     than mutating in place.
 
     Attributes:
-        graph: The underlying :class:`TypedAttributedGraph`.
+        graph: The underlying :class:`Graph`.
         budget: The maximum number of vertices allowed.
         parent_version: The version of the persistent graph from
             which the working graph was derived. ``0`` means "no
@@ -45,17 +45,16 @@ class WorkingGraph:
             the underlying graph already exceeds the budget.
     """
 
-    graph: TypedAttributedGraph
+    graph: Graph
     budget: int
     parent_version: int = 0
 
     def __post_init__(self) -> None:
         if self.budget < 0:
-            raise GraphError(f"WorkingGraph: budget must be non-negative; got {self.budget}")
+            raise GraphError(f"Working: budget must be non-negative; got {self.budget}")
         if self.budget > 0 and self.graph.num_vertices() > self.budget:
             raise GraphError(
-                f"WorkingGraph: vertex count {self.graph.num_vertices()} "
-                f"exceeds budget {self.budget}"
+                f"Working: vertex count {self.graph.num_vertices()} exceeds budget {self.budget}"
             )
 
     def num_vertices(self) -> int:
@@ -84,12 +83,12 @@ class WorkingGraph:
             return 0.0
         return float(self.num_vertices()) / float(self.budget)
 
-    def to(self, device: torch.device) -> WorkingGraph:
+    def to(self, device: torch.device) -> Working:
         """Move every tensor of the working graph to ``device``.
 
         The ``budget`` and ``parent_version`` fields are preserved.
         """
-        return WorkingGraph(
+        return Working(
             graph=self.graph.to(device),
             budget=self.budget,
             parent_version=self.parent_version,

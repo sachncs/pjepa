@@ -117,12 +117,12 @@ release:
   TensorDropFeature for tensor-only models.
 - `e67216c` — Phase 2 performance infra: safe_compile, autocast_context,
   EMATarget (with cosine schedule), fused_scatter_add, sync_mps.
-- `f5196e8` — Phase 1 retrieval: GreedyRetrieval + utilities with
+- `f5196e8` — Phase 1 retrieval: Retrieval + utilities with
   verified (1 - 1/e) approximation guarantee.
-- `cfa31ae` — Phase 1 rewriting: HRG, BisimulationMetric, FourConditions
+- `cfa31ae` — Phase 1 rewriting: HRG, Bisimulation, FourConditions
   (the paper's acceptance criterion), DPO loss.
-- `917cfcb` — Phase 1 graph types: TypedAttributedGraph (frozen
-  dataclass), PersistentState, WorkingGraph.
+- `917cfcb` — Phase 1 graph types: Graph (frozen
+  dataclass), State, Working.
 - `0f23853` — Phase 0 logging + config: structured logging (HUMAN/JSON),
   YAML config loading with schema validation.
 - `74ce19d` — Phase 0 foundation: PJEPAError hierarchy, deterministic
@@ -174,9 +174,9 @@ release:
 ## [0.0.4] - 2026-07-13
 
 ### Added
-- `917cfcb` — Core graph types: `TypedAttributedGraph` (immutable
-  dataclass with shape-consistency validation), `PersistentState`
-  (commit/reject with audit trail), `WorkingGraph` (budget
+- `917cfcb` — Core graph types: `Graph` (immutable
+  dataclass with shape-consistency validation), `State`
+  (commit/reject with audit trail), `Working` (budget
   enforcement). Why: every other component depends on these types.
 - `0633055` — 20 graph tests covering happy/bad/ugly/round-trip/
   cross-backend/distributional/property paths.
@@ -185,8 +185,8 @@ release:
 
 ### Added
 - `f5196e8` — Submodular retrieval with verified (1 - 1/e) approximation
-  guarantee. `GreedyRetrieval` implements Algorithm 1 of the paper;
-  `FacilityLocationUtility` and `InformationGainUtility` are pluggable.
+  guarantee. `Retrieval` implements Algorithm 1 of the paper;
+  `Facility` and `InfoGain` are pluggable.
   Why: Theorem 3 is the headline retrieval result.
 - `0633055` — 14 retrieval tests including (1-1/e) verification via
   brute-force optimum and submodularity property tests.
@@ -195,7 +195,7 @@ release:
 
 ### Added
 - `cfa31ae` — Verified rewriting engine: `HRG` (hyperedge-replacement
-  grammar), `BisimulationMetric` (value-iteration approximation),
+  grammar), `Bisimulation` (value-iteration approximation),
   `FourConditions` (the paper's acceptance criterion), `DPO` loss.
   Why: §7.6.1 and §7.7 of the paper are operationalised here.
 - `0633055` — 21 rewriting tests covering acceptance, rejection,
@@ -204,12 +204,12 @@ release:
 ## [0.0.7] - 2026-07-13
 
 ### Added
-- `e67216c` — Objectives (`FreeEnergy`, `ib_lagrangian`,
-  `description_length`), dynamics (`EvolutionOperator`,
+- `e67216c` — Objectives (`Energy`, `ib_lagrangian`,
+  `description_length`), dynamics (`Evolution`,
   `contractivity_bound`, `fixed_point_iteration`), scheduler
-  (`PPOTrainer`, `ReplayBuffer`, `SleepCadence`), encoders
-  (`EuclideanMPNN`, `HyperbolicProjection`, `DualGeometricEncoder`,
-  `JEPAPredictor`, `TargetEncoder`). Why: §2, §3, §4 of the paper.
+  (`PPOTrainer`, `Buffer`, `Sleep`), encoders
+  (`Euclidean`, `Hyperbolic`, `DualGeometric`,
+  `Predictor`, `Target`). Why: §2, §3, §4 of the paper.
 - `0633055` — 29 tests covering objectives, dynamics, scheduler, and
   encoders.
 
@@ -217,7 +217,7 @@ release:
 
 ### Added
 - `347db8f` — Augmentations (`DropEdge`, `DropNode`, `DropFeature`,
-  `FeatureMask`, `RandomWalkSubgraph`, `AugmentationPipeline`), data
+  `FeatureMask`, `RandomWalkSubgraph`, `Pipeline`), data
   loaders (`TUDataset`, `OGB-arxiv`, class-incremental split), and 7
   baselines (GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM).
   Why: enables Phase 7-10 SOTA experiments.

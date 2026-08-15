@@ -115,9 +115,9 @@ def test_wl_hash_is_deterministic() -> None:
     """WL hash is deterministic for a fixed graph."""
     import torch
 
-    from pjepa.graphs import TypedAttributedGraph
+    from pjepa.graphs import Graph
 
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.tensor([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]),
         edge_index=torch.tensor([[0, 1], [1, 0]], dtype=torch.long),
     )
@@ -130,13 +130,13 @@ def test_wl_hash_distinguishes_graphs() -> None:
     """WL hash is sensitive to graph topology."""
     import torch
 
-    from pjepa.graphs import TypedAttributedGraph
+    from pjepa.graphs import Graph
 
-    g_a = TypedAttributedGraph(
+    g_a = Graph(
         vertex_features=torch.tensor([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]),
         edge_index=torch.tensor([[0, 1], [1, 0]], dtype=torch.long),
     )
-    g_b = TypedAttributedGraph(
+    g_b = Graph(
         vertex_features=torch.tensor([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]),
         edge_index=torch.tensor([[0, 2], [2, 0]], dtype=torch.long),
     )
@@ -154,14 +154,14 @@ def test_verify_candidate_wl_accepts_on_match_only() -> None:
     """``minus_bisimulation`` accepts iff the canonical WL hashes match."""
     import torch
 
-    from pjepa.graphs import TypedAttributedGraph
+    from pjepa.graphs import Graph
     from pjepa.rewriting import HRG
 
-    g_a = TypedAttributedGraph(
+    g_a = Graph(
         vertex_features=torch.tensor([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]),
         edge_index=torch.tensor([[0, 1], [1, 0]], dtype=torch.long),
     )
-    g_b = TypedAttributedGraph(
+    g_b = Graph(
         vertex_features=torch.tensor([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]),
         edge_index=torch.tensor([[0, 2], [2, 0]], dtype=torch.long),
     )
@@ -203,7 +203,7 @@ def test_decoupling_rows_have_required_columns() -> None:
 
 
 def test_decoupling_dual_encoder_used() -> None:
-    """The decoupling measurement exercises DualGeometricEncoder."""
+    """The decoupling measurement exercises DualGeometric."""
     cfg = DecouplingConfig(
         n_sizes=(4,),
         budgets=(2,),
@@ -234,7 +234,7 @@ def test_decoupling_uses_bounded_working_graph() -> None:
 
 
 def test_decoupling_uses_greedy_retrieval() -> None:
-    """The retrieval measurement exercises GreedyRetrieval."""
+    """The retrieval measurement exercises Retrieval."""
     cfg = DecouplingConfig(
         n_sizes=(4,),
         budgets=(2,),
@@ -247,10 +247,10 @@ def test_decoupling_uses_greedy_retrieval() -> None:
 
 
 def test_decoupling_uses_facility_location() -> None:
-    """The retrieval rows reflect FacilityLocationUtility output."""
-    from pjepa.retrieval import FacilityLocationUtility
+    """The retrieval rows reflect Facility output."""
+    from pjepa.retrieval import Facility
 
-    util = FacilityLocationUtility(vertex_features=__import__("torch").zeros((3, 2)))
+    util = Facility(vertex_features=__import__("torch").zeros((3, 2)))
     assert callable(util)
 
 

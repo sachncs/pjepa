@@ -27,12 +27,12 @@ needs at least one happy test.
 
 ```python
 def test_happy_greedy_returns_budget() -> None:
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((20, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
     obs = torch.randn((5, 4))
-    result = GreedyRetrieval(budget=8).select(g, obs)
+    result = Retrieval(budget=8).select(g, obs)
     assert result.working.num_vertices() <= 8
     assert result.utility > 0.0
 ```
@@ -45,7 +45,7 @@ needs at least one bad test.
 ```python
 def test_bad_negative_budget() -> None:
     with pytest.raises(GraphError):
-        GreedyRetrieval(budget=-1)
+        Retrieval(budget=-1)
 ```
 
 ### 3. Ugly — `test_ugly_<feature>`
@@ -66,12 +66,12 @@ Common ugly cases:
 
 ```python
 def test_ugly_empty_graph_zero_utility() -> None:
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((0, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
     obs = torch.randn((2, 4))
-    result = GreedyRetrieval(budget=8).select(g, obs)
+    result = Retrieval(budget=8).select(g, obs)
     assert result.working.num_vertices() == 0
     assert result.utility == 0.0
 ```
@@ -123,7 +123,7 @@ with `@pytest.mark.skipif(not torch.backends.mps.is_available(), ...)`.
 ```python
 @pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS not available")
 def test_cross_backend_mps_gcn_forward() -> None:
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     ).to("mps")
@@ -156,7 +156,7 @@ correctness.
 def test_distributional_utility_is_submodular() -> None:
     """Facility location exhibits diminishing returns on random inputs."""
     g = _random_graph(8, 4, seed=6)
-    util = FacilityLocationUtility(vertex_features=g.vertex_features)
+    util = Facility(vertex_features=g.vertex_features)
     obs = torch.randn((4, 4))
     n = g.num_vertices()
     for _ in range(50):
@@ -185,27 +185,27 @@ For each public module, ensure the following tests exist:
 
 | Module | Required tests |
 |---|---|
-| `TypedAttributedGraph` | happy construct, bad shapes, bad dtypes, bad indices, ugly empty/single, leaky repeated, round-trip, cross-backend, distributional random graphs, property with_features increments |
-| `PersistentState` | happy commit, bad delta_j ≥ 0, bad cost < 0, ugly empty, leaky repeated, round-trip, distributional |
-| `WorkingGraph` | happy, bad budget enforcement, ugly empty, property utilisation |
-| `Encoder` (EuclideanMPNN) | happy forward, bad zero dim, ugly single vertex, cross-backend MPS |
-| `Encoder` (HyperbolicProjection) | happy norm < 1, bad negative curvature, ugly zero input, cross-backend MPS |
-| `Encoder` (DualGeometricEncoder) | happy shape, property dims |
-| `JEPAPredictor` | happy shape |
-| `TargetEncoder` | happy EMA, round-trip |
-| `RetrievalUtility` | happy, property non-negative |
-| `GreedyRetrieval` | happy, bad negative budget, ugly empty/single, leaky repeated, round-trip, cross-backend, distributional submodular, property (1-1/e) |
+| `Graph` | happy construct, bad shapes, bad dtypes, bad indices, ugly empty/single, leaky repeated, round-trip, cross-backend, distributional random graphs, property with_features increments |
+| `State` | happy commit, bad delta_j ≥ 0, bad cost < 0, ugly empty, leaky repeated, round-trip, distributional |
+| `Working` | happy, bad budget enforcement, ugly empty, property utilisation |
+| `Encoder` (Euclidean) | happy forward, bad zero dim, ugly single vertex, cross-backend MPS |
+| `Encoder` (Hyperbolic) | happy norm < 1, bad negative curvature, ugly zero input, cross-backend MPS |
+| `Encoder` (DualGeometric) | happy shape, property dims |
+| `Predictor` | happy shape |
+| `Target` | happy EMA, round-trip |
+| `Utility` | happy, property non-negative |
+| `Retrieval` | happy, bad negative budget, ugly empty/single, leaky repeated, round-trip, cross-backend, distributional submodular, property (1-1/e) |
 | `HRG` | happy, bad overlapping labels, bad unknown start, ugly empty |
-| `BisimulationMetric` | happy, property non-negative, property symmetric |
+| `Bisimulation` | happy, property non-negative, property symmetric |
 | `FourConditions` | happy accept, bad non-negative delta_j, bad cost exceeded, bad bisimilarity |
 | `DPO loss` | happy, bad shape mismatch, bad label smoothing, distributional bounded, property zero equal |
-| `FreeEnergy` | happy non-negative, ugly empty graph |
-| `EvolutionOperator` | happy, property is_contraction |
+| `Energy` | happy non-negative, ugly empty graph |
+| `Evolution` | happy, property is_contraction |
 | `PPOTrainer` | happy clipped surrogate, bad zero minibatch, leaky no outer mutation |
-| `ReplayBuffer` | happy add and sample, bad zero capacity, distributional eviction |
-| `SleepCadence` | happy no sleep when healthy, bad window |
+| `Buffer` | happy add and sample, bad zero capacity, distributional eviction |
+| `Sleep` | happy no sleep when healthy, bad window |
 | `Augmentation` (each) | happy applies, ugly no-op when strength=0 |
-| `AugmentationPipeline` | happy all modes, bad empty list, bad zero k |
+| `Pipeline` | happy all modes, bad empty list, bad zero k |
 | `TU loader` | happy load (smoke test) |
 | `CL splits` | happy, property classes disjoint, bad too many tasks, bad empty labels |
 | `Baseline` (each) | happy forward, property output shape |

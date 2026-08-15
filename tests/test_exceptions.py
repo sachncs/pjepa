@@ -1,4 +1,4 @@
-"""Tests for pjepa.exceptions."""
+"""Tests for pj.exceptions."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pjepa.exceptions import (
 )
 
 __all__ = [
-    "test_bad_unknown_subclass_caught_as_pjepa",
+    "test_bad_unknown_subclass_caught_as_pj",
     "test_happy_raise_and_catch",
     "test_property_hierarchy",
 ]
@@ -28,7 +28,7 @@ def test_happy_raise_and_catch() -> None:
         raise ConfigError("bad config")
 
 
-def test_bad_unknown_subclass_caught_as_pjepa() -> None:
+def test_bad_unknown_subclass_caught_as_pj() -> None:
     """Any PJEPAError is catchable via the base class."""
     with pytest.raises(PJEPAError):
         raise NumericalError("nans in computation")

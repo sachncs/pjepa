@@ -1,4 +1,4 @@
-"""Tests for pjepa.retrieval."""
+"""Tests for pj.retrieval."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ import pytest
 import torch
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.retrieval import (
-    FacilityLocationUtility,
-    GreedyRetrieval,
-    InformationGainUtility,
+    Facility,
+    InfoGain,
+    Retrieval,
     facility_location_weights,
     uniform_weights,
 )
@@ -35,9 +35,7 @@ __all__ = [
 ]
 
 
-def _random_graph(
-    num_vertices: int = 8, feature_dim: int = 3, seed: int = 0
-) -> TypedAttributedGraph:
+def _random_graph(num_vertices: int = 8, feature_dim: int = 3, seed: int = 0) -> Graph:
     g = torch.Generator().manual_seed(seed)
     feats = torch.randn((num_vertices, feature_dim), generator=g)
     edges = []
@@ -49,7 +47,7 @@ def _random_graph(
         ei = torch.tensor(edges, dtype=torch.long).T
     else:
         ei = torch.zeros((2, 0), dtype=torch.long)
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=feats,
         edge_index=ei,
         edge_features=torch.zeros((ei.shape[1], 1)),
@@ -60,7 +58,7 @@ def test_happy_greedy_returns_budget() -> None:
     """A typical retrieval respects the budget and yields positive utility."""
     g = _random_graph(20, 4, seed=1)
     obs = torch.randn((5, 4))
-    result = GreedyRetrieval(budget=8).select(g, obs)
+    result = Retrieval(budget=8).select(g, obs)
     assert result.working.num_vertices() <= 8
     assert result.utility > 0.0
     assert result.iterations >= 1
@@ -69,7 +67,7 @@ def test_happy_greedy_returns_budget() -> None:
 def test_happy_facility_location_scores_non_negative() -> None:
     """Facility-location utility is non-negative on non-empty inputs."""
     g = _random_graph(5, 3, seed=2)
-    util = FacilityLocationUtility(vertex_features=g.vertex_features)
+    util = Facility(vertex_features=g.vertex_features)
     obs = torch.randn((4, 3))
     subset = torch.tensor([0, 2, 4], dtype=torch.long)
     score = util(subset, obs)
@@ -79,41 +77,41 @@ def test_happy_facility_location_scores_non_negative() -> None:
 def test_bad_negative_budget() -> None:
     """A negative budget raises GraphError."""
     with pytest.raises(GraphError):
-        GreedyRetrieval(budget=-1)
+        Retrieval(budget=-1)
 
 
 def test_bad_facility_location_wrong_dim() -> None:
     """A non-2-D vertex-features tensor is rejected."""
     with pytest.raises(ValueError):
-        FacilityLocationUtility(vertex_features=torch.zeros((4,)))
+        Facility(vertex_features=torch.zeros((4,)))
 
 
 def test_bad_information_gain_negative_mu() -> None:
     """A negative mu is rejected."""
     with pytest.raises(ValueError):
-        InformationGainUtility(torch.zeros((1, 1)), mu=-0.1)
+        InfoGain(torch.zeros((1, 1)), mu=-0.1)
 
 
 def test_ugly_empty_graph_zero_utility() -> None:
     """An empty persistent graph yields a zero-utility result."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((0, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
     obs = torch.randn((2, 4))
-    result = GreedyRetrieval(budget=8).select(g, obs)
+    result = Retrieval(budget=8).select(g, obs)
     assert result.working.num_vertices() == 0
     assert result.utility == 0.0
 
 
 def test_ugly_single_vertex_graph() -> None:
     """A single-vertex graph yields a one-vertex working graph."""
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.tensor([[1.0, 2.0, 3.0]]),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
     obs = torch.tensor([1.0, 2.0, 3.0])
-    result = GreedyRetrieval(budget=8).select(g, obs)
+    result = Retrieval(budget=8).select(g, obs)
     assert result.working.num_vertices() == 1
 
 
@@ -121,8 +119,8 @@ def test_leaky_repeated_retrieval_no_module_state() -> None:
     """Two back-to-back retrievals do not see each other's state."""
     g = _random_graph(6, 3, seed=3)
     obs = torch.randn((2, 3))
-    r1 = GreedyRetrieval(budget=4).select(g, obs)
-    r2 = GreedyRetrieval(budget=4).select(g, obs)
+    r1 = Retrieval(budget=4).select(g, obs)
+    r2 = Retrieval(budget=4).select(g, obs)
     assert r1.utility == pytest.approx(r2.utility)
 
 
@@ -130,8 +128,8 @@ def test_round_trip_submodule_property() -> None:
     """Retrieval is deterministic on the same seed."""
     g = _random_graph(10, 3, seed=4)
     obs = torch.randn((2, 3))
-    a = GreedyRetrieval(budget=5).select(g, obs)
-    b = GreedyRetrieval(budget=5).select(g, obs)
+    a = Retrieval(budget=5).select(g, obs)
+    b = Retrieval(budget=5).select(g, obs)
     assert a.working.num_vertices() == b.working.num_vertices()
     assert a.utility == pytest.approx(b.utility)
 
@@ -141,7 +139,7 @@ def test_cross_backend_mps_utility() -> None:
     """Utility computation works on MPS tensors."""
     g = _random_graph(8, 4, seed=5)
     g = g.to(torch.device("mps"))
-    util = FacilityLocationUtility(vertex_features=g.vertex_features)
+    util = Facility(vertex_features=g.vertex_features)
     obs = torch.randn((3, 4), device="mps")
     subset = torch.tensor([0, 1, 2], dtype=torch.long, device="mps")
     score = util(subset, obs)
@@ -159,7 +157,7 @@ def test_distributional_utility_is_submodular() -> None:
     for random ``S ⊂ T`` with ``v ∉ T``.
     """
     g = _random_graph(8, 4, seed=6)
-    util = FacilityLocationUtility(vertex_features=g.vertex_features)
+    util = Facility(vertex_features=g.vertex_features)
     obs = torch.randn((4, 4))
     n = g.num_vertices()
     for _ in range(50):
@@ -218,13 +216,13 @@ def test_one_minus_one_over_e_on_synthetic() -> None:
         n = 8
         g = _random_graph(n, 3, seed=seed)
         obs = torch.randn((5, 3))
-        util = FacilityLocationUtility(vertex_features=g.vertex_features)
+        util = Facility(vertex_features=g.vertex_features)
         for budget in (2, 3, 4):
             opt_value = max(
                 util(torch.tensor(list(combo), dtype=torch.long), obs)
                 for combo in combinations(range(n), budget)
             )
-            result = GreedyRetrieval(budget=budget).select(g, obs, utility=util)
+            result = Retrieval(budget=budget).select(g, obs, utility=util)
             assert result.utility >= threshold * opt_value - 1e-5, (
                 f"greedy utility {result.utility:.4f} below "
                 f"({threshold:.4f}) * OPT {opt_value:.4f} "

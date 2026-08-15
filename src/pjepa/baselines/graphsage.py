@@ -3,7 +3,7 @@
 A configurable-width, configurable-depth GraphSAGE encoder with
 mean pooling. Designed to be friendly to neighbour-sampled
 subgraphs (the :meth:`forward` and :meth:`embed` methods accept a
-:class:`TypedAttributedGraph` argument so the caller can
+:class:`Graph` argument so the caller can
 pre-extract the induced subgraph for the current mini-batch).
 
 For node-classification tasks the public :meth:`node_logits`
@@ -30,7 +30,7 @@ import torch
 from torch import nn
 from torch_geometric.nn import SAGEConv  # type: ignore[import-not-found]
 
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["GraphSAGE"]
 
@@ -70,11 +70,11 @@ class GraphSAGE(nn.Module):
         self.hidden_dim = int(hidden_dim)
         self.num_layers = int(num_layers)
 
-    def encode(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def encode(self, graph: Graph) -> torch.Tensor:
         """Return per-vertex embeddings of shape ``[N, hidden_dim]``.
 
         Args:
-            graph: The input graph (any :class:`TypedAttributedGraph`
+            graph: The input graph (any :class:`Graph`
               whose ``edge_index`` describes the message-passing
               edges; for neighbour-sampled training this is the
               induced subgraph).
@@ -87,7 +87,7 @@ class GraphSAGE(nn.Module):
             h = torch.relu(layer(h, graph.edge_index))
         return h
 
-    def embed(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def embed(self, graph: Graph) -> torch.Tensor:
         """Return mean-pooled graph embedding of shape ``[1, hidden_dim]``.
 
         Args:
@@ -104,7 +104,7 @@ class GraphSAGE(nn.Module):
             return torch.zeros((1, self.hidden_dim), dtype=h.dtype, device=h.device)
         return h.mean(dim=0, keepdim=True)
 
-    def node_logits(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def node_logits(self, graph: Graph) -> torch.Tensor:
         """Return per-vertex logits of shape ``[N, num_classes]``.
 
         Args:
@@ -121,7 +121,7 @@ class GraphSAGE(nn.Module):
             raise RuntimeError("GraphSAGE: classifier is disabled (num_classes=0)")
         return self.classifier(self.encode(graph))
 
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def forward(self, graph: Graph) -> torch.Tensor:
         """Return per-graph logits of shape ``[1, num_classes]``.
 
         Args:

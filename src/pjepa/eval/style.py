@@ -54,7 +54,7 @@ PUBLICATION_COLOR_PALETTE: Final[tuple[str, ...]] = (
     "#9467bd",
     "#8c564b",
 )
-"""Six-colour qualitative palette used by every pjepa publication figure.
+"""Six-colour qualitative palette used by every pj publication figure.
 
 Exposed as a public constant so individual plotting helpers can
 ``PUBLICATION_COLOR_PALETTE[i]`` without going through the
@@ -63,7 +63,7 @@ wrapping :func:`color_for` helper.
 
 
 def set_publication_style() -> None:
-    """Apply the pjepa publication-quality style to matplotlib.
+    """Apply the pj publication-quality style to matplotlib.
 
     The function calls ``matplotlib.pyplot.style.use('ggplot')``
     (with a narrow exception handler for the rare ``OSError`` /

@@ -7,12 +7,12 @@ graphs and comparing their ability to predict per-vertex depth.
 
 The three encoders and what they actually emit at ``forward()``:
 
-* ``EuclideanMPNN`` — a three-layer GIN-style MPNN; output is a
+* ``Euclidean`` — a three-layer GIN-style MPNN; output is a
   ``[N, hidden_dim]`` Euclidean per-vertex embedding.
 * ``HyperbolicMPNN`` — the same MPNN followed by a
-  :class:`HyperbolicProjection`; output is a ``[N, hyperbolic_dim]``
+  :class:`Hyperbolic`; output is a ``[N, hyperbolic_dim]``
   hyperbolic per-vertex embedding with norms below 1.
-* ``DualGeometricEncoder`` — emits the **tuple**
+* ``DualGeometric`` — emits the **tuple**
   ``(euclidean, hyperbolic)`` and the predictor concatenates both
   components so that the dual-geometric nature of the encoder is
   actually exercised by the loss (a Euclidean-only extractor would
@@ -42,12 +42,12 @@ import torch
 from torch import nn
 
 from pjepa.encoders import (
-    DualGeometricEncoder,
-    EuclideanMPNN,
-    HyperbolicProjection,
+    DualGeometric,
+    Euclidean,
+    Hyperbolic,
 )
 from pjepa.eval import color_for, set_publication_style
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.utils.seeding import set_global_seed
 
@@ -120,7 +120,7 @@ class EncoderAblationConfig:
         self.seed = int(seed)
 
 
-def build_ast_like_graph(depth: int, branching: int, seed: int) -> TypedAttributedGraph:
+def build_ast_like_graph(depth: int, branching: int, seed: int) -> Graph:
     """Build a synthetic b-ary tree of given depth with one-hot depth features.
 
     Vertex features are one-hot vectors of size ``depth + 1`` indicating
@@ -138,7 +138,7 @@ def build_ast_like_graph(depth: int, branching: int, seed: int) -> TypedAttribut
         seed: Random seed (currently unused, kept for API consistency).
 
     Returns:
-        A :class:`TypedAttributedGraph` with one-hot depth features.
+        A :class:`Graph` with one-hot depth features.
 
     Raises:
         ValueError: If ``branching < 2`` or ``depth < 0``.
@@ -150,7 +150,7 @@ def build_ast_like_graph(depth: int, branching: int, seed: int) -> TypedAttribut
         raise ValueError(f"build_ast_like_graph: depth must be non-negative; got {depth}")
     n_vertices = sum(int(branching) ** k for k in range(int(depth) + 1))
     if n_vertices == 0:
-        return TypedAttributedGraph(
+        return Graph(
             vertex_features=torch.zeros((0, 0)),
             edge_index=torch.zeros((2, 0), dtype=torch.long),
         )
@@ -172,7 +172,7 @@ def build_ast_like_graph(depth: int, branching: int, seed: int) -> TypedAttribut
     edge_index = (
         torch.tensor(edges, dtype=torch.long).T if edges else torch.zeros((2, 0), dtype=torch.long)
     )
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=torch.nn.functional.one_hot(
             depth_labels, num_classes=int(depth) + 1
         ).float(),
@@ -183,7 +183,7 @@ def build_ast_like_graph(depth: int, branching: int, seed: int) -> TypedAttribut
 
 
 class HyperbolicMPNN(nn.Module):
-    """Hyperbolic-only encoder: EuclideanMPNN followed by HyperbolicProjection.
+    """Hyperbolic-only encoder: Euclidean followed by Hyperbolic.
 
     The forward pass returns a ``[N, output_dim]`` hyperbolic
     embedding whose norms lie strictly below the projection's
@@ -211,19 +211,19 @@ class HyperbolicMPNN(nn.Module):
             output_dim: Output dimension of the hyperbolic projection.
         """
         super().__init__()
-        self.mpnn = EuclideanMPNN(
+        self.mpnn = Euclidean(
             input_dim=input_dim,
             hidden_dim=hidden_dim,
             num_layers=num_layers,
             output_dim=hidden_dim,
         )
-        self.proj = HyperbolicProjection(
+        self.proj = Hyperbolic(
             input_dim=hidden_dim,
             output_dim=output_dim,
         )
         self.output_dim = int(output_dim)
 
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def forward(self, graph: Graph) -> torch.Tensor:
         """Encode the graph into a hyperbolic per-vertex embedding.
 
         Args:
@@ -238,7 +238,7 @@ class HyperbolicMPNN(nn.Module):
 
 def predict_depth_loss(
     encoder: nn.Module,
-    graphs: list[TypedAttributedGraph],
+    graphs: list[Graph],
     depth: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute per-graph vertex logits and stacked depth labels.
@@ -270,7 +270,7 @@ def predict_depth_loss(
 
 def evaluate_accuracy(
     encoder: nn.Module,
-    graphs: list[TypedAttributedGraph],
+    graphs: list[Graph],
     depth: int,
 ) -> float:
     """Return the vertex-level depth-prediction accuracy on ``graphs``.
@@ -299,8 +299,8 @@ def evaluate_accuracy(
 def train_one_encoder(
     name: str,
     encoder: nn.Module,
-    train_graphs: list[TypedAttributedGraph],
-    test_graphs: list[TypedAttributedGraph],
+    train_graphs: list[Graph],
+    test_graphs: list[Graph],
     depth: int,
     epochs: int,
     lr: float,
@@ -341,8 +341,8 @@ def build_encoder(name: str, input_dim: int, output_dim: int) -> nn.Module:
     """Construct the named encoder variant.
 
     Args:
-        name: One of ``"EuclideanMPNN"``, ``"HyperbolicMPNN"``,
-          ``"DualGeometricEncoder"``.
+        name: One of ``"Euclidean"``, ``"HyperbolicMPNN"``,
+          ``"DualGeometric"``.
         input_dim: Vertex feature dimensionality.
         output_dim: Per-vertex output dimensionality (``depth + 1``).
 
@@ -352,8 +352,8 @@ def build_encoder(name: str, input_dim: int, output_dim: int) -> nn.Module:
     Raises:
         ValueError: If ``name`` is not a known encoder variant.
     """
-    if name == "EuclideanMPNN":
-        return EuclideanMPNN(
+    if name == "Euclidean":
+        return Euclidean(
             input_dim=input_dim,
             hidden_dim=HIDDEN_DIM,
             num_layers=3,
@@ -366,8 +366,8 @@ def build_encoder(name: str, input_dim: int, output_dim: int) -> nn.Module:
             num_layers=3,
             output_dim=output_dim,
         )
-    if name == "DualGeometricEncoder":
-        return DualGeometricEncoder(
+    if name == "DualGeometric":
+        return DualGeometric(
             input_dim=input_dim,
             euclidean_dim=HIDDEN_DIM,
             hyperbolic_dim=output_dim,
@@ -391,13 +391,13 @@ def run_encoder_ablation(
     if config is None:
         config = EncoderAblationConfig()
     log = get_logger(__name__)
-    encoder_names = ("EuclideanMPNN", "HyperbolicMPNN", "DualGeometricEncoder")
+    encoder_names = ("Euclidean", "HyperbolicMPNN", "DualGeometric")
     rows: list[dict[str, object]] = []
     for depth in config.depths:
         output_dim = depth + 1
         for seed in range(config.n_seeds):
             set_global_seed(seed * 1013 + int(depth))
-            graphs: list[TypedAttributedGraph] = []
+            graphs: list[Graph] = []
             for k in range(config.n_graphs):
                 graphs.append(
                     build_ast_like_graph(

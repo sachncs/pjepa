@@ -23,13 +23,13 @@ from dataclasses import dataclass
 import torch
 
 from pjepa.exceptions import NumericalError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
-__all__ = ["BisimulationMetric", "bisimulation_distance"]
+__all__ = ["Bisimulation", "bisimulation_distance"]
 
 
 @dataclass(frozen=True)
-class BisimulationMetric:
+class Bisimulation:
     """Configuration for the bisimulation distance computation.
 
     Attributes:
@@ -48,7 +48,7 @@ class BisimulationMetric:
     relation_set: tuple[str, ...] = ("default",)
 
 
-def vertex_signature(graph: TypedAttributedGraph) -> torch.Tensor:
+def vertex_signature(graph: Graph) -> torch.Tensor:
     """Return a per-vertex signature suitable for bisimulation distance.
 
     The signature is the concatenation of the (already continuous)
@@ -73,9 +73,9 @@ def vertex_signature(graph: TypedAttributedGraph) -> torch.Tensor:
 
 
 def bisimulation_distance(
-    graph_a: TypedAttributedGraph,
-    graph_b: TypedAttributedGraph,
-    metric: BisimulationMetric | None = None,
+    graph_a: Graph,
+    graph_b: Graph,
+    metric: Bisimulation | None = None,
 ) -> float:
     """Compute the bisimulation pseudometric between two graphs.
 
@@ -90,7 +90,7 @@ def bisimulation_distance(
         graph_a: The first graph.
         graph_b: The second graph.
         metric: Optional configuration; defaults to
-            :class:`BisimulationMetric`. Currently the configuration
+            :class:`Bisimulation`. Currently the configuration
             only controls fields reserved for future iterations.
 
     Returns:

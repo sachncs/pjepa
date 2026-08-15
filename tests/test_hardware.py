@@ -1,4 +1,4 @@
-"""Tests for pjepa.hardware.
+"""Tests for pj.hardware.
 
 Covers the eight-class test taxonomy.
 """

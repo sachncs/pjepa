@@ -2,7 +2,7 @@
 
 Every error raised from inside the library is an instance of
 :class:`PJEPAError` or one of its subclasses. Tests can therefore catch
-the base class to assert "any pjepa failure" or catch a specific
+the base class to assert "any pj failure" or catch a specific
 subclass to assert "this particular kind of failure". Bare ``except:``
 clauses in library code are forbidden; callers should catch the
 narrowest applicable subclass.
@@ -95,7 +95,7 @@ class ContractError(PJEPAError):
     """Raised when a Protocol is not satisfied by a supposed implementation.
 
     The runtime-checkable decorators on :class:`pjepa.encoders.base.Encoder`
-    and :class:`pjepa.retrieval.utility.RetrievalUtility` raise this
+    and :class:`pjepa.retrieval.utility.Utility` raise this
     class when ``isinstance`` checks fail unexpectedly.
     """
 

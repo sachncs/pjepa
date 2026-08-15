@@ -57,10 +57,10 @@ from pjepa.data.ogb import (
     neighbor_sample,
     precompute_adjacency,
 )
-from pjepa.encoders import DualGeometricEncoder, JEPAPredictor, TargetEncoder
+from pjepa.encoders import DualGeometric, Predictor, Target
 from pjepa.eval import bonferroni_correction, paired_bootstrap_ci, wilcoxon_signed_rank
 from pjepa.exceptions import ConfigError, DataError, GraphError
-from pjepa.graphs import PersistentState, TypedAttributedGraph
+from pjepa.graphs import State, Graph
 from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
 from pjepa.perf import assert_rss_cap, load_sharded_state_dict, shard_state_dict
 from pjepa.utils.seeding import set_global_seed
@@ -146,7 +146,7 @@ def per_class_accuracy(predictions: torch.Tensor, targets: torch.Tensor) -> floa
     return sum(correct[c] / total[c] for c in total) / len(total)
 
 
-def safe_supervised_labels(graph: TypedAttributedGraph) -> torch.Tensor:
+def safe_supervised_labels(graph: Graph) -> torch.Tensor:
     """Return a defensive copy of the per-vertex labels.
 
     Zeroing the test vertices on the returned tensor (see
@@ -186,7 +186,7 @@ def mask_test_labels(labels: torch.Tensor, test_indices: Sequence[int]) -> torch
 
 
 def subgraph_features(
-    graph: TypedAttributedGraph,
+    graph: Graph,
     sample: NeighborSample,
 ) -> torch.Tensor:
     """Gather the per-vertex features of the sampled subgraph.
@@ -219,11 +219,11 @@ def subgraph_labels(
 
 
 def build_labeled_subgraph(
-    graph: TypedAttributedGraph,
+    graph: Graph,
     sample: NeighborSample,
     labels: torch.Tensor,
-) -> TypedAttributedGraph:
-    """Materialise a :class:`TypedAttributedGraph` for ``sample``.
+) -> Graph:
+    """Materialise a :class:`Graph` for ``sample``.
 
     The synthetic ``edge_features`` tensor is a zero column matching
     the edge count; downstream encoders that consume edge features will
@@ -235,12 +235,12 @@ def build_labeled_subgraph(
         labels: The safe label tensor (test indices zeroed).
 
     Returns:
-        A populated :class:`TypedAttributedGraph`.
+        A populated :class:`Graph`.
     """
     feats = subgraph_features(graph, sample)
     sampled_labels = subgraph_labels(labels, sample)
     edge_features = torch.zeros((sample.edge_index.shape[1], 1))
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=feats,
         edge_index=sample.edge_index,
         edge_features=edge_features,
@@ -368,7 +368,7 @@ def predict_node_classifier(
             num_total_nodes=num_nodes,
             csr=csr,
         )
-        sub = TypedAttributedGraph(
+        sub = Graph(
             vertex_features=graph.vertex_features[sample.node_ids],
             edge_index=sample.edge_index,
             edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
@@ -499,12 +499,12 @@ def train_bgrl_with_probe(
             )
             feats = subgraph_features(graph, sample)
             sub_edges = sample.edge_index
-            view_a = TypedAttributedGraph(
+            view_a = Graph(
                 vertex_features=feats,
                 edge_index=sub_edges,
                 edge_features=torch.zeros((sub_edges.shape[1], 1)),
             )
-            view_b = TypedAttributedGraph(
+            view_b = Graph(
                 vertex_features=feats + 0.01 * torch.randn_like(feats),
                 edge_index=sub_edges,
                 edge_features=torch.zeros((sub_edges.shape[1], 1)),
@@ -533,7 +533,7 @@ def train_bgrl_with_probe(
         num_total_nodes=num_nodes,
         csr=csr,
     )
-    sub_full = TypedAttributedGraph(
+    sub_full = Graph(
         vertex_features=graph.vertex_features[sample.node_ids],
         edge_index=sample.edge_index,
         edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
@@ -616,7 +616,7 @@ def train_graphmae_with_probe(
                 csr=csr,
             )
             feats = subgraph_features(graph, sample)
-            sub = TypedAttributedGraph(
+            sub = Graph(
                 vertex_features=feats,
                 edge_index=sample.edge_index,
                 edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
@@ -645,7 +645,7 @@ def train_graphmae_with_probe(
         num_total_nodes=num_nodes,
         csr=csr,
     )
-    sub = TypedAttributedGraph(
+    sub = Graph(
         vertex_features=graph.vertex_features[sample.node_ids],
         edge_index=sample.edge_index,
         edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
@@ -698,19 +698,19 @@ class PersistentJEPAClassifier(nn.Module):
         return self.classifier(h)
 
 
-def bootstrap_persistent_graph(graph: TypedAttributedGraph) -> TypedAttributedGraph:
+def bootstrap_persistent_graph(graph: Graph) -> Graph:
     """Build the initial persistent state from a few seed vertices.
 
     A fixed set of the first ``min(8, N)`` vertices is selected as
     the seed set; their induced subgraph is returned with no edges
-    (the persistent graph is grown via :meth:`PersistentState.commit`
+    (the persistent graph is grown via :meth:`State.commit`
     as the trainer observes new vertices).
 
     Args:
         graph: The source graph to draw seed features from.
 
     Returns:
-        A :class:`TypedAttributedGraph` with at most 8 vertices and
+        A :class:`Graph` with at most 8 vertices and
         no edges, sharing feature dimensionality with ``graph``.
     """
     n = min(8, graph.num_vertices())
@@ -723,7 +723,7 @@ def bootstrap_persistent_graph(graph: TypedAttributedGraph) -> TypedAttributedGr
     )
     sample.seed_to_local[seed_ids] = torch.arange(n)
     feats = subgraph_features(graph, sample)
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=feats,
         edge_index=sample.edge_index,
         edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
@@ -736,14 +736,14 @@ def train_persistent_jepa_with_probe(
     training_labels: torch.Tensor,
     csr: CSRAdj | None = None,
     device: torch.device | None = None,
-) -> tuple[TargetEncoder, PersistentJEPAClassifier]:
+) -> tuple[Target, PersistentJEPAClassifier]:
     """Train Persistent-JEPA on OGB-arxiv.
 
     The training loop performs BYOL-style EMA pretraining of a
-    :class:`DualGeometricEncoder` against a target encoder, then fits
+    :class:`DualGeometric` against a target encoder, then fits
     a linear probe that consumes the target encoder's outputs on the
     neighbour-sampled subgraphs. The persistent graph is grown via
-    :meth:`PersistentState.commit` as the trainer observes each
+    :meth:`State.commit` as the trainer observes each
     mini-batch.
 
     Args:
@@ -755,20 +755,20 @@ def train_persistent_jepa_with_probe(
 
     Returns:
         A tuple ``(target, probe)`` where ``target`` is the trained
-        :class:`TargetEncoder` and ``probe`` is the linear probe.
+        :class:`Target` and ``probe`` is the linear probe.
     """
-    encoder = DualGeometricEncoder(
+    encoder = DualGeometric(
         input_dim=dataset.feature_dim,
         euclidean_dim=config.hidden_dim,
         hyperbolic_dim=32,
         num_layers=config.num_layers,
     )
-    predictor = JEPAPredictor(
+    predictor = Predictor(
         input_dim=config.hidden_dim,
         hidden_dim=max(64, config.hidden_dim * 2),
         output_dim=config.hidden_dim,
     )
-    target = TargetEncoder(encoder, momentum=0.99)
+    target = Target(encoder, momentum=0.99)
     if device is not None:
         encoder = encoder.to(device)
         predictor = predictor.to(device)
@@ -790,7 +790,7 @@ def train_persistent_jepa_with_probe(
     num_nodes = graph.num_vertices()
     train_idx = torch.tensor(dataset.train_indices, dtype=torch.long)
 
-    persistent = PersistentState(graph=bootstrap_persistent_graph(graph))
+    persistent = State(graph=bootstrap_persistent_graph(graph))
 
     for _epoch in range(config.epochs):
         encoder.train()
@@ -808,7 +808,7 @@ def train_persistent_jepa_with_probe(
                 csr=csr,
             )
             feats = subgraph_features(graph, sample)
-            sub = TypedAttributedGraph(
+            sub = Graph(
                 vertex_features=feats,
                 edge_index=sample.edge_index,
                 edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
@@ -842,7 +842,7 @@ def train_persistent_jepa_with_probe(
             probe_optimizer.step()
 
             # Commit the candidate working graph to the persistent state.
-            candidate = TypedAttributedGraph(
+            candidate = Graph(
                 vertex_features=feats.detach(),
                 edge_index=sample.edge_index,
                 edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
@@ -863,7 +863,7 @@ def train_persistent_jepa_with_probe(
 
 @torch.no_grad()
 def predict_persistent_jepa(
-    target: TargetEncoder,
+    target: Target,
     probe: PersistentJEPAClassifier,
     dataset: OGBArxiv,
     indices: torch.Tensor,
@@ -877,7 +877,7 @@ def predict_persistent_jepa(
     every reachable neighbour participates in the prediction.
 
     Args:
-        target: The trained :class:`TargetEncoder`.
+        target: The trained :class:`Target`.
         probe: The trained :class:`PersistentJEPAClassifier`.
         dataset: The OGB-arxiv dataset.
         indices: ``[N_q]`` ``long`` tensor of query indices.
@@ -890,7 +890,7 @@ def predict_persistent_jepa(
     """
     if device is not None:
         probe = probe.to(device)
-        # TargetEncoder wraps nn.Modules; move both halves
+        # Target wraps nn.Modules; move both halves
         target.online.to(device)
         target.shadow.to(device)
     target.shadow.eval()
@@ -908,7 +908,7 @@ def predict_persistent_jepa(
             num_total_nodes=num_nodes,
             csr=csr,
         )
-        sub = TypedAttributedGraph(
+        sub = Graph(
             vertex_features=graph.vertex_features[sample.node_ids],
             edge_index=sample.edge_index,
             edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
@@ -964,7 +964,7 @@ def predict_graphmae_probe(
             num_total_nodes=num_nodes,
             csr=csr,
         )
-        sub = TypedAttributedGraph(
+        sub = Graph(
             vertex_features=graph.vertex_features[sample.node_ids],
             edge_index=sample.edge_index,
             edge_features=torch.zeros((sample.edge_index.shape[1], 1)),
@@ -1567,7 +1567,7 @@ def run_ogb_experiment(
                 shardable: dict[str, torch.Tensor] = {}
                 if isinstance(encoder, nn.Module):
                     shardable.update({f"encoder.{k}": v for k, v in encoder.state_dict().items()})
-                elif isinstance(encoder, TargetEncoder):
+                elif isinstance(encoder, Target):
                     shardable.update(
                         {f"target.{k}": v for k, v in encoder.shadow.state_dict().items()}
                     )

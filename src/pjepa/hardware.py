@@ -142,9 +142,7 @@ class CapabilityReport:
         treat a report as uninformative should check ``len(probes)``
         before calling :meth:`is_green`.
         """
-        return len(self.probes) > 0 and all(
-            p.status is ProbeStatus.GREEN for p in self.probes
-        )
+        return len(self.probes) > 0 and all(p.status is ProbeStatus.GREEN for p in self.probes)
 
     def has_red(self) -> bool:
         """Return ``True`` when at least one probe is RED."""

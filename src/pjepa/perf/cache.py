@@ -11,7 +11,7 @@ which memory-maps a ``.npy``-style file using :mod:`numpy.memmap`.
 
 ```
    <root>/<key-prefix>/<key>/<file>
-   e.g. ~/.cache/pjepa/ab/abcdef.../cache.pkl
+   e.g. ~/.cache/pj/ab/abcdef.../cache.pkl
 ```
 
 The two-level prefix follows the convention of ``pip``'s wheel
@@ -90,7 +90,7 @@ class DatasetCache:
 
     Attributes:
         root: Cache root directory; created if missing. Defaults to
-          ``${PJEPA_CACHE_ROOT:-~/.cache/pjepa}``.
+          ``${PJEPA_CACHE_ROOT:-~/.cache/pj}``.
     """
 
     def __init__(self, root: str | os.PathLike[str] | None = None) -> None:

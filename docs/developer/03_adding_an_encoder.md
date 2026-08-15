@@ -4,14 +4,14 @@
 
 ## What is an Encoder?
 
-An encoder maps a :class:`pjepa.graphs.TypedAttributedGraph` to an
+An encoder maps a :class:`pjepa.graphs.Graph` to an
 embedding tensor. There are three flavours in the framework:
 
-* **Per-vertex encoders** (EuclideanMPNN, HyperbolicProjection) emit a
+* **Per-vertex encoders** (Euclidean, Hyperbolic) emit a
   tensor of shape ``[N, output_dim]``.
 * **Graph-level encoders** (GCN, GIN) emit a tensor of shape
   ``[1, output_dim]`` after pooling.
-* **Dual encoders** (DualGeometricEncoder) emit a tuple
+* **Dual encoders** (DualGeometric) emit a tuple
   ``(per_vertex_euclidean, per_vertex_hyperbolic)``.
 
 The framework treats encoders as duck-typed via the
@@ -32,7 +32,7 @@ import torch
 from torch import nn
 from torch_geometric.utils import to_scipy_sparse_matrix, get_laplacian
 
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["SpectralGCN"]
 
@@ -72,7 +72,7 @@ class SpectralGCN(nn.Module):
         self.k = k
         self.cached_eigvecs: dict[int, torch.Tensor] = {}
 
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def forward(self, graph: Graph) -> torch.Tensor:
         if graph.num_vertices() == 0:
             return torch.zeros((0, self.output_dim))
         if graph.num_vertices() not in self.cached_eigvecs:
@@ -101,12 +101,12 @@ import pytest
 import torch
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from my_module import SpectralGCN
 
 
 def test_happy_spectral_gcn_forward() -> None:
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     )
@@ -121,7 +121,7 @@ def test_bad_spectral_gcn_zero_dim() -> None:
 
 
 def test_ugly_spectral_gcn_single_vertex() -> None:
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((1, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -132,7 +132,7 @@ def test_ugly_spectral_gcn_single_vertex() -> None:
 
 @pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS not available")
 def test_cross_backend_mps_spectral_gcn() -> None:
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1], [1, 0]], dtype=torch.long),
     ).to("mps")

@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["EvolutionOperator", "contractivity_bound", "fixed_point_iteration"]
 
@@ -88,11 +88,11 @@ def contractivity_bound(eta_g: float, eta_o: float, epsilon: float, t: int) -> f
 
 
 def fixed_point_iteration(
-    state: TypedAttributedGraph,
+    state: Graph,
     operator,
     max_steps: int = 256,
     epsilon: float = 1e-3,
-) -> tuple[TypedAttributedGraph, int]:
+) -> tuple[Graph, int]:
     """Iterate ``operator`` until a fixed point is reached or ``max_steps``.
 
     The iteration is treated as a discrete dynamical system; the loop

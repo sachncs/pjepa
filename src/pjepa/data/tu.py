@@ -2,7 +2,7 @@
 
 Wraps :class:`torch_geometric.datasets.TUDataset` and provides
 helpers for converting each graph into the framework's
-:class:`TypedAttributedGraph`.
+:class:`Graph`.
 
 ## Checksums
 
@@ -24,7 +24,7 @@ from pathlib import Path
 import torch
 
 from pjepa.exceptions import DataError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["TUGraph", "expected_checksum", "load_tu_dataset"]
 
@@ -33,11 +33,11 @@ class TUGraph:
     """A single TUDataset graph adapted to the framework's representation.
 
     Attributes:
-        graph: The :class:`TypedAttributedGraph` representation.
+        graph: The :class:`Graph` representation.
         label: The integer class label.
     """
 
-    def __init__(self, graph: TypedAttributedGraph, label: int) -> None:
+    def __init__(self, graph: Graph, label: int) -> None:
         self.graph = graph
         self.label = label
 
@@ -65,7 +65,7 @@ def load_tu_dataset(
     Args:
         name: The dataset name (e.g. ``"PROTEINS"``).
         root: Root directory for caching; defaults to
-          ``${PJEPA_DATA_ROOT:-~/.cache/pjepa/datasets}``.
+          ``${PJ_DATA_ROOT:-~/.cache/pj/datasets}``.
         verify_checksum: When ``True``, verify the SHA-256 checksum
           of the cached archive against the published value.
           Disabled by default because TUDataset does not publish
@@ -98,7 +98,7 @@ def load_tu_dataset(
     graphs: list[TUGraph] = []
     labels: set[int] = set()
     for data in dataset:
-        graph = TypedAttributedGraph(
+        graph = Graph(
             vertex_features=data.x if data.x is not None else torch.zeros((data.num_nodes, 1)),
             edge_index=data.edge_index,
             edge_features=torch.zeros((data.num_edges, 1)),

@@ -34,7 +34,7 @@ observations. Everything else is ephemeral.
         CLI  ─────►  Training loops  ─────►  Encoders, Retrieval, Rewriting
                             │                          │
                             ▼                          ▼
-                     FreeEnergy J ◄───────────────  Hardware, Seeding
+                     Energy J ◄───────────────  Hardware, Seeding
                             │
                             ▼
                   Baselines, Data loaders, Eval metrics, Checkpointing
@@ -134,7 +134,7 @@ Total: ~4,200 lines of production code, ~3,000 lines of tests.
 Three places to add new functionality:
 
 1. **New encoder:** subclass `nn.Module`, implement `forward(graph)`. Register it via `pjepa.encoders.registry` (Phase 2).
-2. **New retrieval utility:** implement the `RetrievalUtility` Protocol. Pass it to `GreedyRetrieval.select`.
+2. **New retrieval utility:** implement the `Utility` Protocol. Pass it to `Retrieval.select`.
 3. **New baseline for SOTA comparison:** subclass `nn.Module` like the existing baselines.
 
 ## Performance Considerations

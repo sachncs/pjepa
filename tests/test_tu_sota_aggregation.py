@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = [
     "test_aggregate_results_includes_extended_stats",
@@ -24,13 +24,11 @@ __all__ = [
 ]
 
 
-def _fake_pair(
-    label: int, input_dim: int = 3, num_vertices: int = 5
-) -> tuple[TypedAttributedGraph, int]:
+def _fake_pair(label: int, input_dim: int = 3, num_vertices: int = 5) -> tuple[Graph, int]:
     """Build a small synthetic graph/label pair used by the JEPA smoke tests."""
     edges = [[i, (i + 1) % num_vertices] for i in range(num_vertices)]
     edge_index = torch.tensor(edges, dtype=torch.long).T
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((num_vertices, input_dim)),
         edge_index=edge_index,
         edge_features=torch.zeros((edge_index.shape[1], 1)),

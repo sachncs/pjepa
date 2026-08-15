@@ -29,7 +29,7 @@ import torch
 from torch import nn
 from torch_geometric.nn import GINConv, global_add_pool  # type: ignore[import-not-found]
 
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["GIN"]
 
@@ -84,7 +84,7 @@ class GIN(nn.Module):
             self.virtual_node = nn.Parameter(torch.zeros(hidden_dim))
         self.num_classes = num_classes
 
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def forward(self, graph: Graph) -> torch.Tensor:
         """Encode the graph and return per-graph logits.
 
         Args:
@@ -105,7 +105,7 @@ class GIN(nn.Module):
         pooled = global_add_pool(h, batch)
         return self.classifier(pooled)
 
-    def embed(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def embed(self, graph: Graph) -> torch.Tensor:
         """Return the pooled graph embedding without the classifier.
 
         Args:

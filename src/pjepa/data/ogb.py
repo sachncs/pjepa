@@ -49,7 +49,7 @@ from pathlib import Path
 import torch
 
 from pjepa.exceptions import DataError, GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = [
     "TEST_LABEL_SENTINEL",
@@ -65,7 +65,7 @@ __all__ = [
 CSRAdj = namedtuple("CSRAdj", ["indptr", "indices"])
 
 
-def _build_csr_adjacency(edge_index: torch.Tensor, num_nodes: int) -> CSRAdj:
+def build_csr_adjacency(edge_index: torch.Tensor, num_nodes: int) -> CSRAdj:
     """Build CSR adjacency from COO edge_index for fast neighbor lookups."""
     src = edge_index[0]
     dst = edge_index[1]
@@ -78,12 +78,12 @@ def _build_csr_adjacency(edge_index: torch.Tensor, num_nodes: int) -> CSRAdj:
     return CSRAdj(indptr=indptr, indices=sorted_src)
 
 
-def _csr_neighbors(csr: CSRAdj, node: int) -> torch.Tensor:
+def csr_neighbors(csr: CSRAdj, node: int) -> torch.Tensor:
     """Get all incoming neighbors of a single node from CSR."""
     return csr.indices[csr.indptr[node] : csr.indptr[node + 1]]
 
 
-def precompute_adjacency(graph: TypedAttributedGraph) -> CSRAdj:
+def precompute_adjacency(graph: Graph) -> CSRAdj:
     """Precompute CSR adjacency for fast neighbor sampling.
 
     Args:
@@ -92,7 +92,7 @@ def precompute_adjacency(graph: TypedAttributedGraph) -> CSRAdj:
     Returns:
         A :class:`CSRAdj` that can be passed to :func:`neighbor_sample`.
     """
-    return _build_csr_adjacency(graph.edge_index, graph.num_vertices())
+    return build_csr_adjacency(graph.edge_index, graph.num_vertices())
 
 
 TEST_LABEL_SENTINEL: int = 0
@@ -109,7 +109,7 @@ class OGBArxiv:
     """The OGB-Arxiv dataset.
 
     Attributes:
-        graph: The :class:`TypedAttributedGraph` of the full dataset,
+        graph: The :class:`Graph` of the full dataset,
           including ``vertex_labels`` (used for train/val semi-supervised
           learning). The test vertices carry the
           :data:`TEST_LABEL_SENTINEL` value (``0``) so a naive
@@ -130,7 +130,7 @@ class OGBArxiv:
 
     def __init__(
         self,
-        graph: TypedAttributedGraph,
+        graph: Graph,
         train_indices: Sequence[int],
         val_indices: Sequence[int],
         test_indices: Sequence[int],
@@ -158,7 +158,7 @@ class OGBArxiv:
         self.test_indices = list(test_indices)
         self.feature_dim = int(feature_dim)
         self.num_classes = int(num_classes)
-        self._test_labels_unlocked: bool = False
+        self.test_labels_unlocked: bool = False
 
     @property
     def test_labels_accessed(self) -> bool:
@@ -171,8 +171,21 @@ class OGBArxiv:
 
     @property
     def test_labels_unlocked(self) -> bool:
-        """``True`` when :meth:`load_test_labels` has been called."""
+        """Whether :meth:`load_test_labels` has been called on this object.
+
+        Returns:
+            ``True`` once :meth:`load_test_labels` has been called.
+        """
         return self._test_labels_unlocked
+
+    @test_labels_unlocked.setter
+    def test_labels_unlocked(self, value: bool) -> None:
+        """Set the test-labels-accessed flag.
+
+        Args:
+            value: The new value.
+        """
+        self._test_labels_unlocked = bool(value)
 
     def load_test_labels(self) -> torch.Tensor:
         """Return labels for the test split and record the access.
@@ -193,7 +206,7 @@ class OGBArxiv:
         """
         if self.graph.vertex_labels is None:
             raise DataError("OGBArxiv: vertex_labels are not available")
-        self._test_labels_unlocked = True
+        self.test_labels_unlocked = True
         return self.graph.vertex_labels[torch.tensor(self.test_indices, dtype=torch.long)]
 
     def assert_no_test_leakage(
@@ -226,7 +239,7 @@ class OGBArxiv:
         """
         if training_labels is None:
             return
-        if self._test_labels_unlocked and self.test_indices:
+        if self.test_labels_unlocked and self.test_indices:
             raise DataError(
                 "OGBArxiv.assert_no_test_leakage: test labels were "
                 "accessed through load_test_labels(); do not call "
@@ -263,7 +276,7 @@ class OGBArxiv:
             feature_dim=self.feature_dim,
             num_classes=self.num_classes,
         )
-        new._test_labels_unlocked = self._test_labels_unlocked
+        new.test_labels_unlocked = self.test_labels_unlocked
         return new
 
 
@@ -358,7 +371,7 @@ def neighbor_sample(
         if current_layer.numel() == 0:
             break
         if csr is not None:
-            neighbors_list = [_csr_neighbors(csr, int(n)) for n in current_layer.tolist()]
+            neighbors_list = [csr_neighbors(csr, int(n)) for n in current_layer.tolist()]
             if not neighbors_list or all(len(n) == 0 for n in neighbors_list):
                 break
             candidates_src = torch.cat(neighbors_list)
@@ -461,7 +474,7 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
 
     Args:
         root: Cache root; defaults to
-          ``${PJEPA_DATA_ROOT:-~/.cache/pjepa/datasets}``.
+          ``${PJ_DATA_ROOT:-~/.cache/pj/datasets}``.
 
     Returns:
         A populated :class:`OGBArxiv`.
@@ -478,11 +491,11 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
     # ponytail: ogb 1.3 calls torch.load without weights_only; PyTorch 2.6+ defaults to True
     _orig_load = torch.load
 
-    def _compat_load(*a, **kw):
+    def compat_load(*a, **kw):
         kw.setdefault("weights_only", False)
         return _orig_load(*a, **kw)
 
-    torch.load = _compat_load
+    torch.load = compat_load
     try:
         cache_root = Path(
             root
@@ -492,7 +505,7 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
         cache_root.mkdir(parents=True, exist_ok=True)
         dataset = PygNodePropPredDataset(name="ogbn-arxiv", root=str(cache_root))
         data = dataset[0]
-        graph = TypedAttributedGraph(
+        graph = Graph(
             vertex_features=data.x,
             edge_index=data.edge_index,
             edge_features=torch.zeros((data.num_edges, 1)),

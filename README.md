@@ -34,7 +34,7 @@ experiments, and the reproducibility package.
 - **Augmentation Suite** — DropEdge, DropNode, DropFeature, FeatureMask, RandomWalk, and `TensorDropFeature`.
 - **Training Stack** — SWA, TTA, Ensemble, Distillation, plus TU / CL / OGB runners.
 - **Baselines** — GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM.
-- **8-Class Test Taxonomy** — 436 tests covering happy / bad / ugly / leaky / round-trip / cross-backend / distributional / property.
+- **8-Class Test Taxonomy** — 470 tests covering happy / bad / ugly / leaky / round-trip / cross-backend / distributional / property.
 - **mkdocs --strict** — researcher, developer, and reference doc trees.
 
 ---
@@ -87,19 +87,34 @@ pjepa aggregate results          # writes results/all_runs.jsonl + tables
 ### Python API
 
 ```python
-import pjepa
-from pjepa.graphs import TypedAttributedGraph, PersistentState, WorkingGraph
-from pjepa.encoders import DualGeometricEncoder, JEPAPredictor
+import torch
+from pjepa.graphs import Graph, State
+from pjepa.encoders import Euclidean, DualGeometric, Hyperbolic, Predictor
+from pjepa.retrieval import Retrieval, Facility, InfoGain
 
 # Build a typed attributed graph and wrap it in a persistent state
-graph = TypedAttributedGraph.from_dataset("MUTAG")
-state = PersistentState(initial=graph)
+v = torch.randn((6, 8))
+ei = torch.tensor([[0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
+                   [1, 0, 2, 1, 3, 2, 4, 3, 5, 4]], dtype=torch.long)
+g = Graph(v, ei, torch.zeros((ei.shape[1], 2)))
+state = State(graph=g)
 
-# Encode with the dual-geometric stack
-encoder = DualGeometricEncoder(in_dim=state.feature_dim)
-predictor = JEPAPredictor(latent_dim=encoder.latent_dim)
-embedding = encoder.encode(state.working_view())
+# Encode with the dual-geometric stack (returns a concat of Euclidean + hyperbolic)
+encoder = DualGeometric(input_dim=8, euclidean_dim=16, hyperbolic_dim=4, num_layers=2)
+embedding = encoder.encode(g)           # shape (6, 20)
+
+# Encode with the Euclidean-only stack (returns a single tensor)
+eu = Euclidean(input_dim=8, hidden_dim=16, num_layers=2, output_dim=16)
+eu_embedding = eu(g)                    # shape (6, 16)
+
+# The predictor takes a context vector and produces a target.
+predictor = Predictor(input_dim=20, hidden_dim=32, output_dim=20)
 prediction = predictor(embedding)
+
+# Submodular working-graph retrieval
+retriever = Retrieval(budget=4)
+result = retriever.select(g, torch.randn(4, 8), utility=Facility(g.vertex_features))
+print(result.utility, result.iterations)
 ```
 
 ---
@@ -123,15 +138,20 @@ See `configs/*.yaml` for the canonical TU / CL / OGB experiment configs.
 
 | Symbol | Type | Description |
 |--------|------|-------------|
-| `pjepa.graphs.TypedAttributedGraph` | class | Typed attributed graph primitive |
-| `pjepa.graphs.PersistentState` | class | Long-term knowledge container |
-| `pjepa.graphs.WorkingGraph` | class | Transient reasoning container |
-| `pjepa.encoders.EuclideanMPNN` | class | Euclidean message-passing encoder |
-| `pjepa.encoders.HyperbolicProjection` | class | Hyperbolic projection encoder |
-| `pjepa.encoders.DualGeometricEncoder` | class | Composition of Euclidean + Hyperbolic |
-| `pjepa.encoders.JEPAPredictor` | class | JEPA predictor head |
-| `pjepa.retrieval.GreedyRetrieval` | class | (1 − 1/e) matroid-greedy retrieval |
-| `pjepa.rewriting.{HRG,Bisimulation,DPO}` | class | Four-conditions rewriting drivers |
+| `pjepa.graphs.Graph` | class | Typed attributed graph primitive |
+| `pjepa.graphs.State` | class | Long-term knowledge container |
+| `pjepa.graphs.Working` | class | Transient reasoning container |
+| `pjepa.encoders.Euclidean` | class | Euclidean message-passing encoder |
+| `pjepa.encoders.Hyperbolic` | class | Hyperbolic projection encoder |
+| `pjepa.encoders.DualGeometric` | class | Composition of Euclidean + Hyperbolic |
+| `pjepa.encoders.Predictor` | class | JEPA predictor head |
+| `pjepa.encoders.Target` | class | EMA target encoder |
+| `pjepa.retrieval.Retrieval` | class | (1 − 1/e) matroid-greedy retrieval |
+| `pjepa.retrieval.Utility` | class (ABC) | Retrieval-utility base class |
+| `pjepa.retrieval.Facility` | class | Provably-submodular coverage utility |
+| `pjepa.retrieval.InfoGain` | class | Information-gain utility with per-vertex cost |
+| `pjepa.rewriting.{HRG,Bisimulation,Criterion}` | class | Verified rewriting drivers |
+| `pjepa.rewriting.FourConditions` | class | The four-conditions acceptance criterion |
 | `pjepa.scheduler` | package | PPO trainer, replay buffer, sleep cadence |
 | `pjepa.objectives` | package | `𝒥` free-energy functional, IB, MDL |
 | `pjepa.dynamics` | package | Evolution operator `F`, contraction analysis |
@@ -196,7 +216,7 @@ pjepa/
 │   ├── data/                   # TUDataset, OGB-arxiv, class-incremental splits
 │   ├── baselines/              # GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM
 │   └── cli/                    # Typer-based CLI
-├── tests/                      # 436 tests (8-class taxonomy)
+├── tests/                      # 470 tests (8-class taxonomy)
 ├── configs/                    # TU, CL, OGB experiment configs
 ├── pyproject.toml              # PEP 621 metadata
 └── Dockerfile                  # Reproducible container image
@@ -211,7 +231,7 @@ pjepa/
 pip install -e ".[dev,ogb]"
 
 # Tests
-pytest                              # 436 tests
+pytest                              # 470 tests
 pytest -m "not slow"                # skip slow tests
 pytest --cov=pjepa tests/           # with coverage
 

@@ -33,7 +33,7 @@ runner = CliRunner()
 
 
 def test_version_flag_prints_version() -> None:
-    """`pjepa --version` prints the package version."""
+    """`pj --version` prints the package version."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert "pjepa" in result.stdout
@@ -138,7 +138,7 @@ def test_baseline_smoke_accepts_yaml_path(tmp_path: Path) -> None:
 
 
 def test_aggregate_emits_canonical_files(tmp_path: Path) -> None:
-    """`pjepa aggregate` writes the canonical artefacts even when empty."""
+    """`pj aggregate` writes the canonical artefacts even when empty."""
     result = runner.invoke(app, ["aggregate", str(tmp_path)])
     assert result.exit_code == 0
     assert (tmp_path / "all_runs.jsonl").exists()

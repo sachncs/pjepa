@@ -12,7 +12,7 @@
 * :mod:`pjepa.training.checkpoint` — save/load with sharded
   persistent-graph support.
 * :mod:`pjepa.training.swa` — Stochastic Weight Averaging wrapper.
-* :mod:`pjepa.training.tta` — Test-Time Augmentation wrapper.
+* :mod:`pjepa.training.tta` — Test-Time Transform wrapper.
 * :mod:`pjepa.training.ensemble` — k-model ensemble with three
   aggregation strategies.
 * :mod:`pjepa.training.distillation` — Hinton-style knowledge
@@ -39,7 +39,7 @@ from pjepa.training.optuna_search import (
 )
 from pjepa.training.pretrain import (
     PretrainConfig,
-    SleepCadence,
+    Sleep,
     ValidationCallback,
     augmentation_call,
     build_tensor_augmentation,
@@ -62,7 +62,7 @@ __all__ = [
     "PretrainConfig",
     "SWAConfig",
     "SWAWrapper",
-    "SleepCadence",
+    "Sleep",
     "SupervisedConfig",
     "TTAConfig",
     "TTAWrapper",

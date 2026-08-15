@@ -14,21 +14,21 @@ from collections import deque
 
 import torch
 
-from pjepa.augmentations.base import Augmentation
+from pjepa.augmentations.base import Transform
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["ConnectedSubgraph", "DropEdge", "DropNode", "Subgraph"]
 
 
-class DropEdge(Augmentation):
+class DropEdge(Transform):
     """Drop a fraction ``strength`` of edges at random.
 
     Attributes:
         strength: Fraction of edges to drop, in ``[0, 1]``.
     """
 
-    def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
         Returns the input graph unchanged when it has zero edges or
@@ -50,14 +50,14 @@ class DropEdge(Augmentation):
         )
 
 
-class DropNode(Augmentation):
+class DropNode(Transform):
     """Drop a fraction ``strength`` of vertices at random.
 
     At least one vertex is always kept so the result is non-empty
     (provided the input graph is non-empty).
     """
 
-    def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
         Returns the input graph unchanged when it has zero or one
@@ -75,7 +75,7 @@ class DropNode(Augmentation):
         return graph.subgraph(keep_mask)
 
 
-class ConnectedSubgraph(Augmentation):
+class ConnectedSubgraph(Transform):
     """Return a vertex-induced subgraph reachable by a breadth-first walk.
 
     The walk starts at a vertex chosen uniformly at random and grows
@@ -93,7 +93,7 @@ class ConnectedSubgraph(Augmentation):
         strength: Fraction of vertices to retain, in ``(0, 1]``.
     """
 
-    def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
         Returns the input graph unchanged when it has zero vertices
@@ -126,7 +126,7 @@ class ConnectedSubgraph(Augmentation):
         return graph.subgraph(mask)
 
 
-class Subgraph(Augmentation):
+class Subgraph(Transform):
     """Return a randomly sampled vertex-induced subgraph.
 
     The ``strength`` parameter is interpreted as the fraction of
@@ -142,7 +142,7 @@ class Subgraph(Augmentation):
             different configurations).
     """
 
-    def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
         Returns the input graph unchanged when it has zero vertices.

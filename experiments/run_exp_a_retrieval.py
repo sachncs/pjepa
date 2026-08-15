@@ -40,9 +40,9 @@ import matplotlib.pyplot as plt
 import torch
 
 from pjepa.eval import set_publication_style
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
-from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
+from pjepa.retrieval import Facility, Retrieval
 from pjepa.utils.seeding import set_global_seed
 
 __all__ = [
@@ -118,7 +118,7 @@ def random_submodular(
     seed: int,
     feature_dim: int,
     observation_dim: int,
-) -> tuple[FacilityLocationUtility, torch.Tensor]:
+) -> tuple[Facility, torch.Tensor]:
     """Construct a random facility-location utility and observation.
 
     The vertex features and observation are drawn from a standard
@@ -138,11 +138,11 @@ def random_submodular(
     g = torch.Generator().manual_seed(int(seed))
     features = torch.randn((int(n), int(feature_dim)), generator=g)
     observation = torch.randn((int(observation_dim), int(feature_dim)), generator=g)
-    return FacilityLocationUtility(vertex_features=features), observation
+    return Facility(vertex_features=features), observation
 
 
 def brute_force_optimum(
-    util: FacilityLocationUtility,
+    util: Facility,
     n: int,
     budget: int,
     observation: torch.Tensor,
@@ -181,7 +181,7 @@ def brute_force_optimum(
 
 
 def pseudo_optimum(
-    util: FacilityLocationUtility,
+    util: Facility,
     n: int,
     budget: int,
     observation: torch.Tensor,
@@ -221,15 +221,15 @@ def pseudo_optimum(
 
 
 def greedy_utility(
-    util: FacilityLocationUtility,
+    util: Facility,
     n: int,
     budget: int,
     observation: torch.Tensor,
 ) -> float:
     """Return the greedy utility on the given submodular problem.
 
-    Builds an edgeless :class:`TypedAttributedGraph` from ``util``'s
-    vertex features and runs :class:`GreedyRetrieval` against it.
+    Builds an edgeless :class:`Graph` from ``util``'s
+    vertex features and runs :class:`Retrieval` against it.
 
     Args:
         util: The facility-location utility.
@@ -240,11 +240,11 @@ def greedy_utility(
     Returns:
         The cumulative utility achieved by the greedy selection.
     """
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=util.vertex_features,
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
-    retriever = GreedyRetrieval(budget=int(budget))
+    retriever = Retrieval(budget=int(budget))
     result = retriever.select(g, observation, utility=util)
     return float(result.utility)
 

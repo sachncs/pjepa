@@ -8,11 +8,11 @@ The framework's central commitment is that **the persistent graph $G_t$ is the o
 
 This document explains the design of the three primitives:
 
-* [`TypedAttributedGraph`](#typedattributedgraph)
-* [`PersistentState`](#persistentstate)
-* [`WorkingGraph`](#workinggraph)
+* [`Graph`](#graph)
+* [`State`](#state)
+* [`Working`](#working)
 
-## `TypedAttributedGraph`
+## `Graph`
 
 Immutable dataclass storing vertex features, edge index, edge features, optional labels, and optional global features. Frozen (`frozen=True`) to eliminate an entire class of bugs around in-place mutation.
 
@@ -33,7 +33,7 @@ Any violation raises [`GraphError`](../reference/api.md#pjepaexceptions).
 * `subgraph(vertex_mask)` returns the vertex-induced subgraph.
 * `to(device)` moves every tensor to the given device.
 
-## `PersistentState`
+## `State`
 
 Wrapper around the persistent graph with an immutable commit/reject audit trail.
 
@@ -50,32 +50,32 @@ Wrapper around the persistent graph with an immutable commit/reject audit trail.
 * `reject(reason, cost)` — record a rejected candidate.
 * `num_commits()` / `num_rejections()` — introspection.
 
-## `WorkingGraph`
+## `Working`
 
 Bounded subgraph used by the kernel for inference. Enforces $|V(W_t)| \le B$ at construction.
 
 ### Why a wrapper?
 
-The `WorkingGraph` wrapper guarantees the budget invariant at the type level: every operation that would violate the budget raises `GraphError` at the Python boundary, not silently at the GPU kernel.
+The `Working` wrapper guarantees the budget invariant at the type level: every operation that would violate the budget raises `GraphError` at the Python boundary, not silently at the GPU kernel.
 
 ## Example
 
 ```python
 from pjepa.graphs import (
-    TypedAttributedGraph,
-    PersistentState,
-    WorkingGraph,
+    Graph,
+    State,
+    Working,
 )
 import torch
 
 # Build a persistent graph.
-g = TypedAttributedGraph(
+g = Graph(
     vertex_features=torch.zeros((3, 2)),
     edge_index=torch.tensor([[0, 1], [1, 0]], dtype=torch.long),
 )
 
 # Wrap it.
-state = PersistentState(graph=g)
+state = State(graph=g)
 
 # Commit a candidate.
 candidate = g.with_features(global_features=torch.zeros((4,)))
@@ -84,12 +84,12 @@ assert state2.num_commits() == 1
 assert state2.graph.version == 1
 
 # Build a working graph within the budget.
-working = WorkingGraph(graph=g, budget=10)
+working = Working(graph=g, budget=10)
 assert working.utilisation() == 0.3
 ```
 
 ## Where to Look Next
 
-* [Encoders](encoders.md) — how features are extracted from a `TypedAttributedGraph`.
+* [Encoders](encoders.md) — how features are extracted from a `Graph`.
 * [Retrieval](retrieval.md) — how the working graph is selected.
 * [Rewriting](verified-rewriting.md) — how the persistent graph is updated.

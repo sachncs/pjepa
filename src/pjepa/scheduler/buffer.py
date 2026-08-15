@@ -1,18 +1,25 @@
 """FIFO replay buffer for PPO.
 
-The buffer stores transitions as :class:`Transition` records and
-provides uniform sampling both with and without replacement.
-Importance-ratio information is included so the trainer can compute
-off-policy corrections against the live policy.
+The buffer stores transitions as :class:`Step` records and provides
+uniform sampling both with and without replacement. Importance-ratio
+information is included so the trainer can compute off-policy
+corrections against the live policy.
 
 Capacity is enforced via ``collections.deque(maxlen=capacity)`` so
-the oldest entry is evicted automatically when the buffer is full. An
-additional ``max_age`` guard drops entries that are too old, even if
-the buffer has not yet reached capacity.
+the oldest entry is evicted automatically when the buffer is full.
+An additional ``max_age`` guard drops entries that are too old,
+even if the buffer has not yet reached capacity.
+
+The :class:`Buffer` class is the concrete implementation; the
+:class:`Storage` abstract base class is the polymorphic root of
+the storage hierarchy. Other subclasses (e.g. a priority replay
+buffer) can override :meth:`add`, :meth:`minibatches`, and
+:meth:`evict_stale` to swap in alternative policies.
 """
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -21,16 +28,16 @@ import torch
 
 from pjepa.exceptions import ConfigError
 
-__all__ = ["ReplayBuffer", "Transition"]
+__all__ = ["Buffer", "Step", "Storage"]
 
 
 @dataclass
-class Transition:
-    """A single replay-buffer transition.
+class Step:
+    """A single replay-buffer step.
 
     The dataclass is mutable so the buffer can lazily fill in
-    ``old_logprob`` from ``logprob`` when the caller has no recorded
-    value to supply.
+    ``old_logprob`` from ``logprob`` when the caller has no
+    recorded value to supply.
 
     Attributes:
         state: The state tensor at this step.
@@ -43,7 +50,7 @@ class Transition:
         done: Whether the transition terminated an episode.
         old_logprob: The log-probability at collection time. Equal
             to ``logprob`` in the live-trajectory case. Lazily
-            back-filled by :meth:`ReplayBuffer.add` when ``None``.
+            back-filled by :meth:`Buffer.add` when ``None``.
     """
 
     state: torch.Tensor
@@ -55,8 +62,59 @@ class Transition:
     old_logprob: torch.Tensor | None = None
 
 
+#: Backward-compatible alias for the step dataclass.
+Transition = Step
+
+
+class Storage(ABC):
+    """Abstract base class for replay-storage backends.
+
+    The :class:`Storage` class is the polymorphic root of the
+    replay-storage hierarchy. The concrete subclass :class:`Buffer`
+    is the framework's FIFO implementation; subclasses with
+    priority-based or reservoir sampling can override
+    :meth:`add`, :meth:`minibatches`, and :meth:`evict_stale`
+    without changing the trainer.
+
+    All methods raise :class:`ConfigError` for invalid arguments
+    (negative capacities, zero batch sizes, etc.).
+    """
+
+    @abstractmethod
+    def add(self, step: Step) -> None:
+        """Append a step to the storage.
+
+        Args:
+            step: The step to record.
+        """
+        ...
+
+    @abstractmethod
+    def minibatches(self, batch_size: int) -> Iterator[tuple[torch.Tensor, ...]]:
+        """Yield successive minibatches without replacement.
+
+        Args:
+            batch_size: Size of each minibatch.
+
+        Yields:
+            ``(states, actions, old_logprobs, advantages, returns)``
+            tensors each shaped ``[batch_size, ...]``.
+        """
+        ...
+
+    @abstractmethod
+    def evict_stale(self) -> None:
+        """Drop every entry whose age exceeds the configured bound."""
+        ...
+
+    @abstractmethod
+    def __len__(self) -> int:
+        """Return the number of stored transitions."""
+        ...
+
+
 @dataclass
-class ReplayBuffer:
+class Buffer(Storage):
     """Bounded FIFO replay buffer with staleness eviction.
 
     Adding a transition appends to the deque and increments the
@@ -81,30 +139,37 @@ class ReplayBuffer:
     step_counter: int = field(init=False, default=0)
 
     def __post_init__(self) -> None:
+        """Validate the capacity and max_age arguments.
+
+        Raises:
+            ConfigError: If ``capacity`` or ``max_age`` is
+                non-positive.
+        """
         if self.capacity <= 0:
-            raise ConfigError(f"ReplayBuffer: capacity must be positive; got {self.capacity}")
+            raise ConfigError(f"Buffer: capacity must be positive; got {self.capacity}")
         if self.max_age <= 0:
-            raise ConfigError(f"ReplayBuffer: max_age must be positive; got {self.max_age}")
+            raise ConfigError(f"Buffer: max_age must be positive; got {self.max_age}")
         self.storage = deque(maxlen=self.capacity)
 
     def __len__(self) -> int:
+        """Return the number of stored transitions."""
         return len(self.storage)
 
-    def add(self, transition: Transition) -> None:
-        """Append a transition to the buffer.
+    def add(self, step: Step) -> None:
+        """Append a step to the buffer.
 
-        If ``transition.old_logprob`` is ``None`` the buffer copies
-        ``transition.logprob.detach()`` so the trainer has an
-        immutable snapshot of the collection-time log-probability.
-        The buffer performs a stale-entry sweep at the end of each
+        If ``step.old_logprob`` is ``None`` the buffer copies
+        ``step.logprob.detach()`` so the trainer has an immutable
+        snapshot of the collection-time log-probability. The
+        buffer performs a stale-entry sweep at the end of each
         call.
 
         Args:
-            transition: The transition to record.
+            step: The step to record.
         """
-        if transition.old_logprob is None:
-            transition.old_logprob = transition.logprob.detach().clone()
-        self.storage.append((self.step_counter, transition))
+        if step.old_logprob is None:
+            step.old_logprob = step.logprob.detach().clone()
+        self.storage.append((self.step_counter, step))
         self.step_counter += 1
         self.evict_stale()
 
@@ -119,19 +184,20 @@ class ReplayBuffer:
     ) -> Iterator[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]:
         """Yield successive minibatches without replacement.
 
-        The yielded ``advantages`` and ``returns`` tensors share the
-        same values: this implementation does not run a separate
-        generalised advantage estimation; the trainer sees the
-        reward both as the return-to-go and as the advantage so the
-        standard PPO surrogate ``log π(a|s) * advantage`` recovers
-        the regular policy-gradient update. Callers that need a true
-        GAE pass should compute it inside the trainer via
-        :meth:`PPOTrainer.compute_gae` on the collected rewards.
+        The yielded ``advantages`` and ``returns`` tensors share
+        the same values: this implementation does not run a
+        separate generalised advantage estimation; the trainer
+        sees the reward both as the return-to-go and as the
+        advantage so the standard PPO surrogate
+        ``log π(a|s) * advantage`` recovers the regular
+        policy-gradient update. Callers that need a true GAE pass
+        should compute it inside the trainer via
+        :meth:`Trainer.compute_gae` on the collected rewards.
 
-        Complexity: stacks all transitions once (``O(n)``) and then
-        yields random ``batch_size`` slices (``O(n)`` total across
-        all minibatches). Memory is ``O(n)`` over and above the
-        stored tensors.
+        Complexity: stacks all transitions once (``O(n)``) and
+        then yields random ``batch_size`` slices (``O(n)`` total
+        across all minibatches). Memory is ``O(n)`` over and above
+        the stored tensors.
 
         Args:
             batch_size: Size of each minibatch.
@@ -144,9 +210,7 @@ class ReplayBuffer:
             ConfigError: If ``batch_size`` is non-positive.
         """
         if batch_size <= 0:
-            raise ConfigError(
-                f"ReplayBuffer.minibatches: batch_size must be positive; got {batch_size}"
-            )
+            raise ConfigError(f"Buffer.minibatches: batch_size must be positive; got {batch_size}")
         transitions = [t for _, t in self.storage]
         if not transitions:
             return iter(())
@@ -154,9 +218,10 @@ class ReplayBuffer:
         actions = torch.tensor([t.action for t in transitions], dtype=torch.long)
         old_logprobs = torch.stack([t.old_logprob for t in transitions])
         returns = torch.tensor([t.reward for t in transitions], dtype=torch.float32)
-        # Advantages equal returns here: PPO without a separate GAE
-        # baseline reduces to a reward-weighted policy gradient. A
-        # future revision may compute the proper GAE in this method.
+        # Advantages equal returns here: PPO without a separate
+        # GAE baseline reduces to a reward-weighted policy
+        # gradient. A future revision may compute the proper GAE
+        # in this method.
         advantages = returns.clone()
         idx = torch.randperm(states.shape[0])
         for start in range(0, states.shape[0], batch_size):
@@ -168,3 +233,7 @@ class ReplayBuffer:
                 advantages[sel],
                 returns[sel],
             )
+
+
+#: Backward-compatible alias for the concrete buffer.
+ReplayBuffer = Buffer

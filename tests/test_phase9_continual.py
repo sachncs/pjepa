@@ -35,7 +35,7 @@ from experiments.run_exp_e_continual import (
 from pjepa.baselines import EWC, GEM, PackNet
 from pjepa.eval import backward_transfer, forgetting_rate, forward_transfer
 from pjepa.eval.metrics import accuracy, mean_per_class_accuracy
-from pjepa.graphs import PersistentState, TypedAttributedGraph
+from pjepa.graphs import Graph, State
 
 __all__ = [
     "test_accuracy_basic",
@@ -81,7 +81,7 @@ def make_pairs(
     num_pairs: int,
     feature_dim: int = 4,
     seed: int = 0,
-) -> list[tuple[TypedAttributedGraph, int]]:
+) -> list[tuple[Graph, int]]:
     """Construct a synthetic dataset of ``(graph, label)`` pairs.
 
     Args:
@@ -90,13 +90,13 @@ def make_pairs(
         seed: Seed for the deterministic per-graph feature generator.
 
     Returns:
-        A list of ``(TypedAttributedGraph, label)`` pairs whose
+        A list of ``(Graph, label)`` pairs whose
         label alternates ``0, 1, 0, 1, ...``.
     """
     g = torch.Generator().manual_seed(seed)
-    pairs: list[tuple[TypedAttributedGraph, int]] = []
+    pairs: list[tuple[Graph, int]] = []
     for i in range(num_pairs):
-        graph = TypedAttributedGraph(
+        graph = Graph(
             vertex_features=torch.randn((3, feature_dim), generator=g),
             edge_index=torch.zeros((2, 0), dtype=torch.long),
         )
@@ -329,7 +329,7 @@ def test_persistent_jepa_grows_state() -> None:
         batch_size=2,
         persistent_state=None,
     )
-    assert isinstance(state, PersistentState)
+    assert isinstance(state, State)
     prev_vertices = state.num_vertices()
     _, state = train_persistent_jepa_task(
         model,
@@ -355,12 +355,12 @@ def test_persistent_jepa_uses_retrieved_working_graph() -> None:
     """
     marker_v = torch.tensor([[9.0, 9.0, 9.0, 9.0], [-9.0, -9.0, -9.0, -9.0]])
     marker_edges = torch.tensor([[0, 1], [1, 0]], dtype=torch.long)
-    marker_graph = TypedAttributedGraph(
+    marker_graph = Graph(
         vertex_features=marker_v,
         edge_index=marker_edges,
         edge_features=torch.zeros((marker_edges.shape[1], 1)),
     )
-    persistent_state = PersistentState(graph=marker_graph)
+    persistent_state = State(graph=marker_graph)
 
     pairs = make_pairs(4)
     model = build_cl_model(input_dim=4, num_classes=2)
@@ -382,7 +382,7 @@ def test_persistent_jepa_uses_retrieved_working_graph() -> None:
 
 def test_build_graph_from_pairs_filters_edges_to_budget() -> None:
     """Edges with endpoints outside the budget are dropped."""
-    g_full = TypedAttributedGraph(
+    g_full = Graph(
         vertex_features=torch.zeros((10, 1)),
         edge_index=torch.tensor([[0, 1, 5, 6, 9, 9], [1, 0, 6, 5, 8, 7]], dtype=torch.long),
         edge_features=torch.zeros((6, 1)),
@@ -613,7 +613,7 @@ def test_run_cl_experiment_long_csv_has_correct_columns(tmp_path: Path) -> None:
 def test_forward_pass_through_module_list() -> None:
     """The dual-geometric encoder output flows through the classifier."""
     model = build_cl_model(input_dim=4, num_classes=2)
-    graph = TypedAttributedGraph(
+    graph = Graph(
         vertex_features=torch.randn((3, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -628,7 +628,7 @@ def test_split_graph_indices_to_pairs() -> None:
             "G",
             (),
             {
-                "graph": TypedAttributedGraph(
+                "graph": Graph(
                     vertex_features=torch.zeros((1, 1)),
                     edge_index=torch.zeros((2, 0), dtype=torch.long),
                 ),

@@ -1,6 +1,6 @@
 """Minimum Description Length (MDL) on graphs.
 
-Given a :class:`TypedAttributedGraph`, :func:`description_length`
+Given a :class:`Graph`, :func:`description_length`
 returns a non-negative scalar estimate of the number of nats required
 to encode the graph under a fixed hyperedge-replacement grammar. The
 estimate uses three additive terms:
@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import math
 
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["description_length"]
 
 
-def description_length(graph: TypedAttributedGraph) -> float:
+def description_length(graph: Graph) -> float:
     """Estimate the description length of a graph in nats.
 
     Args:
@@ -35,7 +35,7 @@ def description_length(graph: TypedAttributedGraph) -> float:
 
     Example:
         >>> import torch
-        >>> g = TypedAttributedGraph(
+        >>> g = Graph(
         ...     vertex_features=torch.zeros((3, 4)),
         ...     edge_index=torch.zeros((2, 0), dtype=torch.long),
         ... )

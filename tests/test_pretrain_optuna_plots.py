@@ -1,4 +1,4 @@
-"""Tests for pjepa.training.pretrain and pjepa.eval.plots additions."""
+"""Tests for pj.training.pretrain and pj.eval.plots additions."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 import torch
 
-from pjepa.augmentations import AugmentationPipeline, DropEdge, TensorDropFeature
-from pjepa.encoders import JEPAPredictor, TargetEncoder
+from pjepa.augmentations import DropEdge, Pipeline, TensorDropFeature
+from pjepa.encoders import Predictor, Target
 from pjepa.eval.plots import plot_heatmap, plot_radar, render_svg_fallback
 from pjepa.exceptions import ConfigError
 from pjepa.training import (
@@ -77,7 +77,7 @@ def test_happy_augmentation_call_drops_features() -> None:
 
 
 def test_bad_augmentation_call_rejects_pipeline() -> None:
-    pipeline = AugmentationPipeline([DropEdge(strength=0.1)], mode="sequential", k=1)
+    pipeline = Pipeline([DropEdge(strength=0.1)], mode="sequential", k=1)
     with pytest.raises(ConfigError):
         augmentation_call(pipeline, torch.zeros((2, 2)))
 
@@ -98,8 +98,8 @@ def test_happy_augmentation_call_identity_like() -> None:
 
 def test_happy_pretrain_loop_with_augmentation() -> None:
     encoder = _ToyEncoder()
-    predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
-    target = TargetEncoder(encoder, momentum=0.9)
+    predictor = Predictor(input_dim=4, hidden_dim=8, output_dim=4)
+    target = Target(encoder, momentum=0.9)
     optimizer = torch.optim.AdamW(
         list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
     )
@@ -119,8 +119,8 @@ def test_happy_pretrain_loop_with_augmentation() -> None:
 
 def test_happy_pretrain_loop_with_validation_callback() -> None:
     encoder = _ToyEncoder()
-    predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
-    target = TargetEncoder(encoder, momentum=0.9)
+    predictor = Predictor(input_dim=4, hidden_dim=8, output_dim=4)
+    target = Target(encoder, momentum=0.9)
     optimizer = torch.optim.AdamW(
         list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
     )
@@ -147,8 +147,8 @@ def test_happy_pretrain_loop_with_validation_callback() -> None:
 
 def test_happy_pretrain_loop_with_cadence_early_stop() -> None:
     encoder = _ToyEncoder()
-    predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
-    target = TargetEncoder(encoder, momentum=0.9)
+    predictor = Predictor(input_dim=4, hidden_dim=8, output_dim=4)
+    target = Target(encoder, momentum=0.9)
     optimizer = torch.optim.AdamW(
         list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
     )
@@ -178,8 +178,8 @@ def test_happy_pretrain_loop_with_cadence_early_stop() -> None:
 
 def test_bad_pretrain_negative_val_every() -> None:
     encoder = _ToyEncoder()
-    predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
-    target = TargetEncoder(encoder, momentum=0.9)
+    predictor = Predictor(input_dim=4, hidden_dim=8, output_dim=4)
+    target = Target(encoder, momentum=0.9)
     optimizer = torch.optim.AdamW(
         list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
     )
@@ -196,8 +196,8 @@ def test_bad_pretrain_negative_val_every() -> None:
 
 def test_bad_pretrain_unknown_augmentation() -> None:
     encoder = _ToyEncoder()
-    predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
-    target = TargetEncoder(encoder, momentum=0.9)
+    predictor = Predictor(input_dim=4, hidden_dim=8, output_dim=4)
+    target = Target(encoder, momentum=0.9)
     optimizer = torch.optim.AdamW(
         list(encoder.parameters()) + list(predictor.parameters()), lr=1e-3
     )
@@ -301,7 +301,7 @@ def test_build_augmentation_from_name_known() -> None:
     assert isinstance(build_augmentation_from_name("dropfeat"), TensorDropFeature)
     assert isinstance(build_augmentation_from_name("dropedge"), DropEdge)
     pipeline = build_augmentation_from_name("composite")
-    assert isinstance(pipeline, AugmentationPipeline)
+    assert isinstance(pipeline, Pipeline)
 
 
 def test_build_augmentation_from_name_unknown() -> None:
@@ -310,12 +310,12 @@ def test_build_augmentation_from_name_unknown() -> None:
 
 
 def test_optuna_search_evaluate_smoke() -> None:
-    from pjepa.graphs import TypedAttributedGraph
+    from pjepa.graphs import Graph
 
     search = OptunaSearch(OptunaSearchConfig(n_trials=1, epochs=2))
     pairs = []
     for i in range(6):
-        g = TypedAttributedGraph(
+        g = Graph(
             vertex_features=torch.randn((4, 3)),
             edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 0]], dtype=torch.long),
         )
@@ -337,11 +337,11 @@ def test_optuna_search_evaluate_smoke() -> None:
 
 
 def test_optuna_search_run_smoke(tmp_path: Path) -> None:
-    from pjepa.graphs import TypedAttributedGraph
+    from pjepa.graphs import Graph
 
     pairs = []
     for i in range(6):
-        g = TypedAttributedGraph(
+        g = Graph(
             vertex_features=torch.randn((4, 3)),
             edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 0]], dtype=torch.long),
         )

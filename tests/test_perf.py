@@ -1,4 +1,4 @@
-"""Tests for pjepa.perf."""
+"""Tests for pj.perf."""
 
 from __future__ import annotations
 

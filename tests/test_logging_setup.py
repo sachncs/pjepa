@@ -1,4 +1,4 @@
-"""Tests for pjepa.logging_setup."""
+"""Tests for pj.logging_setup."""
 
 from __future__ import annotations
 

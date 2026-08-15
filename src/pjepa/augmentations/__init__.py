@@ -5,7 +5,7 @@ GraphCL, GCA, GraphMAE, and similar self-supervised graph methods.
 Each augmentation is a callable ``Graph -> Graph`` that supports
 reproducible randomness via a :class:`torch.Generator`.
 
-Composition is supported through :class:`AugmentationPipeline`, which
+Composition is supported through :class:`Pipeline`, which
 selects augmentations in one of three modes:
 
 * ``SEQUENTIAL`` — apply every augmentation in order;
@@ -13,13 +13,13 @@ selects augmentations in one of three modes:
 * ``RANDOM_SAMPLE_K`` — pick ``k`` augmentations without
   replacement and apply them in the sampled order.
 
-Augmentations never mutate the input graph in place; each
-``__call__`` returns a fresh :class:`TypedAttributedGraph`.
+Transforms never mutate the input graph in place; each
+``__call__`` returns a fresh :class:`Graph`.
 """
 
 from __future__ import annotations
 
-from pjepa.augmentations.base import Augmentation, AugmentationPipeline, PipelineMode
+from pjepa.augmentations.base import Pipeline, PipelineMode, Transform
 from pjepa.augmentations.feature import DropFeature, FeatureMask
 from pjepa.augmentations.identity import Identity
 from pjepa.augmentations.registry import (
@@ -38,17 +38,17 @@ from pjepa.augmentations.structural import (
 from pjepa.augmentations.tensor import TensorDropFeature, tensor_drop_feature
 
 __all__ = [
-    "Augmentation",
-    "AugmentationPipeline",
     "ConnectedSubgraph",
     "DropEdge",
     "DropFeature",
     "DropNode",
     "FeatureMask",
     "Identity",
+    "Pipeline",
     "PipelineMode",
     "Subgraph",
     "TensorDropFeature",
+    "Transform",
     "augmentation_registry",
     "available_augmentations",
     "evict_augmentation",

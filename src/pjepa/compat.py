@@ -1,57 +1,54 @@
 """Documented cross-version compatibility aliases.
 
-These aliases exist so external code that imports older or PyG-flavoured
-names keeps working. They are stable exports; new aliases are added in
-minor versions and never removed without a deprecation cycle.
+These aliases exist so external code that imports older or
+PyG-flavoured names keeps working. They are stable exports;
+new aliases are added in minor versions and never removed
+without a deprecation cycle.
 
 Each alias is the canonical class itself (not a subclass), so
-``isinstance`` checks and ``type()`` comparisons against the original
-types continue to hold:
+``isinstance`` checks and ``type()`` comparisons against the
+original types continue to hold:
 
-* :data:`Graph` -> :class:`pjepa.graphs.TypedAttributedGraph`
-* :data:`PersistentGraph` -> :class:`pjepa.graphs.PersistentState`
-* :data:`GraphState` -> :class:`pjepa.graphs.WorkingGraph`
+* :data:`Graph` -> :class:`pjepa.graphs.Graph`
+* :data:`PersistentGraph` -> :class:`pjepa.graphs.State`
+* :data:`GraphState` -> :class:`pjepa.graphs.Working`
 * :data:`PJEPAEncoder` -> :class:`pjepa.encoders.base.Encoder`
-* :data:`PJEPAAugmentation` -> :class:`pjepa.augmentations.base.Augmentation`
+* :data:`PJEPATransform` -> :class:`pjepa.augmentations.base.Transform`
 
-The helper :func:`make_typed_graph` is also exported here so callers
-that prefer a single entry point regardless of subpackage layout can
-import it without reaching into :mod:`pjepa.graphs`.
+The helper :func:`make_typed_graph` is also exported here so
+callers that prefer a single entry point regardless of
+subpackage layout can import it without reaching into
+:mod:`pjepa.graphs`.
 """
 
 from __future__ import annotations
 
-from pjepa.augmentations.base import Augmentation as AugmentationBase
+from pjepa.augmentations.base import Transform as TransformBase
 from pjepa.encoders.base import Encoder as EncoderBase
-from pjepa.graphs import (
-    PersistentState,
-    TypedAttributedGraph,
-    WorkingGraph,
-)
+from pjepa.graphs import Graph, State, Working
 
-Graph = TypedAttributedGraph
+Graph = Graph
 """Alias matching the convention used in some downstream packages."""
 
-PersistentGraph = PersistentState
+PersistentGraph = State
 """Alias: ``PersistentGraph`` is the framework's persistent-state container."""
 
-GraphState = WorkingGraph
+GraphState = Working
 """Alias: ``GraphState`` is the framework's working-graph container."""
 
 PJEPAEncoder = EncoderBase
 """Alias of :class:`pjepa.encoders.base.Encoder` for type annotations."""
 
-PJEPAAugmentation = AugmentationBase
-"""Alias of :class:`pjepa.augmentations.base.Augmentation` for type annotations."""
+PJEPATransform = TransformBase
+"""Alias of :class:`pjepa.augmentations.base.Transform` for type annotations."""
 
 __all__ = [
     "Graph",
     "GraphState",
-    "PJEPAAugmentation",
     "PJEPAEncoder",
+    "PJEPATransform",
     "PersistentGraph",
-    "TypedAttributedGraph",
-    "WorkingGraph",
+    "Working",
     "make_typed_graph",
 ]
 
@@ -61,25 +58,26 @@ def make_typed_graph(
     edge_index: object,
     edge_features: object | None = None,
     **kwargs: object,
-) -> TypedAttributedGraph:
-    """Construct a :class:`TypedAttributedGraph` from positional tensors.
+) -> Graph:
+    """Construct a :class:`Graph` from positional tensors.
 
-    Convenience helper for callers that prefer keyword-style imports or
-    want a single entry point regardless of package layout.
+    Convenience helper for callers that prefer keyword-style
+    imports or want a single entry point regardless of package
+    layout.
 
     Args:
         vertex_features: A ``[N, d_v]`` tensor of vertex features.
         edge_index: A ``[2, E]`` ``long`` tensor in COO format.
         edge_features: Optional ``[E, d_e]`` tensor of edge features.
-        **kwargs: Forwarded verbatim to :class:`TypedAttributedGraph`.
+        **kwargs: Forwarded verbatim to :class:`Graph`.
 
     Returns:
-        A new :class:`TypedAttributedGraph`.
+        A new :class:`Graph`.
 
     Raises:
-        pjepa.exceptions.GraphError: If the supplied tensors violate
-            the structural invariants documented on
-            :class:`TypedAttributedGraph`.
+        pjepa.exceptions.GraphError: If the supplied tensors
+            violate the structural invariants documented on
+            :class:`Graph`.
 
     Example:
         >>> vf = torch.randn((3, 4))
@@ -87,10 +85,8 @@ def make_typed_graph(
         >>> g = make_typed_graph(vf, ei)
     """
     if edge_features is None:
-        return TypedAttributedGraph(
-            vertex_features=vertex_features, edge_index=edge_index, **kwargs
-        )
-    return TypedAttributedGraph(
+        return Graph(vertex_features=vertex_features, edge_index=edge_index, **kwargs)
+    return Graph(
         vertex_features=vertex_features,
         edge_index=edge_index,
         edge_features=edge_features,

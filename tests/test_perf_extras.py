@@ -11,7 +11,7 @@ import torch
 from pjepa.baselines import Naive
 from pjepa.baselines.ewc import EWC
 from pjepa.exceptions import DataError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.perf import (
     DatasetCache,
     Microbenchmark,
@@ -39,8 +39,8 @@ __all__ = [
 # ============================== NAIVE BASELINE ==============================
 
 
-def _toy_graph() -> TypedAttributedGraph:
-    return TypedAttributedGraph(
+def _toy_graph() -> Graph:
+    return Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     )

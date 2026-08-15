@@ -2,29 +2,29 @@
 
 The CLI exposes the canonical workflow:
 
-* ``pjepa doctor`` — capability probe report.
-* ``pjepa hardware`` — backend summary.
-* ``pjepa benchmark {retrieval, distortion, encoder-ablation}`` —
+* ``pj doctor`` — capability probe report.
+* ``pj hardware`` — backend summary.
+* ``pj benchmark {retrieval, distortion, encoder-ablation}`` —
   cheap validation experiments that run on the local machine.
-* ``pjepa pretrain <config>`` — pretrain a JEPA encoder using a
+* ``pj pretrain <config>`` — pretrain a JEPA encoder using a
   YAML configuration. The CLI performs an actual three-step smoke
   loop on a small synthetic input so the user can verify the
   encoder / predictor / target wiring end-to-end.
-* ``pjepa train {tu,cl,ogb} <config>`` — train on a dataset
+* ``pj train {tu,cl,ogb} <config>`` — train on a dataset
   family. The command dispatches to the corresponding
   ``experiments/run_exp_*.py`` runner.
-* ``pjepa tune tu <config>`` — Optuna hyperparameter search for
+* ``pj tune tu <config>`` — Optuna hyperparameter search for
   TU. Dispatches to ``experiments/run_optuna_search.py``.
-* ``pjepa baseline-smoke {gcn,gin,graphmae,graphcl,infograph,naive,ewc,gem}``
+* ``pj baseline-smoke {gcn,gin,graphmae,graphcl,infograph,naive,ewc,gem}``
   — one-epoch smoke test for any published baseline that
   constructs the model with the configured hyperparameters and
   runs a forward pass on a toy graph.
-* ``pjepa decoupling <config>`` — inference-storage decoupling.
-* ``pjepa ablation <config>`` — Phase 11 ablation study.
-* ``pjepa sensitivity <config>`` — Phase 11 sensitivity sweep.
-* ``pjepa aggregate [results-dir]`` — Phase 12 results aggregation.
+* ``pj decoupling <config>`` — inference-storage decoupling.
+* ``pj ablation <config>`` — Phase 11 ablation study.
+* ``pj sensitivity <config>`` — Phase 11 sensitivity sweep.
+* ``pj aggregate [results-dir]`` — Phase 12 results aggregation.
 
-The advertised ``pjepa train <dataset> <config>`` signature is the
+The advertised ``pj train <dataset> <config>`` signature is the
 documented command-line entry point. Internally it dispatches to
 the corresponding runner, applying the YAML config when one is
 provided. When the user omits a config (or supplies a path that
@@ -95,7 +95,7 @@ def experiments_search_paths() -> tuple[str, ...]:
     The CLI dispatches to runner modules that live under
     ``<repo>/experiments/`` (not under the installed ``pjepa``
     package). When the repo layout is the canonical
-    ``src/pjepa/cli/app.py``, the experiments directory is two
+    ``src/pj/cli/app.py``, the experiments directory is two
     parents up. Returns both the experiments directory and the
     repository root so the runners can ``from pjepa.<...>`` import.
     """
@@ -123,7 +123,7 @@ app = typer.Typer(
 
 
 DATASETS: tuple[str, ...] = ("tu", "cl", "ogb")
-"""Supported dataset families for ``pjepa train``."""
+"""Supported dataset families for ``pj train``."""
 
 BASELINES: tuple[str, ...] = (
     "gcn",
@@ -135,13 +135,13 @@ BASELINES: tuple[str, ...] = (
     "ewc",
     "gem",
 )
-"""Supported baselines for ``pjepa baseline-smoke``.
+"""Supported baselines for ``pj baseline-smoke``.
 
 Each entry corresponds to a ``pjepa.baselines.<name>`` module.
 """
 
 BENCHMARKS: tuple[str, ...] = ("retrieval", "distortion", "encoder-ablation")
-"""Supported benchmarks for ``pjepa benchmark``."""
+"""Supported benchmarks for ``pj benchmark``."""
 
 
 # Single source of truth for "command -> runner module + callable + Config dataclass".
@@ -245,9 +245,7 @@ def dispatch_to_experiment(
     try:
         module = importlib.import_module(module_name)
     except ImportError as exc:
-        raise ConfigError(
-            f"dispatch_to_experiment: cannot import {module_name!r}: {exc}"
-        ) from exc
+        raise ConfigError(f"dispatch_to_experiment: cannot import {module_name!r}: {exc}") from exc
     if not hasattr(module, run_callable):
         raise ConfigError(
             f"dispatch_to_experiment: {module_name!r} has no callable {run_callable!r}"
@@ -324,7 +322,7 @@ def run_pretrain_smoke(config: dict[str, Any]) -> dict[str, Any]:
         loss, and whether every component was wired.
     """
     try:
-        from pjepa.encoders import JEPAPredictor, TargetEncoder
+        from pjepa.encoders import Predictor, Target
         from pjepa.training import (
             PretrainConfig,
             pretrain_loop,
@@ -337,11 +335,11 @@ def run_pretrain_smoke(config: dict[str, Any]) -> dict[str, Any]:
 
     epochs = int(config.get("training", {}).get("epochs", 2))
     log_every = int(config.get("training", {}).get("log_every", 0))
-    checkpoint_dir = Path(tempfile.mkdtemp(prefix="pjepa_pretrain_smoke_"))
+    checkpoint_dir = Path(tempfile.mkdtemp(prefix="pj_pretrain_smoke_"))
 
     encoder = torch.nn.Linear(4, 4)
-    predictor = JEPAPredictor(input_dim=4, hidden_dim=8, output_dim=4)
-    target = TargetEncoder(encoder, momentum=0.9)
+    predictor = Predictor(input_dim=4, hidden_dim=8, output_dim=4)
+    target = Target(encoder, momentum=0.9)
     optimizer = supervised_optimiser(list(encoder.parameters()) + list(predictor.parameters()))
 
     def batches():
@@ -378,7 +376,7 @@ def run_baseline_forward_smoke(
     The function imports ``pjepa.baselines.<baseline>``,
     instantiates the public model class with the configured
     dimensions, and runs a forward pass on a small synthetic
-    :class:`TypedAttributedGraph`.
+    :class:`Graph`.
 
     Args:
         baseline: The baseline name; one of :data:`BASELINES`.
@@ -410,11 +408,11 @@ def run_baseline_forward_smoke(
     num_classes = int(cfg.get("model", {}).get("num_classes", 2))
 
     try:
-        from pjepa.graphs import TypedAttributedGraph
+        from pjepa.graphs import Graph
     except ImportError as exc:
         return {"ran": False, "reason": f"graph imports unavailable: {exc}"}
 
-    graph = TypedAttributedGraph(
+    graph = Graph(
         vertex_features=torch.randn((4, input_dim)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 0]], dtype=torch.long),
     )
@@ -488,9 +486,7 @@ def benchmark(
     """
     key = f"benchmark.{name}"
     if key not in RUNNERS:
-        typer.echo(
-            f"unknown benchmark: {name!r}; choose one of {', '.join(BENCHMARKS)}"
-        )
+        typer.echo(f"unknown benchmark: {name!r}; choose one of {', '.join(BENCHMARKS)}")
         raise typer.Exit(code=EXIT_CONFIG)
     log = get_logger(__name__)
     log.info("benchmark requested", extra={"event": "benchmark.start", "benchmark": name})
@@ -554,9 +550,7 @@ def train(
     """
     key = f"train.{dataset}"
     if key not in RUNNERS:
-        typer.echo(
-            f"unknown dataset family: {dataset!r}; choose one of {', '.join(DATASETS)}"
-        )
+        typer.echo(f"unknown dataset family: {dataset!r}; choose one of {', '.join(DATASETS)}")
         raise typer.Exit(code=EXIT_CONFIG)
     log = get_logger(__name__)
     cfg = resolve_yaml_config(config, dataset=dataset)
@@ -566,9 +560,7 @@ def train(
     )
     module_name, run_callable, dataclass_name = RUNNERS[key]
     try:
-        rows = dispatch_to_experiment(
-            module_name, run_callable, cfg, dataclass_name=dataclass_name
-        )
+        rows = dispatch_to_experiment(module_name, run_callable, cfg, dataclass_name=dataclass_name)
     except ConfigError as exc:
         typer.echo(f"train dispatch failed for {dataset}: {exc}", err=True)
         raise typer.Exit(code=EXIT_DISPATCH) from exc
@@ -597,9 +589,7 @@ def tune(
     """
     key = f"tune.{dataset}"
     if key not in RUNNERS:
-        typer.echo(
-            f"unknown tune target: {dataset!r}; only 'tu' is currently supported"
-        )
+        typer.echo(f"unknown tune target: {dataset!r}; only 'tu' is currently supported")
         raise typer.Exit(code=EXIT_CONFIG)
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
@@ -648,9 +638,7 @@ def baseline_smoke(
         config: Path to the YAML configuration.
     """
     if baseline not in BASELINES:
-        typer.echo(
-            f"unknown baseline: {baseline!r}; choose one of {', '.join(BASELINES)}"
-        )
+        typer.echo(f"unknown baseline: {baseline!r}; choose one of {', '.join(BASELINES)}")
         raise typer.Exit(code=EXIT_CONFIG)
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
@@ -719,9 +707,7 @@ def ablation(config: str = typer.Argument(..., help="Path to a YAML config file.
     )
     module_name, run_callable, dataclass_name = RUNNERS["ablation"]
     try:
-        rows = dispatch_to_experiment(
-            module_name, run_callable, cfg, dataclass_name=dataclass_name
-        )
+        rows = dispatch_to_experiment(module_name, run_callable, cfg, dataclass_name=dataclass_name)
     except ConfigError as exc:
         typer.echo(f"ablation dispatch failed: {exc}", err=True)
         raise typer.Exit(code=EXIT_DISPATCH) from exc
@@ -756,9 +742,7 @@ def sensitivity(config: str = typer.Argument(..., help="Path to a YAML config fi
     )
     module_name, run_callable, dataclass_name = RUNNERS["sensitivity"]
     try:
-        rows = dispatch_to_experiment(
-            module_name, run_callable, cfg, dataclass_name=dataclass_name
-        )
+        rows = dispatch_to_experiment(module_name, run_callable, cfg, dataclass_name=dataclass_name)
     except ConfigError as exc:
         typer.echo(f"sensitivity dispatch failed: {exc}", err=True)
         raise typer.Exit(code=EXIT_DISPATCH) from exc

@@ -1,6 +1,6 @@
 """Registry for augmentations.
 
-The registry allows new :class:`Augmentation` implementations to be
+The registry allows new :class:`Transform` implementations to be
 added at runtime without modifying the core library. Each entry is
 keyed by a string name; users can :func:`register` their own classes
 and :func:`get_augmentation` them later by name.
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from pjepa.augmentations.base import Augmentation
+from pjepa.augmentations.base import Transform
 from pjepa.augmentations.feature import DropFeature, FeatureMask
 from pjepa.augmentations.identity import Identity
 from pjepa.augmentations.structural import (
@@ -30,7 +30,7 @@ __all__ = [
 ]
 
 
-augmentation_registry: dict[str, type[Augmentation]] = {}
+augmentation_registry: dict[str, type[Transform]] = {}
 """Mutable mapping from registered name to augmentation subclass.
 
 Exposed at module level so tests can clean up user-registered entries
@@ -39,8 +39,8 @@ not instances.
 """
 
 
-def register(name: str) -> Callable[[type[Augmentation]], type[Augmentation]]:
-    """Class decorator that registers an :class:`Augmentation` subclass.
+def register(name: str) -> Callable[[type[Transform]], type[Transform]]:
+    """Class decorator that registers an :class:`Transform` subclass.
 
     Args:
         name: The name under which the augmentation is registered.
@@ -52,7 +52,7 @@ def register(name: str) -> Callable[[type[Augmentation]], type[Augmentation]]:
         GraphError: If ``name`` is empty or already registered.
     """
 
-    def decorator(cls: type[Augmentation]) -> type[Augmentation]:
+    def decorator(cls: type[Transform]) -> type[Transform]:
         if not name:
             raise GraphError("register: name must be a non-empty string")
         if name in augmentation_registry:
@@ -64,14 +64,14 @@ def register(name: str) -> Callable[[type[Augmentation]], type[Augmentation]]:
     return decorator
 
 
-def get_augmentation(name: str) -> type[Augmentation]:
+def get_augmentation(name: str) -> type[Transform]:
     """Look up a registered augmentation class by name.
 
     Args:
         name: The registered name.
 
     Returns:
-        The registered :class:`Augmentation` subclass.
+        The registered :class:`Transform` subclass.
 
     Raises:
         GraphError: If ``name`` is not in the registry.

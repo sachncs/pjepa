@@ -43,7 +43,7 @@ from torch.nn import functional as F
 
 from pjepa.baselines.graphsage import GraphSAGE
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["BGRL"]
 
@@ -110,7 +110,7 @@ class BGRL(nn.Module):
             ):
                 target_p.data.mul_(self.momentum).add_(online_p.data, alpha=1.0 - self.momentum)
 
-    def online_embedding(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def online_embedding(self, graph: Graph) -> torch.Tensor:
         """Return online predictions for ``graph``.
 
         Args:
@@ -123,7 +123,7 @@ class BGRL(nn.Module):
         h = self.online_encoder.encode(graph)
         return self.predictor(h)
 
-    def target_embedding(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def target_embedding(self, graph: Graph) -> torch.Tensor:
         """Return target embeddings for ``graph`` (no gradient).
 
         Args:
@@ -136,7 +136,7 @@ class BGRL(nn.Module):
         with torch.no_grad():
             return self.target_encoder.encode(graph)
 
-    def loss(self, view_a: TypedAttributedGraph, view_b: TypedAttributedGraph) -> torch.Tensor:
+    def loss(self, view_a: Graph, view_b: Graph) -> torch.Tensor:
         """Compute the BGRL cosine-similarity loss for two augmented views.
 
         The loss is the mean of ``(1 - cos(z_a, z_b))`` over the
@@ -173,8 +173,8 @@ class BGRL(nn.Module):
 
     def pretrain_step(
         self,
-        view_a: TypedAttributedGraph,
-        view_b: TypedAttributedGraph,
+        view_a: Graph,
+        view_b: Graph,
     ) -> torch.Tensor:
         """Compute the BGRL loss and update the target encoder in-place.
 
@@ -189,7 +189,7 @@ class BGRL(nn.Module):
         self.update_target()
         return loss
 
-    def encode(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def encode(self, graph: Graph) -> torch.Tensor:
         """Return (online) per-vertex embeddings for downstream probing.
 
         Args:
@@ -201,7 +201,7 @@ class BGRL(nn.Module):
         """
         return self.online_encoder.encode(graph)
 
-    def embed(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def embed(self, graph: Graph) -> torch.Tensor:
         """Return mean-pooled (online) graph embedding.
 
         Args:
@@ -212,7 +212,7 @@ class BGRL(nn.Module):
         """
         return self.online_encoder.embed(graph)
 
-    def node_logits(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def node_logits(self, graph: Graph) -> torch.Tensor:
         """Return per-vertex logits using the (frozen) classifier head.
 
         Args:
@@ -229,7 +229,7 @@ class BGRL(nn.Module):
             raise RuntimeError("BGRL: classifier is disabled (num_classes=0)")
         return self.classifier(self.online_encoder.encode(graph))
 
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def forward(self, graph: Graph) -> torch.Tensor:
         """Return per-graph logits via mean-pooled online embeddings.
 
         Args:

@@ -28,7 +28,7 @@ from torch import nn
 from torch_geometric.nn import GINConv, global_add_pool  # type: ignore[import-not-found]
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["GraphMAE"]
 
@@ -75,7 +75,7 @@ class GraphMAE(nn.Module):
         self.mask_ratio = mask_ratio
         self.hidden_dim = hidden_dim
 
-    def encode(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def encode(self, graph: Graph) -> torch.Tensor:
         """Encode the (masked) graph and return per-vertex embeddings.
 
         Args:
@@ -90,7 +90,7 @@ class GraphMAE(nn.Module):
             h = torch.relu(layer(h, graph.edge_index))
         return h
 
-    def forward(self, graph: TypedAttributedGraph) -> dict[str, torch.Tensor]:
+    def forward(self, graph: Graph) -> dict[str, torch.Tensor]:
         """Run the masked autoencoder and return embeddings + reconstruction.
 
         Args:

@@ -10,20 +10,20 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from pjepa.augmentations.base import Augmentation
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.augmentations.base import Transform
+from pjepa.graphs import Graph
 
 __all__ = ["DropFeature", "FeatureMask"]
 
 
-class DropFeature(Augmentation):
+class DropFeature(Transform):
     """Zero out a fraction ``strength`` of feature dimensions.
 
     The same set of dimensions is dropped across all vertices, as in
     the GraphMAE feature-masking strategy.
     """
 
-    def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
         Returns the input graph unchanged when it has zero vertices or
@@ -41,7 +41,7 @@ class DropFeature(Augmentation):
         return graph.with_features(vertex_features=new_features, version=graph.version + 1)
 
 
-class FeatureMask(Augmentation):
+class FeatureMask(Transform):
     """Replace a fraction ``strength`` of feature values with a learnable mask token.
 
     The mask token is registered as a buffer and initialised to zeros.
@@ -59,7 +59,7 @@ class FeatureMask(Augmentation):
         self.feature_dim = feature_dim
         self.mask_token = nn.Parameter(torch.zeros(feature_dim))
 
-    def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph:
+    def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
         Returns the input graph unchanged when it has zero vertices or

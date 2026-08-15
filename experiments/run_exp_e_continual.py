@@ -20,8 +20,8 @@ Five methods are compared:
   slices and prior slices are frozen.
 * ``PersistentJEPA`` — the persistent graph is the Knoblauch
   sufficient statistic: a bounded working graph is retrieved via
-  :class:`GreedyRetrieval` and the new task's mean-pooled
-  observations are committed back to :class:`PersistentState` for
+  :class:`Retrieval` and the new task's mean-pooled
+  observations are committed back to :class:`State` for
   subsequent tasks.
 
 Outputs (under ``output_dir``):
@@ -53,7 +53,7 @@ import torch
 from pjepa.baselines import EWC, GEM, PackNet
 from pjepa.data.cl_splits import make_class_incremental_split
 from pjepa.data.tu import load_tu_dataset
-from pjepa.encoders import DualGeometricEncoder
+from pjepa.encoders import DualGeometric
 from pjepa.eval import (
     backward_transfer,
     bonferroni_correction,
@@ -64,9 +64,9 @@ from pjepa.eval import (
     wilcoxon_signed_rank,
 )
 from pjepa.exceptions import ConfigError
-from pjepa.graphs import PersistentState, TypedAttributedGraph
+from pjepa.graphs import State, Graph
 from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
-from pjepa.retrieval import GreedyRetrieval
+from pjepa.retrieval import Retrieval
 from pjepa.utils.seeding import set_global_seed
 
 __all__ = [
@@ -96,7 +96,7 @@ __all__ = [
 ]
 
 
-GraphPair = tuple[TypedAttributedGraph, int]
+GraphPair = tuple[Graph, int]
 
 
 CL_METHODS: tuple[str, ...] = (
@@ -184,7 +184,7 @@ def build_cl_model(input_dim: int, num_classes: int) -> torch.nn.ModuleList:
     Returns:
         A :class:`torch.nn.ModuleList` ``[encoder, classifier]``.
     """
-    encoder = DualGeometricEncoder(
+    encoder = DualGeometric(
         input_dim=input_dim, euclidean_dim=64, hyperbolic_dim=16, num_layers=2
     )
     classifier = torch.nn.Sequential(
@@ -195,7 +195,7 @@ def build_cl_model(input_dim: int, num_classes: int) -> torch.nn.ModuleList:
     return torch.nn.ModuleList([encoder, classifier])
 
 
-def cl_forward_pass(model: torch.nn.Module, graph: TypedAttributedGraph) -> torch.Tensor:
+def cl_forward_pass(model: torch.nn.Module, graph: Graph) -> torch.Tensor:
     """Run a single graph through the ``(encoder, classifier)`` module list.
 
     The encoder returns a per-vertex tensor
@@ -531,8 +531,8 @@ def train_persistent_jepa_task(
     epochs: int,
     budget: int,
     batch_size: int,
-    persistent_state: PersistentState | None,
-) -> tuple[float, PersistentState]:
+    persistent_state: State | None,
+) -> tuple[float, State]:
     """Persistent-JEPA training step on a single task.
 
     Algorithm:
@@ -540,7 +540,7 @@ def train_persistent_jepa_task(
     1. Compute an observation vector from ``train_pairs`` (the
        mean-pooled vertex features).
     2. If ``persistent_state`` is non-empty, retrieve a bounded
-       working graph via :class:`GreedyRetrieval`; the working
+       working graph via :class:`Retrieval`; the working
        graph is *used* to augment the candidate-graph commit by
        concatenating its vertex features with the current task's
        features (so the persistent state genuinely influences the
@@ -574,9 +574,9 @@ def train_persistent_jepa_task(
     classifier.train()
 
     observation: torch.Tensor = build_pair_observation(train_pairs)
-    working_graph: TypedAttributedGraph | None = None
+    working_graph: Graph | None = None
     if persistent_state is not None and persistent_state.num_vertices() > 0:
-        retriever = GreedyRetrieval(budget=budget)
+        retriever = Retrieval(budget=budget)
         result = retriever.select(persistent_state.graph, observation)
         working_graph = result.working.graph
 
@@ -607,10 +607,10 @@ def train_persistent_jepa_task(
     if working_graph is not None and working_graph.num_vertices() > 0:
         candidate = augment_candidate_with_working_graph(candidate, working_graph, budget=budget)
 
-    updated_state: PersistentState | None = persistent_state
+    updated_state: State | None = persistent_state
     if candidate.num_vertices() > 0:
         if updated_state is None:
-            updated_state = PersistentState(graph=candidate)
+            updated_state = State(graph=candidate)
         else:
             updated_state = updated_state.commit(
                 candidate=candidate, cost=0.0, timestamp=float(time.time())
@@ -621,10 +621,10 @@ def train_persistent_jepa_task(
 
 
 def augment_candidate_with_working_graph(
-    candidate: TypedAttributedGraph,
-    working: TypedAttributedGraph,
+    candidate: Graph,
+    working: Graph,
     budget: int,
-) -> TypedAttributedGraph:
+) -> Graph:
     """Prepend the retrieved working graph to ``candidate`` and re-cap at ``budget``.
 
     Vertex features are concatenated and the working graph's edges
@@ -651,7 +651,7 @@ def augment_candidate_with_working_graph(
     cand_v = candidate.vertex_features
     new_v = torch.cat([work_v, cand_v], dim=0)[:budget]
     if new_v.shape[0] == 0:
-        return TypedAttributedGraph(
+        return Graph(
             vertex_features=torch.zeros((0, cand_v.shape[1])),
             edge_index=torch.zeros((2, 0), dtype=torch.long),
         )
@@ -679,7 +679,7 @@ def augment_candidate_with_working_graph(
             mask_t = mask.unsqueeze(0).expand_as(remapped)
             parts.append(remapped[mask_t].view(2, -1))
     new_e = torch.cat(parts, dim=1) if parts else torch.zeros((2, 0), dtype=torch.long)
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=new_v,
         edge_index=new_e,
         edge_features=torch.zeros((new_e.shape[1], 1)),
@@ -710,7 +710,7 @@ def build_pair_observation(pairs: Sequence[GraphPair]) -> torch.Tensor:
     return stacked.mean(dim=0)
 
 
-def build_graph_from_pairs(pairs: Sequence[GraphPair], budget: int) -> TypedAttributedGraph:
+def build_graph_from_pairs(pairs: Sequence[GraphPair], budget: int) -> Graph:
     """Concatenate vertex features of ``pairs`` into one graph and filter edges.
 
     The function:
@@ -736,13 +736,13 @@ def build_graph_from_pairs(pairs: Sequence[GraphPair], budget: int) -> TypedAttr
         budget: Maximum number of vertices.
 
     Returns:
-        A :class:`TypedAttributedGraph` whose ``vertex_features``
+        A :class:`Graph` whose ``vertex_features``
         has at most ``budget`` rows and whose ``edge_index`` is
         filtered to those edges. Empty input yields a zero-vertex
         graph with a single dummy feature column.
     """
     if not pairs:
-        return TypedAttributedGraph(
+        return Graph(
             vertex_features=torch.zeros((0, 1)),
             edge_index=torch.zeros((2, 0), dtype=torch.long),
         )
@@ -774,12 +774,12 @@ def build_graph_from_pairs(pairs: Sequence[GraphPair], budget: int) -> TypedAttr
         new_edges = torch.zeros((2, 0), dtype=torch.long)
     edge_features = torch.zeros((new_edges.shape[1], 1))
     if vertex_features.shape[0] == 0:
-        return TypedAttributedGraph(
+        return Graph(
             vertex_features=torch.zeros((0, max(vertex_features.shape[1], 1))),
             edge_index=new_edges,
             edge_features=edge_features,
         )
-    return TypedAttributedGraph(
+    return Graph(
         vertex_features=vertex_features,
         edge_index=new_edges,
         edge_features=edge_features,
@@ -835,7 +835,7 @@ def run_cl_experiment(
       :class:`GEM` instance.
     * PackNet's per-task masks accumulate across tasks via the
       per-cell :class:`PackNet` instance.
-    * Persistent-JEPA's :class:`PersistentState` grows by one
+    * Persistent-JEPA's :class:`State` grows by one
       commit per task.
 
     Args:
@@ -886,7 +886,7 @@ def run_cl_experiment(
                 ewc_state = EWC(lambda_ewc=effective.ewc_lambda)
                 gem_state = GEM(capacity=effective.gem_capacity)
                 packnet_state = PackNet(num_tasks=effective.n_tasks)
-                persistent_state: PersistentState | None = None
+                persistent_state: State | None = None
                 per_task_acc: list[list[float]] = []
                 run_snapshot_rows: list[dict[str, object]] = []
                 for task_idx in range(effective.n_tasks):

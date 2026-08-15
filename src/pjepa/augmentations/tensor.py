@@ -1,7 +1,7 @@
 """Tensor-compatible augmentation wrapper.
 
 Useful for tests and small models that work on raw tensors rather
-than :class:`TypedAttributedGraph`. Operates on a 2-D tensor by
+than :class:`Graph`. Operates on a 2-D tensor by
 zeroing a random fraction of feature columns.
 """
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 import torch
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["TensorDropFeature", "tensor_drop_feature"]
 
@@ -19,7 +19,7 @@ class TensorDropFeature:
     """Drop a fraction ``strength`` of feature columns from a 2-D tensor.
 
     The augmentation accepts either a 2-D tensor directly or a
-    :class:`TypedAttributedGraph`; the graph branch updates only the
+    :class:`Graph`; the graph branch updates only the
     vertex-feature tensor and returns a fresh graph.
     """
 
@@ -33,20 +33,18 @@ class TensorDropFeature:
         self.strength = strength
         self.generator = generator
 
-    def __call__(
-        self, tensor: torch.Tensor | TypedAttributedGraph
-    ) -> torch.Tensor | TypedAttributedGraph:
+    def __call__(self, tensor: torch.Tensor | Graph) -> torch.Tensor | Graph:
         """Drop a random fraction of feature columns.
 
         Args:
             tensor: Either a 2-D feature tensor or a
-                :class:`TypedAttributedGraph`. When a graph is passed,
+                :class:`Graph`. When a graph is passed,
                 its vertex features are augmented and a new graph is
                 returned.
 
         Returns:
             Either the augmented tensor (same shape) or the augmented
-            :class:`TypedAttributedGraph`. The concrete type mirrors
+            :class:`Graph`. The concrete type mirrors
             the input type.
 
         Raises:
@@ -54,7 +52,7 @@ class TensorDropFeature:
                 ``2`` or the input is a graph with a non-2-D feature
                 tensor.
         """
-        if isinstance(tensor, TypedAttributedGraph):
+        if isinstance(tensor, Graph):
             feats = tensor.vertex_features
         else:
             feats = tensor
@@ -70,7 +68,7 @@ class TensorDropFeature:
             perm = torch.randperm(n_dim, generator=self.generator)[:n_drop]
             result = feats.clone()
             result[:, perm] = 0.0
-        if isinstance(tensor, TypedAttributedGraph):
+        if isinstance(tensor, Graph):
             return tensor.with_features(vertex_features=result)
         return result
 

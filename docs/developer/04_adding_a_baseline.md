@@ -26,7 +26,7 @@ from torch import nn
 from torch_geometric.utils import degree
 from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool
 
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = ["PNA"]
 
@@ -89,7 +89,7 @@ class PNA(nn.Module):
         self.classifier = nn.Linear(hidden_dim, num_classes)
         self.num_classes = num_classes
 
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def forward(self, graph: Graph) -> torch.Tensor:
         if graph.num_vertices() == 0:
             return torch.zeros((1, self.num_classes))
         deg_log = _compute_log_degrees(graph.edge_index, graph.num_vertices()).unsqueeze(-1)
@@ -101,7 +101,7 @@ class PNA(nn.Module):
         pooled = global_add_pool(h, batch)
         return self.classifier(pooled)
 
-    def embed(self, graph: TypedAttributedGraph) -> torch.Tensor:
+    def embed(self, graph: Graph) -> torch.Tensor:
         """Return the pooled graph embedding without the classifier."""
         deg_log = _compute_log_degrees(graph.edge_index, graph.num_vertices()).unsqueeze(-1)
         h = self.input_proj(torch.cat([graph.vertex_features, deg_log], dim=-1))
@@ -123,12 +123,12 @@ import pytest
 import torch
 
 from pjepa.exceptions import GraphError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from my_module import PNA
 
 
 def test_happy_pna_forward() -> None:
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     )
@@ -143,7 +143,7 @@ def test_bad_pna_zero_dim() -> None:
 
 
 def test_ugly_pna_empty_graph() -> None:
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.zeros((0, 4)),
         edge_index=torch.zeros((2, 0), dtype=torch.long),
     )
@@ -154,7 +154,7 @@ def test_ugly_pna_empty_graph() -> None:
 
 @pytest.mark.skipif(not torch.backends.mps.is_available(), reason="MPS not available")
 def test_cross_backend_mps_pna_forward() -> None:
-    g = TypedAttributedGraph(
+    g = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3], [1, 2, 3, 4]], dtype=torch.long),
     ).to("mps")
@@ -165,7 +165,7 @@ def test_cross_backend_mps_pna_forward() -> None:
 
 def test_property_pna_output_shape() -> None:
     for num_vertices in [1, 10, 100]:
-        g = TypedAttributedGraph(
+        g = Graph(
             vertex_features=torch.randn((num_vertices, 4)),
             edge_index=torch.zeros((2, 0), dtype=torch.long),
         )

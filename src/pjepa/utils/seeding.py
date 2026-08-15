@@ -24,7 +24,7 @@ _DEFAULT_SEED: Final[int] = 0
 _VALIDATE_DETERMINISM_ENV: Final[str] = "PJEPA_DETERMINISTIC"
 
 
-_current_seed: ContextVar[int] = ContextVar("pjepa_current_seed", default=_DEFAULT_SEED)
+_current_seed: ContextVar[int] = ContextVar("pj_current_seed", default=_DEFAULT_SEED)
 
 
 def get_global_seed() -> int:

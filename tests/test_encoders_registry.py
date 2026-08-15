@@ -1,4 +1,4 @@
-"""Tests for pjepa.encoders.registry."""
+"""Tests for pj.encoders.registry."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ import pytest
 import torch
 
 from pjepa.encoders import (
-    DualGeometricEncoder,
-    EuclideanMPNN,
-    HyperbolicProjection,
-    JEPAPredictor,
+    DualGeometric,
+    Euclidean,
+    Hyperbolic,
+    Predictor,
     available_encoders,
     evict_encoder,
     get_encoder,
@@ -17,7 +17,7 @@ from pjepa.encoders import (
 )
 from pjepa.encoders.base import Encoder
 from pjepa.exceptions import ContractError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 
 __all__ = [
     "test_bad_registry_duplicate_encoder_name",
@@ -28,8 +28,8 @@ __all__ = [
 ]
 
 
-def _toy_graph() -> TypedAttributedGraph:
-    return TypedAttributedGraph(
+def _toy_graph() -> Graph:
+    return Graph(
         vertex_features=torch.randn((4, 3)),
         edge_index=torch.tensor([[0, 1, 2], [1, 2, 3]], dtype=torch.long),
     )
@@ -46,10 +46,10 @@ def test_happy_registry_lists_builtins() -> None:
 
 def test_happy_registry_lookup_builtin() -> None:
     """Lookups return the registered subclass."""
-    assert get_encoder("euclidean_mpnn") is EuclideanMPNN
-    assert get_encoder("hyperbolic") is HyperbolicProjection
-    assert get_encoder("dual_geometric") is DualGeometricEncoder
-    assert get_encoder("jepa_predictor") is JEPAPredictor
+    assert get_encoder("euclidean_mpnn") is Euclidean
+    assert get_encoder("hyperbolic") is Hyperbolic
+    assert get_encoder("dual_geometric") is DualGeometric
+    assert get_encoder("jepa_predictor") is Predictor
 
 
 def test_bad_registry_unknown_encoder() -> None:
@@ -65,7 +65,7 @@ def test_bad_registry_duplicate_encoder_name() -> None:
     class _A(Encoder, torch.nn.Module):
         output_dim = 4
 
-        def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+        def forward(self, graph: Graph) -> torch.Tensor:
             return torch.zeros((graph.num_vertices(), self.output_dim))
 
         def to(self, device):  # type: ignore[override]
@@ -78,7 +78,7 @@ def test_bad_registry_duplicate_encoder_name() -> None:
             class _B(Encoder, torch.nn.Module):
                 output_dim = 4
 
-                def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+                def forward(self, graph: Graph) -> torch.Tensor:
                     return torch.zeros((graph.num_vertices(), self.output_dim))
 
                 def to(self, device):  # type: ignore[override]
@@ -94,7 +94,7 @@ def test_happy_registry_user_registration() -> None:
     class _User(Encoder, torch.nn.Module):
         output_dim = 4
 
-        def forward(self, graph: TypedAttributedGraph) -> torch.Tensor:
+        def forward(self, graph: Graph) -> torch.Tensor:
             return torch.zeros((graph.num_vertices(), self.output_dim))
 
         def to(self, device):  # type: ignore[override]

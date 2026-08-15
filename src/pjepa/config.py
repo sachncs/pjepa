@@ -25,7 +25,7 @@ Example configuration::
     model:
       hidden_dim: 128
       num_layers: 4
-    pjepa:
+    pj:
       B: 64
       beta_ib: 1.0e-2
       lambda_mdl: 1.0e-3

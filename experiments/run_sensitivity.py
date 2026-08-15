@@ -5,8 +5,8 @@ with each ``B ∈ {8, 16, 32, 64, 128, 256}`` for 3 seeds and plot
 accuracy vs ``B``.
 
 The path exercises the same machinery as the headline TU SOTA
-experiment (DualGeometricEncoder + JEPAPredictor + TargetEncoder +
-GreedyRetrieval + FacilityLocationUtility + FourConditions), so the
+experiment (DualGeometric + Predictor + Target +
+Retrieval + Facility + FourConditions), so the
 sensitivity sweep doubles as an end-to-end smoke test of every Phase
 1-8 component in a single, configurable setting.
 
@@ -40,21 +40,21 @@ from pathlib import Path
 
 import torch
 
-from pjepa.augmentations.base import AugmentationPipeline, PipelineMode
+from pjepa.augmentations.base import Pipeline, PipelineMode
 from pjepa.augmentations.feature import DropFeature
 from pjepa.augmentations.structural import DropEdge, DropNode
 from pjepa.data.tu import load_tu_dataset
-from pjepa.encoders import DualGeometricEncoder, JEPAPredictor, TargetEncoder
+from pjepa.encoders import DualGeometric, Predictor, Target
 from pjepa.eval import (
     color_for,
     mean_per_class_accuracy,
     paired_bootstrap_ci,
     set_publication_style,
 )
-from pjepa.graphs import PersistentState, TypedAttributedGraph
+from pjepa.graphs import State, Graph
 from pjepa.logging_setup import LOG_FORMAT_JSON, configure_logging, get_logger
-from pjepa.retrieval import FacilityLocationUtility, GreedyRetrieval
-from pjepa.rewriting import HRG, accept_candidate
+from pjepa.retrieval import Facility, Retrieval
+from pjepa.rewriting import HRG, accept
 from pjepa.utils.seeding import set_global_seed
 
 __all__ = [
@@ -138,14 +138,14 @@ def default_smoke_config(output_dir: str = "results/sensitivity_smoke") -> Sensi
     )
 
 
-def build_jepa_augmentation_pipeline() -> AugmentationPipeline:
+def build_jepa_augmentation_pipeline() -> Pipeline:
     """Composite graph augmentation pipeline for the JEPA pretraining step.
 
     Returns:
-        A configured :class:`AugmentationPipeline` (``RANDOM_SAMPLE_ONE``
+        A configured :class:`Pipeline` (``RANDOM_SAMPLE_ONE``
         over ``DropEdge`` / ``DropNode`` / ``DropFeature``).
     """
-    return AugmentationPipeline(
+    return Pipeline(
         [
             DropEdge(strength=0.2),
             DropNode(strength=0.2),
@@ -156,7 +156,7 @@ def build_jepa_augmentation_pipeline() -> AugmentationPipeline:
 
 
 def encode_and_mean_pool(
-    encoder: DualGeometricEncoder, graph: TypedAttributedGraph
+    encoder: DualGeometric, graph: Graph
 ) -> torch.Tensor:
     """Mean-pool the per-vertex encoder output into a 1-D tensor.
 
@@ -183,10 +183,10 @@ def encode_and_mean_pool(
 
 
 def pretrain_jepa_one_epoch(
-    encoder: DualGeometricEncoder,
-    predictor: JEPAPredictor,
-    target: TargetEncoder,
-    train_pairs: list[tuple[TypedAttributedGraph, int]],
+    encoder: DualGeometric,
+    predictor: Predictor,
+    target: Target,
+    train_pairs: list[tuple[Graph, int]],
     config: SensitivityConfig,
 ) -> None:
     """Run a single JEPA pretraining epoch over ``train_pairs``.
@@ -252,8 +252,8 @@ def kfold_indices(n: int, k: int, seed_split: int) -> list[tuple[list[int], list
 
 
 def train_one_run(
-    train_pairs: list[tuple[TypedAttributedGraph, int]],
-    test_pairs: list[tuple[TypedAttributedGraph, int]],
+    train_pairs: list[tuple[Graph, int]],
+    test_pairs: list[tuple[Graph, int]],
     num_classes: int,
     budget: int,
     config: SensitivityConfig,
@@ -275,18 +275,18 @@ def train_one_run(
     if not train_pairs or not test_pairs:
         return 0.0
     input_dim = train_pairs[0][0].vertex_features.shape[1]
-    encoder = DualGeometricEncoder(
+    encoder = DualGeometric(
         input_dim=input_dim,
         euclidean_dim=config.hidden_dim,
         hyperbolic_dim=max(8, config.hidden_dim // 4),
         num_layers=config.num_layers,
     )
-    predictor = JEPAPredictor(
+    predictor = Predictor(
         input_dim=config.hidden_dim + max(8, config.hidden_dim // 4),
         hidden_dim=max(64, config.hidden_dim * 2),
         output_dim=config.hidden_dim + max(8, config.hidden_dim // 4),
     )
-    target = TargetEncoder(encoder, momentum=0.99)
+    target = Target(encoder, momentum=0.99)
     classifier = torch.nn.Sequential(
         torch.nn.Linear(
             config.hidden_dim + max(8, config.hidden_dim // 4), max(16, config.hidden_dim // 2)
@@ -302,9 +302,9 @@ def train_one_run(
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, config.epochs))
     loss_fn = torch.nn.CrossEntropyLoss()
 
-    persistent: PersistentState | None = None
+    persistent: State | None = None
     grammar = HRG(nonterminals=("S",), terminals=("a",), productions=(), start="S")
-    retriever = GreedyRetrieval(budget=max(1, int(budget)))
+    retriever = Retrieval(budget=max(1, int(budget)))
 
     bs = max(1, min(config.batch_size, len(train_pairs)))
     for _epoch in range(config.epochs):
@@ -322,19 +322,19 @@ def train_one_run(
                     else torch.zeros((1, input_dim))
                 )
                 if persistent is not None and persistent.num_vertices() > 0:
-                    utility = FacilityLocationUtility(
+                    utility = Facility(
                         vertex_features=persistent.graph.vertex_features
                     )
                     result = retriever.select(persistent.graph, obs, utility=utility)
                     working = result.working
                 else:
-                    utility = FacilityLocationUtility(vertex_features=g.vertex_features)
+                    utility = Facility(vertex_features=g.vertex_features)
                     result = retriever.select(g, obs, utility=utility)
                     working = result.working
                 if working.num_vertices() > 0:
                     candidate = working.graph
                     if persistent is not None and persistent.num_vertices() > 0:
-                        accepted, _ = accept_candidate(
+                        accepted, _ = accept(
                             candidate=candidate,
                             current=persistent.graph,
                             observation=obs,
@@ -350,7 +350,7 @@ def train_one_run(
                                 delta_j=-1e-3,
                             )
                     else:
-                        persistent = PersistentState(graph=candidate)
+                        persistent = State(graph=candidate)
                     feats = encode_and_mean_pool(encoder, candidate)
                 else:
                     feats = encode_and_mean_pool(encoder, g)
@@ -375,7 +375,7 @@ def train_one_run(
                 if g.num_vertices() > 0
                 else torch.zeros((1, input_dim))
             )
-            utility = FacilityLocationUtility(vertex_features=g.vertex_features)
+            utility = Facility(vertex_features=g.vertex_features)
             result = retriever.select(g, obs, utility=utility)
             target_graph = result.working.graph if result.working.num_vertices() > 0 else g
             feats = encode_and_mean_pool(encoder, target_graph)

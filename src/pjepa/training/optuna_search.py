@@ -41,7 +41,7 @@ CLI on top of it so existing scripts continue to work.
 
 Let ``T`` be ``n_trials``, ``E`` the per-trial epoch count, and
 ``N`` the dataset size. Each trial trains and evaluates a
-``DualGeometricEncoder`` for ``E`` epochs, so the wall-clock cost
+``DualGeometric`` for ``E`` epochs, so the wall-clock cost
 is ``O(T * E * N)``. The SQLite storage is in-process so the
 inner overhead per trial is negligible (a few ``ms`` of Python
 pickling).
@@ -70,14 +70,14 @@ from typing import Any
 import torch
 
 from pjepa.augmentations import (
-    Augmentation,
-    AugmentationPipeline,
     DropEdge,
     DropNode,
+    Pipeline,
     PipelineMode,
     TensorDropFeature,
+    Transform,
 )
-from pjepa.encoders import DualGeometricEncoder
+from pjepa.encoders import DualGeometric
 from pjepa.exceptions import ConfigError, DataError
 from pjepa.logging_setup import get_logger
 from pjepa.utils.seeding import set_global_seed
@@ -152,7 +152,7 @@ class OptunaSearchConfig:
           the exception.
     """
 
-    study_name: str = "pjepa-tu"
+    study_name: str = "pj-tu"
     storage_path: str = "results/optuna"
     n_trials: int = 20
     epochs: int = 100
@@ -257,7 +257,7 @@ def suggest_hyperparameters(
 
 def build_augmentation_from_name(
     name: str,
-) -> Augmentation | TensorDropFeature | AugmentationPipeline | None:
+) -> Transform | TensorDropFeature | Pipeline | None:
     """Construct an augmentation object from a search-space name.
 
     The supported names mirror the Optuna search-space ``augmentation``
@@ -268,7 +268,7 @@ def build_augmentation_from_name(
     * ``"dropnode"`` — :class:`pjepa.augmentations.DropNode`.
     * ``"dropfeat"`` — :class:`pjepa.augmentations.TensorDropFeature`.
     * ``"composite"`` — a random-sample-one
-      :class:`pjepa.augmentations.AugmentationPipeline` combining
+      :class:`pjepa.augmentations.Pipeline` combining
       the previous three.
 
     Args:
@@ -291,7 +291,7 @@ def build_augmentation_from_name(
     if name == "dropfeat":
         return TensorDropFeature(strength=0.2)
     if name == "composite":
-        return AugmentationPipeline(
+        return Pipeline(
             [DropEdge(strength=0.2), DropNode(strength=0.2), TensorDropFeature(strength=0.2)],
             mode=PipelineMode.RANDOM_SAMPLE_ONE,
         )
@@ -519,7 +519,7 @@ class OptunaSearch:
             return 0.0
         n_epochs = int(epochs) if epochs is not None else int(self.config.epochs)
         input_dim = int(train_pairs[0][0].vertex_features.shape[1])
-        encoder = DualGeometricEncoder(
+        encoder = DualGeometric(
             input_dim=input_dim,
             euclidean_dim=int(params["hidden_dim"]),
             hyperbolic_dim=32,
@@ -546,10 +546,10 @@ class OptunaSearch:
             else build_augmentation_from_name(str(params.get("augmentation", "none")))
         )
 
-        def _apply_aug(graph: Any) -> Any:
+        def apply_aug(graph: Any) -> Any:
             if aug is None:
                 return graph
-            if isinstance(aug, AugmentationPipeline):
+            if isinstance(aug, Pipeline):
                 return aug(graph)
             return graph
 
@@ -557,7 +557,7 @@ class OptunaSearch:
             feats: list[torch.Tensor] = []
             labels: list[int] = []
             for g, lbl in pairs:
-                g_aug = _apply_aug(g)
+                g_aug = apply_aug(g)
                 e, _ = encoder(g_aug)
                 feats.append(e.mean(dim=0))
                 labels.append(int(lbl))

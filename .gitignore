@@ -80,7 +80,11 @@ site/
 *.pyc
 .pytype/
 
+# Datasets (downloaded at runtime by PyG)
+data/
+src/pjepa/.cache/
+
 # OS
 Thumbs.db
 ehthumbs.db
-Desktop.ini
+Desktop.inidata/

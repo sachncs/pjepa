@@ -38,7 +38,7 @@ from pjepa.data.ogb import (
     neighbor_sample,
 )
 from pjepa.exceptions import BackendError, DataError
-from pjepa.graphs import TypedAttributedGraph
+from pjepa.graphs import Graph
 from pjepa.perf import (
     ShardedCheckpoint,
     assert_rss_cap,
@@ -108,7 +108,7 @@ def _make_synthetic_ogb(
     edges_src = torch.arange(num_nodes, dtype=torch.long)
     edges_dst = torch.roll(edges_src, shifts=-1)
     edges = torch.stack([edges_src, edges_dst], dim=0)
-    graph = TypedAttributedGraph(
+    graph = Graph(
         vertex_features=features,
         edge_index=edges,
         edge_features=torch.zeros((edges.shape[1], 1)),
@@ -260,7 +260,7 @@ def test_induce_subgraph_empty() -> None:
 
 def test_graphsage_node_classifier_forward_shape() -> None:
     """GraphSAGE produces per-vertex logits of shape ``[N, num_classes]``."""
-    graph = TypedAttributedGraph(
+    graph = Graph(
         vertex_features=torch.randn((6, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 0]], dtype=torch.long),
     )
@@ -271,7 +271,7 @@ def test_graphsage_node_classifier_forward_shape() -> None:
 
 def test_graphmae_node_level_encode() -> None:
     """GraphMAE.encode returns per-vertex embeddings of the right shape."""
-    graph = TypedAttributedGraph(
+    graph = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3, 4], [1, 2, 3, 4, 0]], dtype=torch.long),
     )
@@ -282,12 +282,12 @@ def test_graphmae_node_level_encode() -> None:
 
 def test_bgri_loss_finite() -> None:
     """BGRL loss is finite on two augmented views of the same graph."""
-    graph = TypedAttributedGraph(
+    graph = Graph(
         vertex_features=torch.randn((5, 4)),
         edge_index=torch.tensor([[0, 1, 2, 3, 4], [1, 2, 3, 4, 0]], dtype=torch.long),
     )
     model = BGRL(input_dim=4, hidden_dim=8, num_layers=2)
-    other = TypedAttributedGraph(
+    other = Graph(
         vertex_features=graph.vertex_features + 0.1,
         edge_index=graph.edge_index,
         edge_features=graph.edge_features,
@@ -314,7 +314,7 @@ def test_bgri_encoder_disable_classifier() -> None:
     model = BGRL(input_dim=4, hidden_dim=8, num_layers=1, num_classes=0)
     assert model.classifier is None
     assert model.embed(
-        TypedAttributedGraph(
+        Graph(
             vertex_features=torch.randn((3, 4)),
             edge_index=torch.tensor([[0, 1, 2], [1, 2, 0]], dtype=torch.long),
         )

@@ -2,9 +2,9 @@
 
 The registry maps string names to :class:`Encoder` subclasses so that
 new encoder implementations can be plugged in without modifying the
-core library. Concrete encoders (:class:`EuclideanMPNN`,
-:class:`HyperbolicProjection`, :class:`DualGeometricEncoder`,
-:class:`JEPAPredictor`) are registered automatically on import.
+core library. Concrete encoders (:class:`Euclidean`,
+:class:`Hyperbolic`, :class:`DualGeometric`,
+:class:`Predictor`) are registered automatically on import.
 
 The public API:
 
@@ -23,10 +23,10 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from pjepa.encoders.base import Encoder
-from pjepa.encoders.dual_geometric import DualGeometricEncoder
-from pjepa.encoders.euclidean_mpnn import EuclideanMPNN
-from pjepa.encoders.hyperbolic import HyperbolicProjection
-from pjepa.encoders.jepa_predictor import JEPAPredictor
+from pjepa.encoders.dual_geometric import DualGeometric
+from pjepa.encoders.euclidean_mpnn import Euclidean
+from pjepa.encoders.hyperbolic import Hyperbolic
+from pjepa.encoders.jepa_predictor import Predictor
 from pjepa.exceptions import ContractError
 
 __all__ = [
@@ -118,7 +118,7 @@ def evict_encoder(name: str) -> bool:
 
 
 # Built-in encoders registered on import.
-register("euclidean_mpnn")(EuclideanMPNN)
-register("hyperbolic")(HyperbolicProjection)
-register("dual_geometric")(DualGeometricEncoder)
-register("jepa_predictor")(JEPAPredictor)
+register("euclidean_mpnn")(Euclidean)
+register("hyperbolic")(Hyperbolic)
+register("dual_geometric")(DualGeometric)
+register("jepa_predictor")(Predictor)

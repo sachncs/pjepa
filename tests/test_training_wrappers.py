@@ -1,4 +1,4 @@
-"""Tests for pjepa.training wrappers (SWA, TTA, ensemble, distillation)."""
+"""Tests for pj.training wrappers (SWA, TTA, ensemble, distillation)."""
 
 from __future__ import annotations
 
