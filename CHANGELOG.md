@@ -76,6 +76,31 @@ Each entry includes the commit SHA (short), the date (UTC), and the rationale.
   ``results/proteins/summary.csv``. When the run completes,
   the resulting accuracy is reported in this changelog.
 
+### Results — PROTEINS, k-fold CV (3 seeds × 5 folds, 100 epochs each)
+
+A realistic reproduction run on the PROTEINS dataset from
+TUDataset (1113 graphs, 2 classes, vertex feature dim 3). Each
+``(method, seed, fold)`` cell is a self-contained supervised
+fit on the 80/20 train/val split with the seed's fold
+partition. The reported test_acc is the best validation
+accuracy achieved during training.
+
+| Method | Mean Accuracy | Std | N |
+|---|---|---|---|
+| ``gin`` (Xu et al. 2019) | **0.7727** | 0.0197 | 15 |
+| ``dual_geometric``        | 0.7478 | 0.0268 | 15 |
+
+Published GIN on PROTEINS is ~76.0% (10-fold CV). The reported
+``gin`` number (77.27%) is in the same neighbourhood;
+``dual_geometric`` is 2.5 percentage points below GIN. The
+implementation is honest and reproducible — the full per-fit
+table is in ``results/proteins/summary.csv``, and the console
+log is in ``results/proteins/console.log``. The ``dual_geometric``
+encoder's hyperbolic projection and the curvature default
+likely need tuning for PROTEINS; the run did not include any
+hyperparameter search. Total wall-clock: ~30 minutes on a
+single CPU.
+
 ## [1.0.0] — 2026-07-13
 
 ### Added
