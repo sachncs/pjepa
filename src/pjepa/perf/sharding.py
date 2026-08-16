@@ -61,9 +61,16 @@ class ShardedCheckpoint:
 
     Attributes:
         directory: Directory containing ``manifest.json`` and the
-          ``shard_*.pt`` files.
+            ``shard_*.pt`` files.
         manifest: A serialised mapping of tensor name →
-          ``{shard, size_bytes, shape, dtype}``.
+            ``{shard, size_bytes, shape, dtype}``.
+        shard_size_bytes: Maximum size of each shard in bytes.
+
+    Args:
+        directory: Directory containing ``manifest.json`` and the
+            ``shard_*.pt`` files.
+        manifest: A serialised mapping of tensor name →
+            ``{shard, size_bytes, shape, dtype}``.
         shard_size_bytes: Maximum size of each shard in bytes.
     """
 
