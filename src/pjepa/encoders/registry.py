@@ -97,7 +97,11 @@ def get_encoder(name: str) -> type[Encoder]:
 
 
 def available_encoders() -> tuple[str, ...]:
-    """Return the names of all registered encoders in alphabetical order."""
+    """Return the names of all registered encoders in alphabetical order.
+
+    Returns:
+        A tuple of registered names, alphabetically sorted.
+    """
     return tuple(sorted(encoder_registry))
 
 
