@@ -154,13 +154,23 @@ See `configs/*.yaml` for the canonical TU / CL / OGB experiment configs.
 | `pjepa.rewriting.{HRG,Bisimulation,Criterion}` | class | Verified rewriting drivers |
 | `pjepa.rewriting.FourConditions` | class | The four-conditions acceptance criterion |
 | `pjepa.scheduler` | package | PPO trainer, replay buffer, sleep cadence |
+| `pjepa.scheduler.PPOTrainer` | class | Clipped-surrogate PPO trainer |
+| `pjepa.scheduler.Buffer` | class | FIFO replay buffer (concrete `Storage`) |
+| `pjepa.scheduler.Sleep` | class | Rolling-statistic sleep cadence (concrete `Cadence`) |
 | `pjepa.objectives` | package | `𝒥` free-energy functional, IB, MDL |
+| `pjepa.objectives.FreeEnergy` | class | The four-term `𝒥` functional |
 | `pjepa.dynamics` | package | Evolution operator `F`, contraction analysis |
+| `pjepa.dynamics.EvolutionOperator` | class | Configuration for the contraction analysis |
 | `pjepa.augmentations` | package | DropEdge, DropNode, DropFeature, … |
+| `pjepa.augmentations.Transform` | class (ABC) | Augmentation base class |
+| `pjepa.augmentations.Pipeline` | class | Composition of multiple `Transform`s |
 | `pjepa.training` | package | pretrain/train/eval, SWA, TTA, Ensemble, Distillation |
 | `pjepa.eval` | package | metrics, bootstrap CI, statistical tests |
+| `pjepa.eval.aggregate` | module | Canonical result aggregator |
 | `pjepa.perf` | package | safe_compile, autocast, EMA, fused scatter, sync |
-| `pjepa.baselines` | package | GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM |
+| `pjepa.perf.EMATarget` | class | Cosine-schedule EMA wrapper |
+| `pjepa.baselines` | package | GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM, BGRL, GraphSAGE, PackNet, Naive |
+| `pjepa.compat` | module | Backward-compatible aliases for renamed symbols |
 
 ---
 
