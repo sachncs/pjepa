@@ -1,12 +1,15 @@
 # API Reference
 
-The `pjepa` API is organised into a small number of subpackages, each with a focused responsibility. This page gives a high-level tour; for per-symbol documentation, run `help(pjepa.X)` in a Python REPL.
+The `pjepa` API is organised into a small number of subpackages,
+each with a focused responsibility. This page gives a high-level
+tour; for per-symbol documentation, run `help(pjepa.X)` in a
+Python REPL.
 
 ## Top-level
 
 | Symbol | Description |
 |---|---|
-| `pjepa.__version__` | The current package version (e.g., `"0.0.11"`). |
+| `pjepa.__version__` | The current package version (e.g., `"1.0.0"`). |
 
 ## `pjepa.graphs`
 
@@ -18,20 +21,23 @@ The persistent and working graph primitives.
 | `State` | Wrapper around the persistent graph with commit/reject audit trail. |
 | `Working` | Bounded working subgraph enforced to \|V\| ≤ `budget`. |
 
-See [`paper/graphs.md`](../paper/graphs.md) for the architectural rationale.
+See [`paper/graphs.md`](../paper/graphs.md) for the architectural
+rationale.
 
 ## `pjepa.encoders`
 
-Encoder protocols and implementations.
+Encoder polymorphic roots and concrete implementations.
 
 | Symbol | Description |
 |---|---|
-| `Encoder` | Protocol every encoder must satisfy. |
+| `Encoder` | ABC — every encoder must satisfy this polymorphic root. |
+| `EncoderProtocol` | Backward-compatibility alias for `Encoder`. |
 | `Euclidean` | GIN-style message-passing neural network. |
 | `Hyperbolic` | Maps Euclidean features into the Poincaré ball. |
 | `DualGeometric` | Combines Euclidean MPNN with hyperbolic projection. |
+| `Head` | ABC — predictor / target polymorphic root. |
 | `Predictor` | Predictor head for the JEPA objective. |
-| `Target` | BYOL-style EMA target encoder. |
+| `Target` | EMA target encoder. |
 
 ## `pjepa.retrieval`
 
@@ -40,12 +46,12 @@ Submodular retrieval with the (1 − 1/e) approximation guarantee.
 | Symbol | Description |
 |---|---|
 | `Retrieval` | Greedy algorithm that achieves the NWF bound. |
-| `Utility` | Protocol every retrieval utility must satisfy. |
+| `Utility` | ABC — every retrieval utility must satisfy this polymorphic root. |
 | `Facility` | Provably submodular facility-location utility. |
 | `InfoGain` | Information-gain utility with per-vertex cost. |
+| `Result` | Dataclass returned by `Retrieval.select`. |
 | `uniform_weights(n)` | Return uniform per-vertex weights. |
 | `facility_location_weights(features, observation)` | Cosine-similarity weights. |
-| `Result` | Dataclass returned by `Retrieval.select`. |
 
 ## `pjepa.rewriting`
 
@@ -57,8 +63,10 @@ Verified rewriting engine.
 | `HRGProduction` | A single production rule. |
 | `Bisimulation` | Configuration for the bisimulation metric. |
 | `bisimulation_distance(graph_a, graph_b, metric)` | Compute the bisimulation pseudometric. |
+| `Criterion` | ABC — every acceptance criterion must satisfy this polymorphic root. |
 | `FourConditions` | The four acceptance thresholds. |
 | `accept(candidate, current, observation, grammar, thresholds)` | Evaluate the four-conditions criterion. |
+| `compute_delta_j(candidate, current, observation, beta_ib, lambda_mdl, gamma_forward)` | Compute `Δ𝒥`. |
 | `DPOConfig` | Configuration for the DPO loss. |
 | `dpo_loss(...)` | Compute the DPO loss for preference pairs. |
 
@@ -68,7 +76,7 @@ The unified free-energy functional and its components.
 
 | Symbol | Description |
 |---|---|
-| `Energy` | The 4-term 𝒥 functional. |
+| `FreeEnergy` | The four-term `𝒥` functional. |
 | `ib_lagrangian(ix_z, iy_z, beta)` | Symbolic IB Lagrangian. |
 | `variational_ib_bound(posterior_logits, prior_logits, beta)` | Variational IB upper bound. |
 | `description_length(graph)` | Description length of a graph under MDL. |
@@ -79,7 +87,7 @@ Evolution operator analysis (Propositions 4–6 of the paper).
 
 | Symbol | Description |
 |---|---|
-| `Evolution` | Configuration for analysing `F`. |
+| `EvolutionOperator` | Configuration for analysing `F`. |
 | `contractivity_bound(eta_g, eta_o, epsilon, t)` | Upper bound on trajectory distance. |
 | `fixed_point_iteration(state, operator, max_steps, epsilon)` | Iterate until a fixed point. |
 
@@ -89,12 +97,13 @@ PPO scheduler with replay buffer and sleep cadence.
 
 | Symbol | Description |
 |---|---|
+| `Storage` | ABC — every replay storage backend must satisfy this polymorphic root. |
+| `Buffer` | FIFO replay buffer (concrete `Storage`) with staleness eviction. |
+| `Step` | A single replay-buffer transition. |
+| `Cadence` | ABC — every sleep cadence must satisfy this polymorphic root. |
+| `Sleep` | Rolling-statistic sleep cadence (concrete `Cadence`). |
 | `PPOConfig` | PPO hyperparameters. |
 | `PPOTrainer` | Clipped-surrogate PPO trainer. |
-| `Buffer` | FIFO replay buffer with staleness eviction. |
-| `Transition` | A single replay-buffer transition. |
-| `Sleep` | Sleep-cycle trigger. |
-| `should_sleep(cadence)` | Functional alias for `cadence.should_sleep()`. |
 
 ## `pjepa.augmentations`
 
@@ -102,15 +111,17 @@ Graph and tensor augmentations.
 
 | Symbol | Description |
 |---|---|
-| `Augmentation` | Abstract base class. |
+| `Transform` | ABC — every augmentation must satisfy this polymorphic root. |
 | `Pipeline` | Sequential / random-sample-one / random-sample-k composition. |
 | `PipelineMode` | Composition-mode enumeration. |
 | `DropEdge(strength)` | Drop a fraction of edges. |
 | `DropNode(strength)` | Drop a fraction of vertices. |
-| `RandomWalkSubgraph(strength)` | Vertex-induced random-walk subgraph. |
+| `Subgraph(strength)` | Vertex-induced random-sample subgraph. |
+| `ConnectedSubgraph(strength)` | Vertex-induced BFS-connected subgraph. |
 | `DropFeature(strength)` | Zero a fraction of feature dimensions. |
 | `FeatureMask(feature_dim, strength)` | Replace features with a learnable mask token. |
 | `TensorDropFeature(strength)` | Tensor-compatible feature drop for non-graph models. |
+| `Identity()` | No-op augmentation. |
 
 ## `pjepa.training`
 
@@ -146,10 +157,16 @@ Evaluation metrics, bootstrap CI, and statistical tests.
 | `accuracy(predictions, targets)` | Fraction of correct predictions. |
 | `mean_per_class_accuracy(predictions, targets)` | Average per-class accuracy. |
 | `forgetting_rate(per_task_accuracies)` | Average forgetting rate. |
+| `backward_transfer(per_task_accuracies)` | Backward-transfer metric. |
+| `forward_transfer(per_task_accuracies, baseline_per_task)` | Forward-transfer metric. |
 | `BootstrapCI` | Result of a paired bootstrap computation. |
-| `paired_bootstrap_ci(...)` | Paired BCa bootstrap CI for the difference in means. |
+| `paired_bootstrap_ci(...)` | Paired percentile bootstrap CI for the difference in means. |
 | `wilcoxon_signed_rank(scores_a, scores_b)` | Two-sided p-value. |
+| `permutation_pvalue(diffs, n_resamples, seed)` | Sign-permutation fallback. |
 | `bonferroni_correction(p_values)` | Adjust p-values for multiple comparisons. |
+| `AggregatedRow` | One row of the per-experiment aggregator output. |
+| `AggregationResult` | Aggregator output bundle. |
+| `aggregate_all(results_dir)` | Walk `results_dir`, write JSONL / CSV / Markdown artefacts. |
 
 ## `pjepa.perf`
 
@@ -159,7 +176,7 @@ Performance infrastructure (capability-aware with graceful fallback).
 |---|---|
 | `safe_compile(module, mode, fullgraph)` | Backend-aware `torch.compile` wrapper. |
 | `autocast_context(enabled, dtype)` | Backend-aware mixed-precision context manager. |
-| `EMATarget` | BYOL-style EMA with optional cosine schedule. |
+| `EMATarget` | EMA target wrapper with optional cosine schedule. |
 | `fused_scatter_add(out, index, src, dim)` | Fused scatter-add. |
 | `fused_scatter_mean(out, count, index, src, dim)` | Fused scatter-mean. |
 | `sync_mps()` | Explicit MPS synchronisation. |
@@ -176,6 +193,10 @@ Dataset loaders.
 | `make_class_incremental_split(labels, num_tasks, seed_split)` | Construct a class-incremental split. |
 | `OGBArxiv` | The OGB-Arxiv dataset. |
 | `load_ogb_arxiv(root)` | Load OGB-Arxiv with test-label isolation. |
+| `CSRAdj` | Named-tuple CSR adjacency representation. |
+| `precompute_adjacency(graph)` | CSR adjacency for fast neighbour sampling. |
+| `NeighborSample` | Sampled-subgraph result. |
+| `neighbor_sample(...)` | Multi-hop random neighbour sampling. |
 
 ## `pjepa.baselines`
 
@@ -183,19 +204,36 @@ Published baselines for SOTA comparison.
 
 | Symbol | Description |
 |---|---|
+| `Naive` | Mean-pool baseline. |
 | `GCN` | Kipf & Welling GCN baseline. |
 | `GIN` | Graph Isomorphism Network with optional virtual node. |
-| `GraphMAE` | Masked autoencoder for graphs. |
+| `GraphSAGE` | Hamilton et al. GraphSAGE. |
 | `GraphCL` | Contrastive learning with NT-Xent loss. |
+| `GraphMAE` | Masked autoencoder for graphs. |
 | `InfoGraph` | Mutual-information maximisation. |
+| `BGRL` | Bootstrap Graph Latents. |
 | `EWC` | Elastic Weight Consolidation regulariser. |
 | `GEM` | Gradient Episodic Memory. |
+| `PackNet` | Per-task parameter slicing. |
 
 ## `pjepa.cli`
 
 Typer-based command-line interface.
 
 See [`cli.md`](cli.md) for the full CLI reference.
+
+## `pjepa.compat`
+
+Backward-compatible aliases for renamed symbols.
+
+| Alias | Maps to |
+|---|---|
+| `Graph` | `Graph` (no change) |
+| `PersistentGraph` | `State` |
+| `GraphState` | `Working` |
+| `PJEPAEncoder` | `Encoder` |
+| `PJEPATransform` | `Transform` |
+| `make_typed_graph(...)` | `Graph(...)` constructor wrapper |
 
 ## `pjepa.exceptions`
 
@@ -235,6 +273,10 @@ Structured logging.
 | Symbol | Description |
 |---|---|
 | `LogFormat` | Log format enumeration. |
+| `LOG_FORMAT_HUMAN` | Constant for the human-readable format. |
+| `LOG_FORMAT_JSON` | Constant for the machine-readable format. |
+| `HumanLogFormatter` | The single-line human format. |
+| `JsonLogFormatter` | The JSON-lines machine format. |
 | `configure_logging(level, fmt)` | Configure the package logger. |
 | `get_logger(name)` | Get a logger under the `pjepa` namespace. |
 | `log_event(logger, event, **fields)` | Emit a structured event with keyword fields. |

@@ -4,20 +4,27 @@
 
 ## Quick Start
 
-The reproduction suite is exposed via the Makefile. Every target
-re-runs an experiment with the *frozen* config from the corresponding
-phase boundary.
+The reproduction suite is exposed via the Makefile and the
+`experiments/` scripts. Every target re-runs an experiment with
+the frozen config from the corresponding phase boundary.
 
 ```bash
 # Cheap validations (< 1 minute each)
-make bench-retrieval          # Validates Theorem 3
-make bench-distortion         # Validates Proposition 7
+pjepa benchmark retrieval          # Validates Theorem 3
+pjepa benchmark distortion         # Validates Proposition 7
+pjepa benchmark encoder-ablation   # Validates Proposition 3
 
 # Full reproductions (longer)
 make reproduce-tu             # 6 datasets × 7 methods × 5 seeds (~30 hours)
 make reproduce-cl             # 3 datasets × 5 methods × 5 seeds (~15 hours)
 make reproduce-ogb            # 5 methods × 3 seeds (~25 hours)
 make reproduce-all            # Everything (~70 hours)
+
+# Headline PROTEINS reproduction (canonical)
+python experiments/train_real.py \
+    --epochs 200 --seeds 3 --folds 10 \
+    --methods gin dual_geometric \
+    --output-dir results/proteins_full
 ```
 
 All results land in `results/`:
@@ -53,9 +60,9 @@ Runs the **CL SOTA** experiment:
 
 * **Datasets:** PROTEINS-CL5, MUTAG-CL5, NCI1-CL5 (5-task
   class-incremental splits)
-* **Methods:** Naive fine-tune, EWC, GEM, PackNet-style, Persistent-JEPA
-* **Protocol:** Sequential training across 5 tasks; measure backward
-  transfer (forgetting) and forward transfer
+* **Methods:** Naive fine-tune, EWC, GEM, PackNet, Persistent-JEPA
+* **Protocol:** Sequential training across 5 tasks; measure
+  backward transfer (forgetting) and forward transfer
 * **Output:**
   * `results/tables/cl_summary.csv` — per-method metrics
   * `results/plots/cl_forgetting_curves.png` — forgetting rate per task
@@ -72,19 +79,39 @@ Runs the **OGB-arxiv** experiment:
   * `results/tables/ogb_summary.csv` — test accuracy per method
   * Optional OGB submission via `pjepa eval ogb --submit`
 
-### `make bench-retrieval` and `make bench-distortion`
+### `python experiments/train_real.py`
+
+Runs the **canonical PROTEINS head-to-head** of `gin` vs
+`dual_geometric`. Defaults to 3 seeds × 10 folds × 200 epochs
+(60 fits, ~2 hours on a single CPU). The full per-fit table is
+written to `<output_dir>/summary.csv` and a per-fold metrics
+JSONL to `<output_dir>/metrics.jsonl`.
+
+Latest reproduction (3 seeds × 10 folds × 200 epochs):
+
+| Method | Mean Accuracy | Std | N |
+|---|---|---|---|
+| `gin` (Xu et al. 2019) | **0.7901** | 0.0296 | 30 |
+| `dual_geometric` | 0.7733 | 0.0337 | 30 |
+
+### `pjepa benchmark retrieval` / `distortion` / `encoder-ablation`
 
 Run the *cheap validation benchmarks*:
 
-* **Retrieval:** generates 100 random monotone submodular functions,
-  computes the greedy retrieval's ratio to the brute-force optimum,
-  and verifies the ratio is ≥ (1 - 1/e) ≈ 0.632 in expectation.
-* **Distortion:** generates b-ary trees of varying depths, computes
-  hyperbolic and Euclidean embeddings, and verifies the ratio
-  matches the Θ(log D / (D log b)) bound from Proposition 7.
+* **Retrieval:** generates random monotone submodular functions,
+  computes the greedy retrieval's ratio to the brute-force
+  optimum, and verifies the ratio is ≥ (1 - 1/e) ≈ 0.632 in
+  expectation.
+* **Distortion:** generates b-ary trees of varying depths,
+  computes hyperbolic and Euclidean embeddings, and verifies
+  the ratio matches the Θ(log D / (D log b)) bound from
+  Proposition 7.
+* **Encoder ablation:** measures how often the dual-geometric
+  encoder outperforms its Euclidean-only sibling on the depth-
+  prediction task.
 
-These run in seconds and are the recommended **first sanity check**
-after installing `pjepa`.
+These run in seconds and are the recommended **first sanity
+check** after installing `pjepa`.
 
 ## Verifying Reproduction
 
@@ -94,8 +121,8 @@ After `make reproduce-tu`, check the headline table:
 cat results/tables/tu_summary.csv
 ```
 
-Expected: a CSV with rows for each (dataset, method) pair and columns
-for mean accuracy, std, and confidence interval.
+Expected: a CSV with rows for each (dataset, method) pair and
+columns for mean accuracy, std, and confidence interval.
 
 For SOTA claims, run the verification hook:
 
@@ -103,51 +130,43 @@ For SOTA claims, run the verification hook:
 make verify-claims
 ```
 
-This compares the reproduced numbers against the published targets in
-`docs/paper/sota_targets.md` and exits non-zero if any number is more
-than 2× bootstrap CI away from the claim.
+This compares the reproduced numbers against the published
+targets and exits non-zero if any number is more than 2×
+bootstrap CI away from the claim.
 
 ## Troubleshooting
 
 ### Slow reproduction
 
-If `make reproduce-tu` is running slower than expected, profile the
-bottleneck:
+If `make reproduce-tu` is running slower than expected, profile
+the bottleneck:
 
 ```bash
-pjepa profile --run-dir results/runs/<run_id>
+make profile
 ```
 
-The most common bottleneck on M3 Pro is **scatter_add_ on MPS**, which
-falls back to CPU. Fix by upgrading to PyG 2.9+ or pinning PyG to a
-version with native MPS support.
+The most common bottleneck on M3 Pro is **scatter_add_ on MPS**,
+which falls back to CPU. Fix by upgrading to PyG 2.9+ or pinning
+PyG to a version with native MPS support.
 
 ### OOM on OGB-arxiv
 
-OGB-arxiv with neighbour sampling uses ~6 GB RAM. If you hit OOM:
+OGB-arxiv with neighbour sampling uses ~6 GB RAM. If you hit
+OOM:
 
 * Reduce `num_neighbors` in `configs/ogb.yaml` (e.g. `[10, 5, 3]`).
 * Reduce `batch_size` for the linear-probe stage.
 
 ### Numerical instability in hyperbolic encoder
 
-If the hyperbolic encoder produces NaN during training, the curvature
-`c` is too high. Reduce to `c = 0.5` in `configs/default.yaml`.
+If the hyperbolic encoder produces NaN during training, the
+curvature `c` is too high. Reduce to `c = 0.5` in
+`configs/default.yaml`.
 
 ### Bisimulation metric too expensive
 
-The bisimulation metric is O(B²). For `B > 256`, switch to the WL-test
-proxy via `config.bisimulation.proxy = "wl"`.
-
-## Resuming an Interrupted Run
-
-Every run is checkpointed. To resume:
-
-```bash
-pjepa train tu configs/tu.yaml --resume results/runs/<run_id>
-```
-
-The trainer picks up from the last saved epoch and continues training.
+The bisimulation metric is O(B²). For `B > 256`, switch to the
+WL-test proxy via `config.bisimulation.proxy = "wl"`.
 
 ## Customising the Reproduction
 
@@ -161,13 +180,16 @@ customisations:
 * **Different optimizer:** edit `training.optimizer` and the
   hyperparameters below it.
 * **Different encoder:** edit `model.encoder` to one of
-  `euclidean_mpnn`, `hyperbolic`, `dual_geometric`,
-  `gcn`, `gin`.
+  `euclidean`, `hyperbolic`, `dual_geometric`, `gcn`, `gin`.
+* **Different k-fold CV on PROTEINS:** pass
+  `--seeds N --folds K` to `experiments/train_real.py`.
 
 After editing, re-run the reproduction:
 
 ```bash
 make reproduce-tu
+# or
+python experiments/train_real.py --epochs 200 --seeds 3 --folds 10
 ```
 
 ## Where to Look Next

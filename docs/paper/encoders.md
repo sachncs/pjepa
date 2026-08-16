@@ -23,12 +23,13 @@ For tasks that don't benefit from hierarchy, the hyperbolic component can be abl
 
 | Class | Purpose |
 |---|---|
-| `Encoder` (Protocol) | The interface every encoder must satisfy: `forward(graph)`, `to(device)`. |
+| `Encoder` (ABC) | Polymorphic root; subclasses must implement `forward(graph)`. |
 | `Euclidean` | GIN-style message passing with sum aggregation. |
 | `Hyperbolic` | Tanh-map into the Poincaré ball with norm clamping. |
 | `DualGeometric` | Euclidean + hyperbolic concatenated representation. |
+| `Head` (ABC) | Polymorphic root for the predictor / target pair. |
 | `Predictor` | Predictor head for the JEPA objective. |
-| `Target` | BYOL-style EMA target encoder. |
+| `Target` | EMA target encoder. |
 
 ## Numerical Stability
 

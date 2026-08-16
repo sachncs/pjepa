@@ -16,7 +16,7 @@ This is the best possible polynomial-time approximation for general submodular m
 
 | Class | Description |
 |---|---|
-| `Utility` (Protocol) | `__call__(vertex_subset, observation) -> float`. |
+| `Utility` (ABC) | `__call__(vertex_subset, observation) -> float`. |
 | `Facility` | Provably submodular: $f(W) = \sum_i \max_{v \in W} \text{sim}(v, i)$. |
 | `InfoGain` | Information-gain proxy with per-vertex cost. |
 | `Retrieval(budget)` | Algorithm 1 of the paper. |

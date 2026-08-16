@@ -25,12 +25,12 @@ Combined with the four-conditions criterion (§7.7), this gives strict monotonic
 
 ## Implementation
 
-`pjepa.objectives.Energy` is a frozen dataclass holding the three coefficients. Its `__call__` evaluates 𝒥 on a graph + observation pair.
+`pjepa.objectives.FreeEnergy` is a frozen dataclass holding the three coefficients. Its `__call__` evaluates 𝒥 on a graph + observation pair.
 
 ```python
-from pjepa.objectives import Energy
+from pjepa.objectives import FreeEnergy
 
-J = Energy(beta_ib=0.01, lambda_mdl=0.001, gamma_forward=0.0001)
+J = FreeEnergy(beta_ib=0.01, lambda_mdl=0.001, gamma_forward=0.0001)
 value = J(graph, observation)
 ```
 
