@@ -34,11 +34,11 @@ class TTAConfig:
 
     Attributes:
         n_aug: Number of augmented passes per inference call.
-          Must be ``>= 1``.
-        include_original: When ``True`` the original (unaugmented)
-          input is included in the prediction stack alongside the
-          augmented passes; when ``False`` only the augmented passes
-          contribute.
+            Must be ``>= 1``.
+        include_original: When ``True`` the original
+            (unaugmented) input is included in the prediction
+            stack alongside the augmented passes; when ``False``
+            only the augmented passes contribute.
     """
 
     def __init__(self, n_aug: int = 5, include_original: bool = True) -> None:
