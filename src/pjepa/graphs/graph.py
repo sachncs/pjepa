@@ -239,8 +239,8 @@ class Graph:
     def to(self, device: torch.device) -> Graph:
         """Move every tensor to the given device.
 
-        Returns a new :class:`Graph`; the ``version``
-        counter is preserved.
+        Returns a new :class:`Graph`; the ``version`` counter is
+        preserved.
 
         Args:
             device: Target :class:`torch.device`.
