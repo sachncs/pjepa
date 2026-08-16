@@ -43,6 +43,12 @@ class Bisimulation:
             (the SSCG relation set ``R`` in the paper). Currently
             unused but reserved for future multi-view
             extensions.
+
+    Args:
+        epsilon: Convergence tolerance for the (eventual)
+            Bellman-style value-iteration sweep.
+        max_iters: Maximum number of value-iteration sweeps.
+        relation_set: The names of relation views to consider.
     """
 
     epsilon: float = 1e-4
