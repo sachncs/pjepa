@@ -169,10 +169,10 @@ class OGBArxiv:
 
         Args:
             graph: The full :class:`Graph` of the dataset. Test
-                vertices carry the :data:`TEST_LABEL_SENTINEL` label
-                (``0``) so a naive trainer that accidentally indexes
-                into test rows sees a recognisable sentinel rather
-                than a leaked label.
+                vertices carry the :data:`TEST_LABEL_SENTINEL`
+                label (``0``) so a naive trainer that
+                accidentally indexes into test rows sees a
+                recognisable sentinel rather than a leaked label.
             train_indices: Indices of training nodes.
             val_indices: Indices of validation nodes.
             test_indices: Indices of test nodes. The labels for
