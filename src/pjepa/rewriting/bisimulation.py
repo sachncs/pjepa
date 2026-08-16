@@ -81,12 +81,12 @@ def bisimulation_distance(
 ) -> float:
     """Compute the bisimulation pseudometric between two graphs.
 
-    The result is the **maximum pairwise signature distance** under
-    L2: a non-negative scalar that is zero when both graphs are
-    empty or have pairwise identical vertex signatures, and grows as
-    the graphs diverge. The metric accepts arbitrarily shaped feature
-    tensors as long as the two leading dimensions (vertex counts)
-    can be combined into a pairwise matrix.
+    The result is the **maximum pairwise signature distance**
+    under L2: a non-negative scalar that is zero when both graphs
+    are empty or have pairwise identical vertex signatures, and
+    grows as the graphs diverge. The metric accepts arbitrarily
+    shaped feature tensors as long as the two leading dimensions
+    (vertex counts) can be combined into a pairwise matrix.
 
     Args:
         graph_a: The first graph.
@@ -96,12 +96,13 @@ def bisimulation_distance(
             only controls fields reserved for future iterations.
 
     Returns:
-        A non-negative ``float``. ``0.0`` indicates (exactly equal)
-        signatures across all vertex pairs (or two empty graphs).
+        A non-negative ``float``. ``0.0`` indicates (exactly
+        equal) signatures across all vertex pairs (or two empty
+        graphs).
 
     Raises:
-        NumericalError: If the computed distance contains non-finite
-            values.
+        NumericalError: If the computed distance contains
+            non-finite values.
     """
     del metric  # Reserved for forward compatibility.
     # MPS does not support float64; fall back to float32 on that backend.
