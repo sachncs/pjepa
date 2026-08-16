@@ -42,6 +42,11 @@ class FreeEnergy:
         beta_ib: Coefficient of the KL term.
         lambda_mdl: Coefficient of the description-length term.
         gamma_forward: Coefficient of the forward-information bonus.
+
+    Args:
+        beta_ib: Coefficient of the KL term.
+        lambda_mdl: Coefficient of the description-length term.
+        gamma_forward: Coefficient of the forward-information bonus.
     """
 
     beta_ib: float = 1e-2
