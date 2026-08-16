@@ -62,7 +62,7 @@ from pjepa.training.checkpoint import Checkpoint, save_checkpoint
 
 __all__ = [
     "PretrainConfig",
-    "Sleep",
+    "SleepCallback",
     "ValidationCallback",
     "augmentation_call",
     "build_tensor_augmentation",
@@ -71,13 +71,13 @@ __all__ = [
 
 
 @runtime_checkable
-class Sleep(Protocol):
+class SleepCallback(Protocol):
     """Protocol for sleep-cadence objects usable by :func:`pretrain_loop`.
 
-    The framework's :class:`pjepa.scheduler.Sleep` satisfies
-    this protocol out of the box; tests and minimal adapters can
-    implement it directly by defining a no-arg ``should_sleep``
-    method.
+    The framework's :class:`pjepa.scheduler.Sleep` (a subclass of
+    :class:`pjepa.scheduler.Cadence`) satisfies this protocol out of
+    the box; tests and minimal adapters can implement it directly by
+    defining a no-arg ``should_sleep`` method.
 
     Implementations are consulted once per epoch: returning ``True``
     triggers an early stop after the current epoch's checkpoint has
@@ -136,7 +136,7 @@ class PretrainConfig:
           (fraction of features to drop). Range: ``[0, 1]``.
         seed: Optional seed applied to the augmentation generator so
           trials are reproducible.
-        cadence: Optional :class:`Sleep` object consulted
+        cadence: Optional :class:`SleepCallback` object consulted
           once per epoch; when it returns ``True`` the loop stops
           early.
         extras: Additional state to persist in every checkpoint's
@@ -154,7 +154,7 @@ class PretrainConfig:
     augmentation: str = "none"
     augmentation_strength: float = 0.2
     seed: int | None = None
-    cadence: Sleep | None = None
+    cadence: SleepCallback | None = None
     extras: dict[str, object] = field(default_factory=dict)
 
 
@@ -299,7 +299,7 @@ def pretrain_loop(
 
     Returns:
         A list of per-epoch mean loss values (one float per epoch).
-        If ``Sleep.should_sleep()`` returns ``True`` mid-loop
+        If the cadence's ``should_sleep()`` returns ``True`` mid-loop
         the returned list is truncated accordingly.
 
     Raises:

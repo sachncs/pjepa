@@ -39,7 +39,7 @@ from pjepa.training.optuna_search import (
 )
 from pjepa.training.pretrain import (
     PretrainConfig,
-    Sleep,
+    SleepCallback,
     ValidationCallback,
     augmentation_call,
     build_tensor_augmentation,
@@ -62,7 +62,7 @@ __all__ = [
     "PretrainConfig",
     "SWAConfig",
     "SWAWrapper",
-    "Sleep",
+    "SleepCallback",
     "SupervisedConfig",
     "TTAConfig",
     "TTAWrapper",
