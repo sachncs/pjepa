@@ -224,9 +224,13 @@ class Target:
         """Update the target parameters via EMA.
 
         Complexity is ``O(P)`` where ``P`` is the number of
-        scalar parameters in ``online``. The update is performed
-        in place on ``self.shadow`` and never allocates new
-        tensors.
+        scalar parameters in ``online``. The update is
+        performed in place on ``self.shadow`` and never
+        allocates new tensors.
+
+        Returns:
+            ``None``. The method mutates ``self.shadow`` in
+            place.
 
         Raises:
             NumericalError: If any updated parameter is non-finite.
