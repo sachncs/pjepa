@@ -510,16 +510,18 @@ def induce_subgraph(
     """Return the induced-subgraph edge-index restricted to ``nodes``.
 
     Args:
-        edge_index: ``[2, E]`` COO edge-index of the parent graph.
+        edge_index: ``[2, E]`` COO edge-index of the parent
+            graph.
         nodes: ``[S]`` node ids in the parent index space to keep.
         num_total_nodes: Total vertex count of the parent graph.
 
     Returns:
-        A ``[2, E']`` ``long`` tensor of edge indices re-mapped to
-        the ``[0, S)`` range.
+        A ``[2, E']`` ``long`` tensor of edge indices re-mapped
+        to the ``[0, S)`` range.
 
     Raises:
-        GraphError: If ``edge_index`` is the wrong shape or dtype.
+        GraphError: If ``edge_index`` is the wrong shape or
+            dtype.
     """
     if edge_index.dtype != torch.long:
         raise GraphError(f"induce_subgraph: edge_index dtype must be long; got {edge_index.dtype}")
