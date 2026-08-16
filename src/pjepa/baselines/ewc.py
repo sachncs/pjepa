@@ -123,8 +123,9 @@ class EWC:
 
         Returns:
             A mapping with two keys: ``"fisher"`` and ``"star"``.
-            Each value is a name-to-tensor mapping whose tensors are
-            detached clones (safe to inspect and to compare across
+            Each value is a name-to-tensor mapping whose tensors
+            are detached clones (safe to inspect and to compare
+            across
             iterations).
         """
         return {
