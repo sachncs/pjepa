@@ -35,6 +35,10 @@ class TUGraph:
     Attributes:
         graph: The :class:`Graph` representation.
         label: The integer class label.
+
+    Args:
+        graph: The :class:`Graph` for this sample.
+        label: The integer class label assigned by the dataset.
     """
 
     def __init__(self, graph: Graph, label: int) -> None:
