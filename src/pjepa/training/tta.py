@@ -42,6 +42,19 @@ class TTAConfig:
     """
 
     def __init__(self, n_aug: int = 5, include_original: bool = True) -> None:
+        """Initialise the TTA configuration.
+
+        Args:
+            n_aug: Number of augmented passes per inference call.
+                Must be ``>= 1``.
+            include_original: When ``True`` the original
+                (unaugmented) input is included in the prediction
+                stack alongside the augmented passes; when ``False``
+                only the augmented passes contribute.
+
+        Raises:
+            ConfigError: If ``n_aug`` is less than 1.
+        """
         if n_aug < 1:
             raise ConfigError(f"TTAConfig.n_aug must be >= 1; got {n_aug}")
         self.n_aug = n_aug
