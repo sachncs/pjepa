@@ -92,19 +92,35 @@ class State:
     rejections: tuple[CommitRejected, ...] = field(default_factory=tuple)
 
     def num_vertices(self) -> int:
-        """Return the number of vertices in the persistent graph."""
+        """Return the number of vertices in the persistent graph.
+
+        Returns:
+            The number of vertices.
+        """
         return self.graph.num_vertices()
 
     def num_edges(self) -> int:
-        """Return the number of edges in the persistent graph."""
+        """Return the number of edges in the persistent graph.
+
+        Returns:
+            The number of edges.
+        """
         return self.graph.num_edges()
 
     def num_commits(self) -> int:
-        """Return the number of accepted commits recorded so far."""
+        """Return the number of accepted commits recorded so far.
+
+        Returns:
+            ``len(self.history)``.
+        """
         return len(self.history)
 
     def num_rejections(self) -> int:
-        """Return the number of rejected candidates recorded so far."""
+        """Return the number of rejected candidates recorded so far.
+
+        Returns:
+            ``len(self.rejections)``.
+        """
         return len(self.rejections)
 
     def commit(
