@@ -55,11 +55,22 @@ class ClassIncrementalSplit:
         self.num_classes = len(seen)
 
     def num_tasks(self) -> int:
-        """Return the number of tasks in the split."""
+        """Return the number of tasks in the split.
+
+        Returns:
+            ``len(self.tasks)``.
+        """
         return len(self.tasks)
 
     def task_size(self, task_index: int) -> int:
-        """Return the number of samples in ``tasks[task_index]``."""
+        """Return the number of samples in ``tasks[task_index]``.
+
+        Args:
+            task_index: The task index.
+
+        Returns:
+            ``len(self.tasks[task_index])``.
+        """
         return len(self.tasks[task_index])
 
 
