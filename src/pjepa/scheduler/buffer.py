@@ -152,7 +152,11 @@ class Buffer(Storage):
         self.storage = deque(maxlen=self.capacity)
 
     def __len__(self) -> int:
-        """Return the number of stored transitions."""
+        """Return the number of stored transitions.
+
+        Returns:
+            ``len(self.storage)``.
+        """
         return len(self.storage)
 
     def add(self, step: Step) -> None:
