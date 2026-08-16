@@ -107,26 +107,26 @@ def fixed_point_iteration(
 ) -> tuple[Graph, int]:
     """Iterate ``operator`` until a fixed point is reached or ``max_steps``.
 
-    The iteration is treated as a discrete dynamical system; the loop
-    terminates when two successive states agree within ``epsilon`` on
-    the description-length proxy. Terminating on the MDL proxy keeps
-    the iteration scale-free — different feature scales do not
-    require a re-tuned tolerance.
+    The iteration is treated as a discrete dynamical system; the
+    loop terminates when two successive states agree within
+    ``epsilon`` on the description-length proxy. Terminating on
+    the MDL proxy keeps the iteration scale-free — different
+    feature scales do not require a re-tuned tolerance.
 
     Args:
         state: Initial graph state.
-        operator: A callable mapping a graph to its successor. The
-            call is invoked once per iteration; it may return a new
-            graph or mutate in place (the iteration reads only the
-            return value).
+        operator: A callable mapping a graph to its successor.
+            The call is invoked once per iteration; it may
+            return a new graph or mutate in place (the iteration
+            reads only the return value).
         max_steps: Upper bound on iterations.
         epsilon: Termination tolerance on description length.
 
     Returns:
         A tuple ``(final_state, steps)`` where ``steps`` is the
-        number of iterations actually performed. ``steps == 1`` when
-        the operator is the identity on the initial state (it
-        converges in one application).
+        number of iterations actually performed. ``steps == 1``
+        when the operator is the identity on the initial state
+        (it converges in one application).
 
     Raises:
         GraphError: If ``max_steps`` is non-positive.
