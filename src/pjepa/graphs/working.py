@@ -30,8 +30,8 @@ class Working:
     """A bounded working subgraph derived from the persistent graph.
 
     The wrapper is frozen: every method that returns a new working
-    graph does so by constructing a fresh dataclass instance rather
-    than mutating in place.
+    graph does so by constructing a fresh dataclass instance
+    rather than mutating in place.
 
     Attributes:
         graph: The underlying :class:`Graph`.
@@ -39,6 +39,12 @@ class Working:
         parent_version: The version of the persistent graph from
             which the working graph was derived. ``0`` means "no
             parent recorded".
+
+    Args:
+        graph: The underlying :class:`Graph`.
+        budget: The maximum number of vertices allowed.
+        parent_version: The version of the persistent graph from
+            which the working graph was derived.
 
     Raises:
         GraphError: At construction time if ``budget < 0`` or if
