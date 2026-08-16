@@ -101,8 +101,12 @@ class BGRL(nn.Module):
 
             \theta_T \gets m \cdot \theta_T + (1 - m) \cdot \theta_O
 
-        where ``m`` is :attr:`momentum` and ``\theta_O`` is the
-        online parameter.
+        where ``m`` is :attr:`momentum` and ``\theta_O`` is
+        the online parameter.
+
+        Returns:
+            ``None``. The method mutates the target encoder's
+            parameters in place under ``torch.no_grad``.
         """
         with torch.no_grad():
             for online_p, target_p in zip(
