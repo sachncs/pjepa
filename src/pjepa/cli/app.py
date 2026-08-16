@@ -93,10 +93,17 @@ def experiments_search_paths() -> tuple[str, ...]:
     """Return ``sys.path`` entries needed to import the ``experiments/`` scripts.
 
     The CLI dispatches to runner modules that live under
-    ``<repo>/experiments/`` (not under the installed ``pjepa``
-    package). When the repo layout is the canonical
-    ``src/pj/cli/app.py``, the experiments directory is two
-    parents up. Returns both the experiments directory and the
+    ``<repo>/experiments/`` (not under the installed
+    ``pjepa`` package). When the repo layout is the canonical
+    ``src/pjepa/cli/app.py``, the experiments directory is
+    two parents up.
+
+    Returns:
+        A 2-tuple ``(experiments_dir, repo_root)`` that the
+        caller should prepend to ``sys.path`` so the
+        experiment runners can do
+        ``from pjepa.<...> import ...``.
+    """
     repository root so the runners can ``from pjepa.<...>`` import.
     """
     here = Path(__file__).resolve().parent
