@@ -67,6 +67,14 @@ class PPOConfig:
     minibatch_size: int = 64
 
     def __post_init__(self) -> None:
+        """Validate the PPO configuration.
+
+        Raises:
+            ConfigError: If ``inner_epochs`` or ``minibatch_size``
+                is non-positive, ``clip_eps`` is outside ``(0, 1)``,
+                ``gae_lambda`` is outside ``[0, 1]``, or ``gamma`` is
+                outside ``(0, 1]``.
+        """
         if self.inner_epochs <= 0:
             raise ConfigError(f"PPOConfig.inner_epochs must be positive; got {self.inner_epochs}")
         if self.minibatch_size <= 0:
