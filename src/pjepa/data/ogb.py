@@ -137,6 +137,28 @@ class OGBArxiv:
         feature_dim: int,
         num_classes: int,
     ) -> None:
+        """Initialise the OGB-Arxiv dataset wrapper.
+
+        Args:
+            graph: The full :class:`Graph` of the dataset. Test
+                vertices carry the :data:`TEST_LABEL_SENTINEL` label
+                (``0``) so a naive trainer that accidentally indexes
+                into test rows sees a recognisable sentinel rather
+                than a leaked label.
+            train_indices: Indices of training nodes.
+            val_indices: Indices of validation nodes.
+            test_indices: Indices of test nodes. The labels for
+                these nodes are *not* exposed by default; only
+                :meth:`load_test_labels` can return them.
+            feature_dim: Vertex feature dimensionality. Must equal
+                ``graph.vertex_features.shape[1]``.
+            num_classes: Number of distinct class labels.
+
+        Raises:
+            DataError: If ``graph.vertex_features.shape[1]`` does
+                not match ``feature_dim`` or any split index exceeds
+                the vertex count.
+        """
         if graph.vertex_features.shape[1] != feature_dim:
             raise DataError(
                 f"OGBArxiv: graph feature dim {graph.vertex_features.shape[1]} "
