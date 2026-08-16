@@ -85,7 +85,11 @@ class SleepCallback(Protocol):
     """
 
     def should_sleep(self) -> bool:
-        """Return whether a sleep cycle should fire."""
+        """Return whether a sleep cycle should fire.
+
+        Returns:
+            ``True`` when a sleep cycle should begin.
+        """
         ...
 
 
