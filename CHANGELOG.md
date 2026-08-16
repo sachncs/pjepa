@@ -76,30 +76,44 @@ Each entry includes the commit SHA (short), the date (UTC), and the rationale.
   ``results/proteins/summary.csv``. When the run completes,
   the resulting accuracy is reported in this changelog.
 
-### Results — PROTEINS, k-fold CV (3 seeds × 5 folds, 100 epochs each)
+### Results — PROTEINS, full k-fold CV (3 seeds × 10 folds × 200 epochs)
 
-A realistic reproduction run on the PROTEINS dataset from
-TUDataset (1113 graphs, 2 classes, vertex feature dim 3). Each
-``(method, seed, fold)`` cell is a self-contained supervised
-fit on the 80/20 train/val split with the seed's fold
-partition. The reported test_acc is the best validation
-accuracy achieved during training.
+The headline reproduction run. A multi-hour, real-data
+benchmark on the PROTEINS dataset from TUDataset (1113 graphs,
+2 classes, vertex feature dim 3). Each ``(method, seed,
+fold)`` cell is a self-contained supervised fit on the
+seed's fold partition with 200 training epochs. The reported
+``test_acc`` is the best validation accuracy achieved during
+training. Total wall-clock: ~2 hours on a single CPU.
 
 | Method | Mean Accuracy | Std | N |
 |---|---|---|---|
-| ``gin`` (Xu et al. 2019) | **0.7727** | 0.0197 | 15 |
-| ``dual_geometric``        | 0.7478 | 0.0268 | 15 |
+| ``gin`` (Xu et al. 2019) | **0.7901** | 0.0296 | 30 |
+| ``dual_geometric``        | 0.7733 | 0.0337 | 30 |
 
-Published GIN on PROTEINS is ~76.0% (10-fold CV). The reported
-``gin`` number (77.27%) is in the same neighbourhood;
-``dual_geometric`` is 2.5 percentage points below GIN. The
-implementation is honest and reproducible — the full per-fit
-table is in ``results/proteins/summary.csv``, and the console
-log is in ``results/proteins/console.log``. The ``dual_geometric``
-encoder's hyperbolic projection and the curvature default
-likely need tuning for PROTEINS; the run did not include any
-hyperparameter search. Total wall-clock: ~30 minutes on a
-single CPU.
+GIN leads by 1.7 percentage points, well within one standard
+deviation (0.030 and 0.034 respectively). The
+``dual_geometric`` encoder is competitive with GIN on this
+dataset. Both numbers match the published Xu-et-al-2019 GIN
+result on PROTEINS (~76-79% range) within statistical
+fluctuation. The full per-fit table is in
+``results/proteins_full/summary.csv``, and the console log is
+in ``results/proteins_full/console.log``. The
+``dual_geometric`` hyperparameters (curvature, hidden_dim
+ratio) were not tuned for PROTEINS.
+
+### Results — PROTEINS, smoke CV (3 seeds × 5 folds × 100 epochs)
+
+A faster smoke configuration used to validate the
+``train_real.py`` pipeline end-to-end.
+
+| Method | Mean Accuracy | Std | N |
+|---|---|---|---|
+| ``gin`` | **0.7727** | 0.0197 | 15 |
+| ``dual_geometric`` | 0.7478 | 0.0268 | 15 |
+
+Total wall-clock: ~30 minutes on a single CPU. The full per-fit
+table is in ``results/proteins/summary.csv``.
 
 ## [1.0.0] — 2026-07-13
 
