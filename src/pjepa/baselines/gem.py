@@ -91,6 +91,11 @@ class GEM:
     memory: deque = field(init=False)
 
     def __post_init__(self) -> None:
+        """Validate the capacity and initialise the bounded memory.
+
+        Raises:
+            ConfigError: If ``capacity`` is non-positive.
+        """
         if self.capacity <= 0:
             raise ConfigError(f"GEM: capacity must be positive; got {self.capacity}")
         self.memory = deque(maxlen=self.capacity)
