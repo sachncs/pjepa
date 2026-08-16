@@ -69,10 +69,18 @@ class EWC:
     ) -> None:
         """Compute and cache the diagonal Fisher information and the parameters.
 
+        The function walks the named parameters, runs
+        :func:`torch.autograd.grad` on ``loss`` with respect to each
+        trainable parameter, and stores the squared gradients (the
+        diagonal Fisher estimate) alongside a snapshot of the
+        parameters themselves. Parameters with ``requires_grad``
+        set to ``False`` are skipped.
+
         Args:
-            named_parameters: An iterable of ``(name, parameter)`` pairs.
-            loss: A scalar tensor from which gradients are computed
-              via backprop.
+            named_parameters: An iterable of ``(name, parameter)``
+                pairs.
+            loss: A scalar tensor from which gradients are
+                computed via backprop.
         """
         params_list = list(named_parameters)
         trainable = [(name, param) for name, param in params_list if param.requires_grad]
