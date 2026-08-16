@@ -156,9 +156,9 @@ class Encoder(ABC, torch.nn.Module):
     def summary(self) -> dict[str, Any]:
         """Return a JSON-serialisable description of the encoder.
 
-        The default implementation returns the class name and the
-        output dimension. Subclasses may override to add more
-        fields (e.g. parameter counts, layer widths).
+        The default implementation returns the class name and
+        the output dimension. Subclasses may override to add
+        more fields (e.g. parameter counts, layer widths).
 
         Returns:
             A dictionary with keys ``class`` and ``output_dim``.
