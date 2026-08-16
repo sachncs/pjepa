@@ -113,9 +113,10 @@ class EMATarget:
         For ``"constant"`` schedules this returns :attr:`momentum`
         verbatim. For ``"cosine"`` schedules the value anneals from
         :attr:`momentum` to :attr:`final_momentum` over
-        :attr:`total_steps` steps via the cosine rule
-        ``m_t = final_momentum - (final_momentum - momentum) *
-        0.5 * (1 + cos(pi * t / total_steps))``.
+        :attr:`total_steps` steps via the cosine rule::
+
+            m_t = final_momentum - (final_momentum - momentum) *
+                  0.5 * (1 + cos(pi * t / total_steps))
 
         Returns:
             The momentum for the next update.
