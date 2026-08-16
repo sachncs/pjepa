@@ -43,13 +43,21 @@ class BootstrapCI:
     """Result of a paired bootstrap computation.
 
     Attributes:
-        mean_diff: The mean difference (``mean(scores_a) - mean(scores_b)``).
-        ci_low: Lower bound of the confidence interval at the configured
-          ``1 - alpha`` level.
-        ci_high: Upper bound of the confidence interval at the configured
-          ``1 - alpha`` level.
-        p_value: Two-sided p-value: fraction of bootstrap-resampled means
-          that fall on the opposite side of zero from ``mean_diff``.
+        mean_diff: The mean difference (``mean(scores_a) -
+            mean(scores_b)``).
+        ci_low: Lower bound of the confidence interval at the
+            configured ``1 - alpha`` level.
+        ci_high: Upper bound of the confidence interval at the
+            configured ``1 - alpha`` level.
+        p_value: Two-sided p-value: fraction of bootstrap-resampled
+            means that fall on the opposite side of zero from
+            ``mean_diff``.
+
+    Args:
+        mean_diff: The mean difference.
+        ci_low: Lower CI bound.
+        ci_high: Upper CI bound.
+        p_value: Two-sided p-value.
     """
 
     mean_diff: float
