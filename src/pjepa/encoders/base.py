@@ -138,14 +138,18 @@ class Encoder(ABC, torch.nn.Module):
     def encode(self, graph: Graph) -> torch.Tensor:
         """Encode the graph into a tensor.
 
-        Thin wrapper around :meth:`forward` for callers that prefer
-        the verb ``encode`` at the call site.
+        Thin wrapper around :meth:`forward` for callers that
+        prefer the verb ``encode`` at the call site.
 
         Args:
             graph: The input graph.
 
         Returns:
-            The same tensor :meth:`forward` would return.
+            The same tensor :meth:`forward` would return. When
+            :meth:`forward` returns a tuple, this method still
+            returns the tuple; subclasses that always want a
+            single tensor should override :meth:`encode`
+            directly (e.g. :class:`DualGeometric`).
         """
         return self.forward(graph)
 
