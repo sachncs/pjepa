@@ -133,14 +133,15 @@ class GEM:
         Args:
             gradient: The candidate gradient (flat tensor).
             model_output_fn: Callable mapping an input tensor to
-              model outputs. Must expose ``.parameters()`` so that
-              per-sample reference gradients can be computed.
+                model outputs. Must expose ``.parameters()`` so
+                that per-sample reference gradients can be
+                computed.
             loss_fn: Callable mapping ``(output, target)`` to a
-              scalar loss.
+                scalar loss.
 
         Returns:
-            The (possibly projected) gradient, in the same shape as
-            the input.
+            The (possibly projected) gradient, in the same shape
+            as the input.
         """
         if len(self.memory) == 0:
             return gradient
