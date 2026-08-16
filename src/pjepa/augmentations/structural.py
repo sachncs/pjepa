@@ -108,8 +108,16 @@ class ConnectedSubgraph(Transform):
     def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
-        Returns the input graph unchanged when it has zero vertices
-        (the BFS already starts from the only vertex when ``N == 1``).
+        Args:
+            graph: The graph to augment.
+
+        Returns:
+            A new :class:`Graph` whose vertex set is the
+            connected component reachable from a randomly chosen
+            start vertex by a BFS of at most ``max(1, strength *
+            num_vertices)`` vertices. The input is returned
+            unchanged when the graph has zero vertices (the BFS
+            already starts from the only vertex when ``N == 1``).
         """
         n_vertices = graph.num_vertices()
         if n_vertices == 0:
