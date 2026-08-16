@@ -321,15 +321,23 @@ class NeighborSample:
     """Result of :func:`neighbor_sample`.
 
     Attributes:
-        node_ids: ``[S]`` ``long`` tensor of node ids in the sampled
-          subgraph, expressed in the original graph's index space.
+        node_ids: ``[S]`` ``long`` tensor of node ids in the
+            sampled subgraph, expressed in the original graph's
+            index space.
         edge_index: ``[2, E']`` ``long`` edge-index restricted to
-          ``node_ids`` and re-indexed to ``[0, S)``.
-        seed_to_local: ``[N]`` ``long`` mapping from original ids to
-          their position inside ``node_ids`` (``-1`` for nodes not
-          present in the sample).
-        hop_depth: ``[S]`` ``long`` tensor recording the hop depth
-          at which each node was added (``0`` for seeds).
+            ``node_ids`` and re-indexed to ``[0, S)``.
+        seed_to_local: ``[N]`` ``long`` mapping from original ids
+            to their position inside ``node_ids`` (``-1`` for
+            nodes not present in the sample).
+        hop_depth: ``[S]`` ``long`` tensor recording the hop
+            depth at which each node was added (``0`` for seeds).
+
+    Args:
+        node_ids: ``[S]`` ``long`` tensor of sampled node ids.
+        edge_index: ``[2, E']`` ``long`` edge-index.
+        seed_to_local: ``[N]`` ``long`` mapping from original to
+            local ids.
+        hop_depth: ``[S]`` ``long`` hop-depth tensor.
     """
 
     node_ids: torch.Tensor
