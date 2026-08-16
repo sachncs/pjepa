@@ -101,11 +101,16 @@ class SWAWrapper:
         """Record a snapshot of the model parameters at ``epoch``.
 
         Snapshots taken before ``self.config.start_epoch`` are
-        silently ignored. The wrapper updates its running average
-        incrementally so the amortised cost stays ``O(P)``.
+        silently ignored. The wrapper updates its running
+        average incrementally so the amortised cost stays
+        ``O(P)``.
 
         Args:
             epoch: The current training epoch.
+
+        Returns:
+            ``None``. The method mutates the wrapper's internal
+            averaged-state cache in place.
         """
         if not self.should_snapshot(epoch):
             return
@@ -132,9 +137,13 @@ class SWAWrapper:
     def apply_to(self) -> None:
         """Copy the averaged parameters into the live model.
 
-        Call this after training to load the averaged weights into
-        ``self.model`` for inference. No-op when the wrapper has
-        not yet taken any snapshots.
+        Call this after training to load the averaged weights
+        into ``self.model`` for inference. No-op when the wrapper
+        has not yet taken any snapshots.
+
+        Returns:
+            ``None``. The method mutates ``self.model``'s
+            parameters in place.
         """
         if not self.averaged_state:
             return
