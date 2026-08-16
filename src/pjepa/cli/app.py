@@ -104,8 +104,6 @@ def experiments_search_paths() -> tuple[str, ...]:
         experiment runners can do
         ``from pjepa.<...> import ...``.
     """
-    repository root so the runners can ``from pjepa.<...>`` import.
-    """
     here = Path(__file__).resolve().parent
     repo_root = here.parents[2]
     return (str(repo_root / "experiments"), str(repo_root))
