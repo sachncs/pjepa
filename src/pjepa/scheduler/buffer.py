@@ -188,6 +188,7 @@ class Buffer(Storage):
         self.step_counter += 1
         self.evict_stale()
 
+
     def evict_stale(self) -> None:
         """Drop every entry whose age exceeds ``max_age``.
 
