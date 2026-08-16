@@ -95,7 +95,17 @@ def build_csr_adjacency(edge_index: torch.Tensor, num_nodes: int) -> CSRAdj:
 
 
 def csr_neighbors(csr: CSRAdj, node: int) -> torch.Tensor:
-    """Get all incoming neighbors of a single node from CSR."""
+    """Get all incoming neighbors of a single node from CSR.
+
+    Args:
+        csr: A :class:`CSRAdj` adjacency.
+        node: The node whose incoming neighbours to return.
+
+    Returns:
+        A ``[k]`` ``long`` tensor of source-node ids whose
+        edges point at ``node``. Empty when ``node`` has no
+        incoming edges.
+    """
     return csr.indices[csr.indptr[node] : csr.indptr[node + 1]]
 
 
