@@ -58,20 +58,24 @@ RetrievalResult = Result
 class Retrieval:
     """Greedy retrieval over the persistent graph vertices.
 
-    At each step, the algorithm selects the vertex whose addition
-    yields the largest marginal utility gain. For monotone
-    submodular utilities the resulting subset achieves at least
-    ``(1 - 1/e)`` times the optimal utility of any subset of the
-    same size.
+    At each step, the algorithm selects the vertex whose
+    addition yields the largest marginal utility gain. For
+    monotone submodular utilities the resulting subset
+    achieves at least ``(1 - 1/e)`` times the optimal utility
+    of any subset of the same size.
 
-    The class is a thin wrapper around the greedy loop. It does
-    not maintain state between calls; multiple graphs can be
-    processed sequentially with the same :class:`Retrieval`
+    The class is a thin wrapper around the greedy loop. It
+    does not maintain state between calls; multiple graphs can
+    be processed sequentially with the same :class:`Retrieval`
     instance.
 
     Attributes:
-        budget: The maximum number of vertices to include in the
-            working graph.
+        budget: The maximum number of vertices to include in
+            the working graph.
+
+    Args:
+        budget: The maximum number of vertices to include in
+            the working graph.
 
     Raises:
         GraphError: At construction time if ``budget`` is
