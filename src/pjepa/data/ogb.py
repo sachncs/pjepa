@@ -66,7 +66,23 @@ CSRAdj = namedtuple("CSRAdj", ["indptr", "indices"])
 
 
 def build_csr_adjacency(edge_index: torch.Tensor, num_nodes: int) -> CSRAdj:
-    """Build CSR adjacency from COO edge_index for fast neighbor lookups."""
+    """Build CSR adjacency from COO edge_index for fast neighbor lookups.
+
+    The function sorts the edges by destination and accumulates
+    the per-destination counts so neighbour lookups can be
+    done with a single ``indptr`` slice (rather than a full
+    linear scan). The resulting :class:`CSRAdj` is portable
+    across hosts.
+
+    Args:
+        edge_index: ``[2, E]`` COO edge-index.
+        num_nodes: Total vertex count.
+
+    Returns:
+        A :class:`CSRAdj` whose ``indptr`` has ``num_nodes + 1``
+        entries and whose ``indices`` is a flat ``[E]`` ``long``
+        tensor of source-node ids sorted by destination.
+    """
     src = edge_index[0]
     dst = edge_index[1]
     order = dst.argsort()
