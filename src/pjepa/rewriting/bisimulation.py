@@ -34,13 +34,15 @@ class Bisimulation:
 
     Attributes:
         epsilon: Convergence tolerance reserved for the eventual
-            Bellman-style value-iteration sweep. Currently unused;
-            callers should set it for forward compatibility.
+            Bellman-style value-iteration sweep. Currently
+            unused; callers should set it for forward
+            compatibility.
         max_iters: Maximum number of value-iteration sweeps.
             Likewise reserved for forward compatibility.
-        relation_set: The names of relation views to consider (the
-            SSCG relation set ``R`` in the paper). Currently unused
-            but reserved for future multi-view extensions.
+        relation_set: The names of relation views to consider
+            (the SSCG relation set ``R`` in the paper). Currently
+            unused but reserved for future multi-view
+            extensions.
     """
 
     epsilon: float = 1e-4
