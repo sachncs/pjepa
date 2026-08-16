@@ -142,7 +142,11 @@ class Graph:
         return int(self.vertex_features.shape[0])
 
     def num_edges(self) -> int:
-        """Return the number of edges in the graph."""
+        """Return the number of edges in the graph.
+
+        Returns:
+            The number of edges (``edge_index.shape[1]``).
+        """
         return int(self.edge_index.shape[1])
 
     def with_features(self, **kwargs: object) -> Graph:
