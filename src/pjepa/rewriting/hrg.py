@@ -56,6 +56,12 @@ class HRGProduction:
     rhs_edge_features: torch.Tensor
 
     def __post_init__(self) -> None:
+        """Validate the production rule.
+
+        Raises:
+            GraphError: If ``lhs`` is empty or
+                ``rhs_edge_index`` is not a ``long`` tensor.
+        """
         if not self.lhs:
             raise GraphError("HRGProduction: lhs must be a non-empty string")
         if self.rhs_edge_index.dtype != torch.long:
