@@ -34,7 +34,7 @@ observations. Everything else is ephemeral.
         CLI  ─────►  Training loops  ─────►  Encoders, Retrieval, Rewriting
                             │                          │
                             ▼                          ▼
-                     Energy J ◄───────────────  Hardware, Seeding
+                     FreeEnergy J ◄───────────────  Hardware, Seeding
                             │
                             ▼
                   Baselines, Data loaders, Eval metrics, Checkpointing

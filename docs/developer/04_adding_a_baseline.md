@@ -5,10 +5,10 @@
 ## What is a Baseline?
 
 A *baseline* is a published method that we re-implement for SOTA
-comparison. The existing baselines (GCN, GIN, GraphMAE, GraphCL,
-InfoGraph, EWC, GEM) live in `src/pjepa/baselines/`. They are
-deliberately minimal: enough to reproduce the published accuracy on
-the TU benchmarks, no more.
+comparison. The existing baselines (Naive, GCN, GIN, GraphSAGE,
+GraphCL, GraphMAE, InfoGraph, BGRL, EWC, GEM, PackNet) live in
+`src/pjepa/baselines/`. They are deliberately minimal: enough to
+reproduce the published accuracy on the TU benchmarks, no more.
 
 ## Worked Example: PNA
 
@@ -177,8 +177,11 @@ def test_property_pna_output_shape() -> None:
 ## Register the Baseline
 
 For SOTA comparison, add the baseline to the experiment runner in
-`experiments/run_exp_d_tu_sota.py` (to be created in Phase 8). For now,
-just make sure the baseline imports cleanly and passes its tests:
+`experiments/run_exp_d_tu_sota.py` (see the `methods` field of
+`configs/tu.yaml`). The runner picks up every registered baseline
+class via the registry, so no manual wiring is needed beyond the
+import. For now, just make sure the baseline imports cleanly and
+passes its tests:
 
 ```python
 from pjepa.baselines import PNA  # noqa: F401

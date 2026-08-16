@@ -15,8 +15,9 @@ embedding tensor. There are three flavours in the framework:
   ``(per_vertex_euclidean, per_vertex_hyperbolic)``.
 
 The framework treats encoders as duck-typed via the
-:class:`pjepa.encoders.base.Encoder` protocol. Any class with
-``forward(graph)`` and ``to(device)`` is a valid encoder.
+polymorphic :class:`pjepa.encoders.base.Encoder` ABC. Subclass
+``Encoder`` and implement ``output_dim`` plus ``forward(graph)``;
+``encode(graph)`` and ``summary()`` are inherited for free.
 
 ## Worked Example: Spectral GCN
 
@@ -84,7 +85,7 @@ class SpectralGCN(nn.Module):
         return self.mlp(self.input_proj(h))
 
     def to(self, device: torch.device) -> "SpectralGCN":
-        """Move parameters to device."""
+        """Move parameters to ``device`` (inherited from ``nn.Module``)."""
         return super().to(device)
 ```
 
@@ -153,9 +154,10 @@ encoder = SpectralGCN(input_dim=10, hidden_dim=64, output_dim=128)
 
 ## Common Pitfalls
 
-* **Forgetting `to(device)`:** the framework's hardware module requires
-  every encoder to support `.to(device)`. Implement it even if you
-  think users won't move the encoder.
+* **Forgetting `to(device)`:** the framework's hardware module
+  relies on `.to(device)` being available. ``Encoder`` is an
+  ``nn.Module`` subclass so the method is inherited automatically
+  — do not override it unless you have non-parameter state.
 
 * **Not handling empty graphs:** always check `graph.num_vertices() == 0`
   and return a tensor of the right shape with zero rows.

@@ -191,20 +191,22 @@ For each public module, ensure the following tests exist:
 | `Encoder` (Euclidean) | happy forward, bad zero dim, ugly single vertex, cross-backend MPS |
 | `Encoder` (Hyperbolic) | happy norm < 1, bad negative curvature, ugly zero input, cross-backend MPS |
 | `Encoder` (DualGeometric) | happy shape, property dims |
-| `Predictor` | happy shape |
-| `Target` | happy EMA, round-trip |
-| `Utility` | happy, property non-negative |
+| `Head` (Predictor) | happy shape |
+| `Head` (Target) | happy EMA, round-trip |
+| `Utility` (Facility) | happy, property non-negative |
+| `Utility` (InfoGain) | happy, property non-negative |
 | `Retrieval` | happy, bad negative budget, ugly empty/single, leaky repeated, round-trip, cross-backend, distributional submodular, property (1-1/e) |
 | `HRG` | happy, bad overlapping labels, bad unknown start, ugly empty |
 | `Bisimulation` | happy, property non-negative, property symmetric |
 | `FourConditions` | happy accept, bad non-negative delta_j, bad cost exceeded, bad bisimilarity |
+| `Criterion` (abstract) | type: cannot be instantiated |
 | `DPO loss` | happy, bad shape mismatch, bad label smoothing, distributional bounded, property zero equal |
-| `Energy` | happy non-negative, ugly empty graph |
-| `Evolution` | happy, property is_contraction |
+| `FreeEnergy` | happy non-negative, ugly empty graph |
+| `EvolutionOperator` | happy, property is_contraction |
 | `PPOTrainer` | happy clipped surrogate, bad zero minibatch, leaky no outer mutation |
-| `Buffer` | happy add and sample, bad zero capacity, distributional eviction |
-| `Sleep` | happy no sleep when healthy, bad window |
-| `Augmentation` (each) | happy applies, ugly no-op when strength=0 |
+| `Buffer` (Storage ABC + concrete) | type: cannot be instantiated; happy add and sample, bad zero capacity, distributional eviction |
+| `Cadence` (Sleep concrete) | happy no sleep when healthy, bad window |
+| `Transform` (each augmentation) | happy applies, ugly no-op when strength=0 |
 | `Pipeline` | happy all modes, bad empty list, bad zero k |
 | `TU loader` | happy load (smoke test) |
 | `CL splits` | happy, property classes disjoint, bad too many tasks, bad empty labels |
