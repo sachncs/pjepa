@@ -118,11 +118,26 @@ class DatasetCache:
         return sub
 
     def has(self, key: str) -> bool:
-        """Return ``True`` when ``key`` is cached on disk."""
+        """Return ``True`` when ``key`` is cached on disk.
+
+        Args:
+            key: The cache key.
+
+        Returns:
+            ``True`` if a pickled entry exists under ``key``.
+        """
         return self.path_for(key).exists()
 
     def put(self, key: str, value: Any) -> Path:
-        """Store ``value`` under ``key`` and return the on-disk path."""
+        """Store ``value`` under ``key`` and return the on-disk path.
+
+        Args:
+            key: The cache key (typically a SHA-256 hex digest).
+            value: The Python object to pickle.
+
+        Returns:
+            The :class:`Path` where the pickled entry lives.
+        """
         path = self.path_for(key)
         with path.open("wb") as fh:
             pickle.dump(value, fh, protocol=pickle.HIGHEST_PROTOCOL)
@@ -130,6 +145,12 @@ class DatasetCache:
 
     def get(self, key: str) -> Any:
         """Load and return the object stored under ``key``.
+
+        Args:
+            key: The cache key.
+
+        Returns:
+            The unpickled Python object.
 
         Raises:
             DataError: If the key is not in the cache.
@@ -141,7 +162,16 @@ class DatasetCache:
             return pickle.load(fh)
 
     def get_or_compute(self, key: str, compute: Any) -> Any:
-        """Return the cached object for ``key`` or store and return ``compute()``."""
+        """Return the cached object for ``key`` or store and return ``compute()``.
+
+        Args:
+            key: The cache key.
+            compute: A zero-argument callable that returns the
+                value to cache on a miss.
+
+        Returns:
+            The cached object, or ``compute()`` on first call.
+        """
         if self.has(key):
             return self.get(key)
         value = compute()
@@ -149,7 +179,15 @@ class DatasetCache:
         return value
 
     def evict(self, key: str) -> bool:
-        """Remove ``key`` from the cache; return whether it was present."""
+        """Remove ``key`` from the cache.
+
+        Args:
+            key: The cache key.
+
+        Returns:
+            ``True`` if the key was present (and is now removed);
+            ``False`` if the key was already absent.
+        """
         path = self.path_for(key)
         if path.exists():
             path.unlink()
@@ -157,7 +195,11 @@ class DatasetCache:
         return False
 
     def clear(self) -> int:
-        """Remove every cached item and return the number deleted."""
+        """Remove every cached item.
+
+        Returns:
+            The number of files deleted.
+        """
         count = 0
         for path in self.root.rglob("*"):
             if path.is_file():
