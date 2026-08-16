@@ -338,6 +338,14 @@ def probe_compile() -> ProbeResult:
     try:
 
         def square(x: torch.Tensor) -> torch.Tensor:
+            """Tiny square function used by :func:`probe_compile`.
+
+            Args:
+                x: Any 1-D tensor.
+
+            Returns:
+                Element-wise square of ``x``.
+            """
             return x * x
 
         compiled = torch.compile(square)
