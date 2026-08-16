@@ -123,6 +123,11 @@ class GEM:
             x: The input tensor (cloned to detach from the
                 caller's graph).
             y: The label tensor (cloned likewise).
+
+        Returns:
+            ``None``. The method appends to ``self.memory``
+            in place; the deque's ``maxlen`` discards the
+            oldest entry when full.
         """
         self.memory.append(MemorySample(x=x.detach().clone(), y=y.detach().clone()))
 
