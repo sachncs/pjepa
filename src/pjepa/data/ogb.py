@@ -267,7 +267,20 @@ class OGBArxiv:
             )
 
     def to(self, device: torch.device) -> OGBArxiv:
-        """Return a copy with every tensor moved to ``device``."""
+        """Return a copy with every tensor moved to ``device``.
+
+        The ``test_labels_unlocked`` flag is preserved on the copy
+        so the leakage contract is not silently reset by a device
+        transfer.
+
+        Args:
+            device: The target device.
+
+        Returns:
+            A new :class:`OGBArxiv` with the same splits and
+            metadata but with the underlying graph moved to
+            ``device``.
+        """
         new = OGBArxiv(
             graph=self.graph.to(device),
             train_indices=list(self.train_indices),
