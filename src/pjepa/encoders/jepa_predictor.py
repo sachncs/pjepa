@@ -137,6 +137,7 @@ class Predictor(Head):
             nn.Linear(int(hidden_dim), int(output_dim)),
         )
 
+
     @property
     def output_dim(self) -> int:
         """Return the trailing dimension of the predictor's output.
