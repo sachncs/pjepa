@@ -187,7 +187,15 @@ class HumanLogFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        """Format a single record as a single-line human-readable string."""
+        """Format a single record as a single-line human-readable string.
+
+        Args:
+            record: The :class:`logging.LogRecord` to format.
+
+        Returns:
+            A single-line ``"<LEVEL> <logger> — <event/message>
+            [<key>=<value> ...]"`` string.
+        """
         extras = getattr(record, "event", None)
         prefix = f"{record.levelname:<7} {record.name}"
         if extras is not None:
@@ -202,13 +210,23 @@ class HumanLogFormatter(logging.Formatter):
 class JsonLogFormatter(logging.Formatter):
     """JSON-line formatter for machine consumption.
 
-    The formatter emits one JSON object per log record. Timestamps are
-    rendered in ISO-8601 with timezone offset so the value round-trips
-    losslessly through ``datetime.fromisoformat``.
+    The formatter emits one JSON object per log record.
+    Timestamps are rendered in ISO-8601 with timezone offset
+    so the value round-trips losslessly through
+    ``datetime.fromisoformat``.
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        """Format a single record as a JSON object string."""
+        """Format a single record as a JSON object string.
+
+        Args:
+            record: The :class:`logging.LogRecord` to format.
+
+        Returns:
+            A single-line JSON object containing the log
+            level, logger name, message, ISO-8601 timestamp,
+            and any extras attached via :meth:`log_event`.
+        """
         payload = {
             "level": record.levelname,
             "logger": record.name,
