@@ -209,6 +209,7 @@ class OGBArxiv:
         """
         self._test_labels_unlocked = bool(value)
 
+
     def load_test_labels(self) -> torch.Tensor:
         """Return labels for the test split and record the access.
 
