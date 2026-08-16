@@ -74,17 +74,22 @@ class EWC:
         """Compute and cache the diagonal Fisher information and the parameters.
 
         The function walks the named parameters, runs
-        :func:`torch.autograd.grad` on ``loss`` with respect to each
-        trainable parameter, and stores the squared gradients (the
-        diagonal Fisher estimate) alongside a snapshot of the
-        parameters themselves. Parameters with ``requires_grad``
-        set to ``False`` are skipped.
+        :func:`torch.autograd.grad` on ``loss`` with respect to
+        each trainable parameter, and stores the squared
+        gradients (the diagonal Fisher estimate) alongside a
+        snapshot of the parameters themselves. Parameters
+        with ``requires_grad`` set to ``False`` are skipped.
 
         Args:
-            named_parameters: An iterable of ``(name, parameter)``
-                pairs.
+            named_parameters: An iterable of ``(name,
+                parameter)`` pairs.
             loss: A scalar tensor from which gradients are
                 computed via backprop.
+
+        Returns:
+            ``None``. The method mutates
+            ``self.fisher_information`` and
+            ``self.reference_parameters`` in place.
         """
         params_list = list(named_parameters)
         trainable = [(name, param) for name, param in params_list if param.requires_grad]
@@ -156,20 +161,30 @@ class EWC:
     ) -> None:
         """Replace the cached Fisher information and reference parameters.
 
-        Useful when the Fisher is computed incrementally (e.g.
-        accumulated across mini-batches) and only set at the end of
-        a task.
+        Useful when the Fisher is computed incrementally
+        (e.g. accumulated across mini-batches) and only set
+        at the end of a task.
 
         Args:
-            fisher: A name-to-tensor mapping that becomes the new
-              diagonal Fisher information.
+            fisher: A name-to-tensor mapping that becomes the
+                new diagonal Fisher information.
             star: A name-to-tensor mapping that becomes the new
-              reference parameters.
+                reference parameters.
+
+        Returns:
+            ``None``. The method replaces the cached maps in
+            place with detached clones of ``fisher`` and
+            ``star``.
         """
         self.fisher_information = {name: tensor.detach().clone() for name, tensor in fisher.items()}
         self.reference_parameters = {name: tensor.detach().clone() for name, tensor in star.items()}
 
     def reset(self) -> None:
-        """Clear the cached Fisher information and reference parameters."""
+        """Clear the cached Fisher information and reference parameters.
+
+        Returns:
+            ``None``. The method clears the cached maps in
+            place.
+        """
         self.fisher_information.clear()
         self.reference_parameters.clear()
