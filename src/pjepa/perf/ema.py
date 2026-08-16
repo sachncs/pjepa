@@ -147,9 +147,14 @@ class EMATarget:
     def forward(self, *args: object, **kwargs: object) -> object:
         """Forward through the target encoder without gradients.
 
+        The return type is intentionally untyped because the
+        shadow network can be any :class:`torch.nn.Module`.
+
         Args:
-            *args: Positional arguments forwarded to ``self.shadow``.
-            **kwargs: Keyword arguments forwarded to ``self.shadow``.
+            *args: Positional arguments forwarded to
+                ``self.shadow``.
+            **kwargs: Keyword arguments forwarded to
+                ``self.shadow``.
 
         Returns:
             Whatever ``self.shadow(*args, **kwargs)`` returns.
