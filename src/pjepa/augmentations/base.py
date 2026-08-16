@@ -134,7 +134,15 @@ class Pipeline:
         self.generator = generator
 
     def __call__(self, graph: Graph) -> Graph:
-        """Apply the pipeline to ``graph`` and return the result."""
+        """Apply the pipeline to ``graph``.
+
+        Args:
+            graph: The input graph.
+
+        Returns:
+            A new :class:`Graph` after the configured sequence of
+            augmentations has been applied.
+        """
         if self.mode == PipelineMode.SEQUENTIAL:
             current = graph
             for aug in self.augmentations:
