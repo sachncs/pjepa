@@ -81,6 +81,10 @@ class Working:
 
         Returns ``0.0`` when ``budget == 0`` to avoid a division by
         zero and to keep the method total over its domain.
+
+        Returns:
+            ``num_vertices / budget`` in ``[0, 1]``; ``0.0`` when
+            ``budget == 0``.
         """
         if self.budget == 0:
             return 0.0
