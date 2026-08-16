@@ -514,6 +514,12 @@ def benchmark(
 
     Args:
         name: Which benchmark to run.
+
+    Returns:
+        ``None``. The benchmark result is printed to stdout
+        as JSON; the command exits with code
+        :data:`EXIT_CONFIG` when ``name`` is not in
+        :data:`BENCHMARKS`.
     """
     key = f"benchmark.{name}"
     if key not in RUNNERS:
@@ -869,7 +875,14 @@ def aggregate(
 
 
 def main() -> None:
-    """Entry point for the ``pjepa`` console script."""
+    """Entry point for the ``pjepa`` console script.
+
+    Returns:
+        ``None``. Calls :func:`typer.Typer` to dispatch to
+        the registered subcommand; the return code is taken
+        from the subcommand's :class:`typer.Exit` (or ``0``
+        on success).
+    """
     app()
 
 
