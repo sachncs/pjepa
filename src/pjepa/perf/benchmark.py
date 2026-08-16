@@ -53,7 +53,13 @@ class MicrobenchmarkResult:
     max_s: float
 
     def as_dict(self) -> dict[str, float | int | str]:
-        """Return the result as a JSON-friendly dictionary."""
+        """Return the result as a JSON-friendly dictionary.
+
+        Returns:
+            A dictionary with keys ``name``, ``n_iter``, ``mean_s``,
+            ``std_s``, ``min_s``, ``max_s``. All values are
+            JSON-serialisable.
+        """
         return {
             "name": self.name,
             "n_iter": self.n_iter,
@@ -108,7 +114,13 @@ class Microbenchmark:
         return result
 
     def latest_samples(self) -> list[float]:
-        """Return a copy of the raw per-iteration timings from the most recent run."""
+        """Return a copy of the raw per-iteration timings from the most recent run.
+
+        Returns:
+            A list of floats (one per iteration), in the same
+            order they were captured. Empty list when no run has
+            been executed yet.
+        """
         return list(self.samples)
 
 
