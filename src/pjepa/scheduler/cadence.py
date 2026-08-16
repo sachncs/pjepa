@@ -56,8 +56,7 @@ class Cadence(ABC):
         """Record one observation.
 
         Args:
-            accepted: Whether the most recent rewrite was
-                accepted.
+            accepted: Whether the most recent rewrite was accepted.
             utilisation: The working-graph utilisation at this
                 step, expected in ``[0, 1]``.
         """
