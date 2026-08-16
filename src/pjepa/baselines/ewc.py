@@ -37,13 +37,17 @@ class EWC:
     """Elastic Weight Consolidation regulariser.
 
     Attributes:
-        lambda_ewc: Strength of the consolidation penalty. Non-negative.
-        fisher_information: The cached diagonal Fisher map (name →
-          ``Tensor``). Exposed via :attr:`fisher_state`; treated as
-          read-only outside of the class.
+        lambda_ewc: Strength of the consolidation penalty.
+            Non-negative.
+        fisher_information: The cached diagonal Fisher map
+            (name → ``Tensor``). Exposed via :attr:`fisher_state`;
+            treated as read-only outside of the class.
         reference_parameters: The cached "star" parameter map
-          (name → ``Tensor``). Exposed via :attr:`fisher_state`;
-          treated as read-only outside of the class.
+            (name → ``Tensor``). Exposed via :attr:`fisher_state`;
+            treated as read-only outside of the class.
+
+    Args:
+        lambda_ewc: Strength of the consolidation penalty.
     """
 
     def __init__(self, lambda_ewc: float = 1000.0) -> None:
