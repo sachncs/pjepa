@@ -44,6 +44,9 @@ class EvolutionOperator:
         Contraction in the strict sense (``η_g < 1``) guarantees the
         Banach fixed-point theorem applies and the operator has a
         unique fixed point reachable from every starting state.
+
+        Returns:
+            ``True`` when ``eta_g < 1.0``, ``False`` otherwise.
         """
         return self.eta_g < 1.0
 
