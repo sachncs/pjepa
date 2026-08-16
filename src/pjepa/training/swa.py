@@ -34,13 +34,19 @@ class SWAConfig:
     """Configuration for the SWA wrapper.
 
     Attributes:
-        start_epoch: First epoch at which to begin averaging. The
-          loop calls :meth:`SWAWrapper.update` every epoch; only
-          epochs ``>= start_epoch`` contribute to the running average.
-        swa_lr: Optional learning rate to use after SWA is activated
-          (often lower than the base learning rate). Currently
-          informational — the wrapper does not switch optimisers
-          itself.
+        start_epoch: First epoch at which to begin averaging.
+            The loop calls :meth:`SWAWrapper.update` every epoch;
+            only epochs ``>= start_epoch`` contribute to the
+            running average.
+        swa_lr: Optional learning rate to use after SWA is
+            activated (often lower than the base learning rate).
+            Currently informational — the wrapper does not switch
+            optimisers itself.
+
+    Args:
+        start_epoch: First epoch at which to begin averaging.
+        swa_lr: Optional learning rate to use after SWA is
+            activated.
     """
 
     start_epoch: int = 0
