@@ -55,6 +55,21 @@ class Transform(ABC):
     """
 
     def __init__(self, strength: float = 0.2, generator: torch.Generator | None = None) -> None:
+        """Initialise the augmentation base class.
+
+        Args:
+            strength: A scalar in ``[0, 1]`` controlling the strength
+                of the augmentation; each subclass interprets the
+                magnitude differently (fraction of vertices,
+                edges, etc.).
+            generator: Optional :class:`torch.Generator` for
+                reproducible randomness. When ``None``,
+                augmentations read from the global PyTorch
+                generator.
+
+        Raises:
+            GraphError: If ``strength`` is outside ``[0, 1]``.
+        """
         if not 0.0 <= strength <= 1.0:
             raise GraphError(f"Transform: strength must be in [0, 1]; got {strength}")
         self.strength = strength
