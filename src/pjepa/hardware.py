@@ -92,8 +92,14 @@ class ProbeResult:
     def render(self) -> str:
         """Return a human-readable one-line rendering of the result.
 
-        The status column is left-padded to a fixed width so multiple
-        ``ProbeResult`` lines line up neatly when concatenated.
+        The status column is left-padded to a fixed width so
+        multiple ``ProbeResult`` lines line up neatly when
+        concatenated.
+
+        Returns:
+            A ``"[<status>] <name> — <detail>"`` string. The
+            ``" — <detail>"`` suffix is omitted when ``detail``
+            is empty.
         """
         suffix = f" — {self.detail}" if self.detail else ""
         return f"[{self.status.value:<6}] {self.name}{suffix}"
