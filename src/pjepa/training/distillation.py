@@ -102,6 +102,12 @@ class DistillationLoss(torch.nn.Module):
     """
 
     def __init__(self, config: DistillationConfig | None = None) -> None:
+        """Initialise the distillation loss module.
+
+        Args:
+            config: Optional :class:`DistillationConfig`; defaults
+                to ``DistillationConfig()``.
+        """
         super().__init__()
         self.config = config or DistillationConfig()
 
