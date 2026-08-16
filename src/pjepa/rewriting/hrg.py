@@ -30,8 +30,14 @@ class HRGProduction:
         rhs_edge_index: A ``[2, E_rhs]`` ``long`` tensor in COO
             format describing the right-hand-side hypergraph
             connectivity.
-        rhs_edge_features: A ``[E_rhs, d_e]`` tensor describing the
-            right-hand-side edges.
+        rhs_edge_features: A ``[E_rhs, d_e]`` tensor describing
+            the right-hand-side edges.
+
+    Args:
+        lhs: The non-terminal label on the left-hand side.
+        rhs_edge_index: A ``[2, E_rhs]`` ``long`` COO tensor.
+        rhs_edge_features: A ``[E_rhs, d_e]`` tensor of right-hand-
+            side edge features.
 
     Raises:
         GraphError: At construction time if ``lhs`` is empty or
