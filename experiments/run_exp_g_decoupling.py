@@ -337,7 +337,19 @@ class DecouplingConfig:
         output_dir: str = "results",
         seed: int = 0,
     ) -> None:
-        """Store the experiment parameters."""
+        """Store the experiment parameters.
+
+        Args:
+            n_sizes: Persistent-graph sizes ``N`` to sweep.
+            budgets: Working-graph budgets ``B`` to sweep.
+            n_trials: Trials per (N, B) cell for averaging.
+            feature_dim: Per-vertex feature dimension used to
+                build the synthetic chain graphs.
+            output_dir: Output directory; plan-compliant
+                ``tables`` and ``plots`` sub-directories will be
+                created underneath.
+            seed: Base seed for the chain-graph feature generator.
+        """
         self.n_sizes = tuple(int(n) for n in n_sizes if int(n) > 0)
         self.budgets = tuple(int(b) for b in budgets if int(b) > 0)
         self.n_trials = max(1, int(n_trials))
