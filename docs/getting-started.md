@@ -7,7 +7,7 @@ Persistent-JEPA requires Python 3.10, 3.11, or 3.12. We recommend 3.12.
 ### From source
 
 ```bash
-git clone https://github.com/sachncs/persistent-jepa.git
+git clone https://github.com/sachncs/pjepa.git
 cd persistent-jepa
 make install
 ```

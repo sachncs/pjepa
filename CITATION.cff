@@ -10,7 +10,7 @@ license: Apache-2.0
 authors:
   - family-names: Anonymous
     given-names: Anonymous
-repository-code: https://github.com/sachncs/jepa
+repository-code: https://github.com/sachncs/pjepa
 keywords:
   - graph-neural-networks
   - continual-learning

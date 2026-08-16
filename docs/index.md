@@ -15,7 +15,7 @@ Existing remedies — replay buffers, retrieval-augmented networks, parameter is
 ## Quick start
 
 ```bash
-git clone https://github.com/sachncs/persistent-jepa.git
+git clone https://github.com/sachncs/pjepa.git
 cd persistent-jepa
 make install
 make doctor
@@ -58,15 +58,15 @@ honest split between local- and external-release actions.
 ## Contributing
 
 We welcome contributions. Please read
-[CONTRIBUTING.md on GitHub](https://github.com/sachncs/persistent-jepa/blob/master/CONTRIBUTING.md)
+[CONTRIBUTING.md on GitHub](https://github.com/sachncs/pjepa/blob/master/CONTRIBUTING.md)
 for the workflow, then check the issues. All public symbols need
 Google-style docstrings; tests follow the eight-class taxonomy.
 
 ## Citation
 
 If you use `pjepa` in academic work, please cite the paper. The
-BibTeX entry is in [CITATION.cff on GitHub](https://github.com/sachncs/persistent-jepa/blob/master/CITATION.cff).
+BibTeX entry is in [CITATION.cff on GitHub](https://github.com/sachncs/pjepa/blob/master/CITATION.cff).
 
 ## License
 
-Apache 2.0. See [LICENSE on GitHub](https://github.com/sachncs/persistent-jepa/blob/master/LICENSE).
+Apache 2.0. See [LICENSE on GitHub](https://github.com/sachncs/pjepa/blob/master/LICENSE).

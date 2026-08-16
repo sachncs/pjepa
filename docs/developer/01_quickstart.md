@@ -9,7 +9,7 @@ The project uses Python 3.12 (3.10 and 3.11 are also supported). We
 strongly recommend the included Makefile workflow:
 
 ```bash
-git clone https://github.com/sachncs/jepa.git
+git clone https://github.com/sachncs/pjepa.git
 cd jepa
 make install
 ```

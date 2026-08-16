@@ -4,8 +4,8 @@
   <p align="center">
     <a href="#installation"><img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License"></a>
-    <a href="https://github.com/sachncs/jepa/actions"><img src="https://img.shields.io/github/actions/workflow/status/sachncs/jepa/ci.yml?branch=master" alt="CI"></a>
-    <a href="https://github.com/sachncs/jepa/stargazers"><img src="https://img.shields.io/github/stars/sachncs/jepa" alt="Stars"></a>
+    <a href="https://github.com/sachncs/pjepa/actions"><img src="https://img.shields.io/github/actions/workflow/status/sachncs/pjepa/ci.yml?branch=master" alt="CI"></a>
+    <a href="https://github.com/sachncs/pjepa/stargazers"><img src="https://img.shields.io/github/stars/sachncs/pjepa" alt="Stars"></a>
   </p>
 </p>
 
@@ -45,7 +45,7 @@ experiments, and the reproducibility package.
 ### From source
 
 ```bash
-git clone https://github.com/sachncs/jepa.git
+git clone https://github.com/sachncs/pjepa.git
 cd jepa
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,ogb]"

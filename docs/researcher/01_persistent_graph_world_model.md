@@ -227,7 +227,7 @@ Continual learning (backward transfer on PROTEINS-CL5):
 
 ```bash
 # Install
-git clone https://github.com/sachncs/persistent-jepa.git
+git clone https://github.com/sachncs/pjepa.git
 cd persistent-jepa
 make install
 
