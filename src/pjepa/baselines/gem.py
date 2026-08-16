@@ -102,8 +102,8 @@ class GEM:
         """Add a sample to memory.
 
         Args:
-            x: The input tensor (cloned to detach from the caller's
-              graph).
+            x: The input tensor (cloned to detach from the
+                caller's graph).
             y: The label tensor (cloned likewise).
         """
         self.memory.append(MemorySample(x=x.detach().clone(), y=y.detach().clone()))
