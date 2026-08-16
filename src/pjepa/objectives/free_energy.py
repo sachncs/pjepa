@@ -65,19 +65,20 @@ class FreeEnergy:
         Args:
             graph: The persistent or candidate graph.
             observation: The current observation tensor.
-            posterior_logits: Optional encoder logits; when supplied
-                with ``prior_logits`` they feed the KL term.
+            posterior_logits: Optional encoder logits; when
+                supplied with ``prior_logits`` they feed the KL
+                term.
             prior_logits: Optional prior logits for the KL term.
 
         Returns:
-            The signed scalar value of 𝒥. May be negative when the
-            forward-information bonus dominates and may be ``inf``
-            when the input graph has no vertices.
+            The signed scalar value of 𝒥. May be negative when
+            the forward-information bonus dominates and may be
+            ``inf`` when the input graph has no vertices.
 
         Raises:
             NumericalError: When the resulting value is NaN. A
-                negative or infinite value is *not* an error and is
-                returned as-is.
+                negative or infinite value is *not* an error and
+                is returned as-is.
         """
         if graph.num_vertices() == 0:
             return float("inf")
