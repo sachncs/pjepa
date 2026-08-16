@@ -213,7 +213,8 @@ class OGBArxiv:
         """Backward-compatible alias for :attr:`test_labels_unlocked`.
 
         Returns:
-            ``True`` once :meth:`load_test_labels` has been called.
+            ``True`` once :meth:`load_test_labels` has been
+            called.
         """
         return self.test_labels_unlocked
 
