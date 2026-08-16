@@ -183,8 +183,16 @@ class State:
     def to(self, device: torch.device) -> State:
         """Move every tensor of the persistent graph to ``device``.
 
-        The ``history`` and ``rejections`` tuples are pure data and do
-        not need to be moved.
+        The ``history`` and ``rejections`` tuples are pure data and
+        do not need to be moved.
+
+        Args:
+            device: The target device.
+
+        Returns:
+            A new :class:`State` with the underlying graph moved
+            to ``device``. The audit trails are preserved
+            unmodified.
         """
         return State(
             graph=self.graph.to(device),
