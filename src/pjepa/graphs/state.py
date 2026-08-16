@@ -64,11 +64,15 @@ class CommitRejected:
     """A candidate rewrite rejected by the four-conditions criterion.
 
     Attributes:
-        reason: A human-readable explanation of why the candidate was
-            rejected — for example ``"bisimilarity violated"`` or
-            ``"delta_j is non-negative"``.
-        cost: The cost the verification step computed. Non-negative
-            by construction.
+        reason: A human-readable explanation of why the candidate
+            was rejected — for example ``"bisimilarity violated"``
+            or ``"delta_j is non-negative"``.
+        cost: The cost the verification step computed.
+            Non-negative by construction.
+
+    Args:
+        reason: The rejection reason.
+        cost: The verification cost.
     """
 
     reason: str
