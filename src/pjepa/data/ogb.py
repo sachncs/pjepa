@@ -136,22 +136,24 @@ class OGBArxiv:
 
     Attributes:
         graph: The :class:`Graph` of the full dataset,
-          including ``vertex_labels`` (used for train/val semi-supervised
-          learning). The test vertices carry the
-          :data:`TEST_LABEL_SENTINEL` value (``0``) so a naive
-          training loop that accidentally indexes into the test rows
-          sees a recognisable sentinel rather than a leaked label.
+            including ``vertex_labels`` (used for train/val
+            semi-supervised learning). The test vertices carry
+            the :data:`TEST_LABEL_SENTINEL` value (``0``) so a
+            naive training loop that accidentally indexes into
+            the test rows sees a recognisable sentinel rather
+            than a leaked label.
         train_indices: Indices of training nodes.
         val_indices: Indices of validation nodes.
-        test_indices: Indices of test nodes. The labels for these
-          nodes are NOT exposed by default; only
-          :meth:`load_test_labels` can return them, and the trainer
-          should call :meth:`assert_no_test_leakage` before any
-          final evaluation.
+        test_indices: Indices of test nodes. The labels for
+            these nodes are NOT exposed by default; only
+            :meth:`load_test_labels` can return them, and the
+            trainer should call :meth:`assert_no_test_leakage`
+            before any final evaluation.
         feature_dim: Vertex feature dimensionality.
         num_classes: Number of class labels.
         test_labels_unlocked: ``True`` once
-          :meth:`load_test_labels` has been called on this object.
+            :meth:`load_test_labels` has been called on this
+            object.
     """
 
     def __init__(
