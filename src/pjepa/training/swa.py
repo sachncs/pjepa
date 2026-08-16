@@ -60,6 +60,16 @@ class SWAWrapper:
     """
 
     def __init__(self, model: torch.nn.Module, config: SWAConfig | None = None) -> None:
+        """Initialise the SWA wrapper.
+
+        Args:
+            model: The model whose parameters will be averaged.
+            config: Optional :class:`SWAConfig`; defaults to
+                ``SWAConfig()``.
+
+        Raises:
+            ConfigError: If ``config.start_epoch`` is negative.
+        """
         self.config = config or SWAConfig()
         if self.config.start_epoch < 0:
             raise ConfigError(
