@@ -41,16 +41,27 @@ class Step:
 
     Attributes:
         state: The state tensor at this step.
-        action: The action taken (an integer index into the action
-            space).
-        logprob: The log-probability of the action under the policy
-            that produced the transition.
+        action: The action taken (an integer index into the
+            action space).
+        logprob: The log-probability of the action under the
+            policy that produced the transition.
         reward: The reward received.
         value: The value estimate at this state.
         done: Whether the transition terminated an episode.
-        old_logprob: The log-probability at collection time. Equal
-            to ``logprob`` in the live-trajectory case. Lazily
-            back-filled by :meth:`Buffer.add` when ``None``.
+        old_logprob: The log-probability at collection time.
+            Equal to ``logprob`` in the live-trajectory case.
+            Lazily back-filled by :meth:`Buffer.add` when
+            ``None``.
+
+    Args:
+        state: The state tensor.
+        action: The action taken.
+        logprob: The log-probability of the action under the
+            live policy.
+        reward: The reward received.
+        value: The value estimate at this state.
+        done: Whether the transition terminated an episode.
+        old_logprob: Optional collection-time log-probability.
     """
 
     state: torch.Tensor
