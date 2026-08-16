@@ -47,6 +47,15 @@ class EWC:
     """
 
     def __init__(self, lambda_ewc: float = 1000.0) -> None:
+        """Initialise the EWC regulariser.
+
+        Args:
+            lambda_ewc: Strength of the consolidation penalty. Must
+                be non-negative.
+
+        Raises:
+            ValueError: If ``lambda_ewc`` is negative.
+        """
         if lambda_ewc < 0:
             raise ValueError(f"EWC: lambda_ewc must be non-negative; got {lambda_ewc}")
         self.lambda_ewc = lambda_ewc
