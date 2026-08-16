@@ -85,7 +85,11 @@ def get_augmentation(name: str) -> type[Transform]:
 
 
 def available_augmentations() -> tuple[str, ...]:
-    """Return the names of all registered augmentations in alphabetical order."""
+    """Return the names of all registered augmentations in alphabetical order.
+
+    Returns:
+        A tuple of registered names, alphabetically sorted.
+    """
     return tuple(sorted(augmentation_registry))
 
 
