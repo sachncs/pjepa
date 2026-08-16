@@ -428,7 +428,14 @@ def probe_pyg_scatter() -> ProbeResult:
 
 
 def probe_cpu_fallback() -> ProbeResult:
-    """CPU fallback is always available."""
+    """CPU fallback is always available.
+
+    Returns:
+        A :class:`ProbeResult` named ``"cpu_fallback"`` with
+        :data:`ProbeStatus.GREEN`. The CPU backend is the
+        canonical fallback in every supported runtime, so the
+        probe is unconditional.
+    """
     return ProbeResult(name="cpu_fallback", status=ProbeStatus.GREEN)
 
 
