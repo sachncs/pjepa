@@ -56,17 +56,18 @@ def contractivity_bound(eta_g: float, eta_o: float, epsilon: float, t: int) -> f
 
     The derivation assumes an initial distance ``d(G_0, G_0') = 1``
     (i.e. a unit discrepancy) and a per-step observation perturbation
-    bounded by ``epsilon``. The bound is the geometric series
+    bounded by ``epsilon``. The bound is the geometric series::
 
-        ``B(η_g, η_o, ε, t) = η_g^t + η_o · ε · (1 - η_g^t) / (1 - η_g)``
+        B(η_g, η_o, ε, t) = η_g^t + η_o · ε · (1 - η_g^t) / (1 - η_g)
 
-    when ``η_g < 1``. The implementation returns this exact quantity
-    because the constant ``d(G_0, G_0')`` is fixed at unity — callers
-    that need the more general bound should scale the result
-    themselves. When ``η_g >= 1`` the bound degenerates and the
-    implementation falls back to the conservative linear bound
-    ``η_o · ε · t``, which still vanishes for small perturbations
-    but does not exhibit the contracting behaviour.
+    when ``η_g < 1``. The implementation returns this exact
+    quantity because the constant ``d(G_0, G_0')`` is fixed at
+    unity — callers that need the more general bound should scale
+    the result themselves. When ``η_g >= 1`` the bound
+    degenerates and the implementation falls back to the
+    conservative linear bound ``η_o · ε · t``, which still
+    vanishes for small perturbations but does not exhibit the
+    contracting behaviour.
 
     Args:
         eta_g: Lipschitz constant in the graph state.
