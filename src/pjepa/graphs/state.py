@@ -84,17 +84,25 @@ class State:
     """Wrapper around the persistent graph ``G_t``.
 
     Each method that produces a new state (``commit``, ``reject``,
-    ``to``) returns a fresh instance rather than mutating in place.
-    Holding a reference to an older :class:`State` therefore
-    pins the configuration at that point in time, which lets training
-    loops snapshot and roll back without extra bookkeeping.
+    ``to``) returns a fresh instance rather than mutating in
+    place. Holding a reference to an older :class:`State`
+    therefore pins the configuration at that point in time,
+    which lets training loops snapshot and roll back without
+    extra bookkeeping.
 
     Attributes:
         graph: The current :class:`Graph`.
         history: A tuple of :class:`CommitRecord` for accepted
             commits, in order.
-        rejections: A tuple of :class:`CommitRejected` for rejected
-            candidates, in order.
+        rejections: A tuple of :class:`CommitRejected` for
+            rejected candidates, in order.
+
+    Args:
+        graph: The current persistent graph.
+        history: Optional iterable of :class:`CommitRecord`
+            entries to seed the audit trail.
+        rejections: Optional iterable of :class:`CommitRejected`
+            entries to seed the rejection audit trail.
     """
 
     graph: Graph
