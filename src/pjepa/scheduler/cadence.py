@@ -162,6 +162,9 @@ class Sleep(Cadence):
         its threshold. Once a sleep cycle begins, the trainer
         typically calls :meth:`reset` so the next observations
         start fresh.
+
+        Returns:
+            ``True`` if a sleep cycle should begin.
         """
         return self.mean_accepted_rate < self.rho_min or self.mean_utilisation < self.alpha_min
 
