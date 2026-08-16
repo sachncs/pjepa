@@ -87,8 +87,12 @@ class GEM:
     Attributes:
         capacity: Maximum memory size.
         memory: Bounded :class:`collections.deque` of
-          :class:`MemorySample` instances. ``maxlen`` is set to
-          ``capacity``; the deque discards the oldest entry when full.
+            :class:`MemorySample` instances. ``maxlen`` is set to
+            ``capacity``; the deque discards the oldest entry
+            when full.
+
+    Args:
+        capacity: Maximum memory size.
     """
 
     capacity: int = 256
