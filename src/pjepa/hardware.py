@@ -276,7 +276,19 @@ def probe_matmul() -> ProbeResult:
 
 
 def probe_scatter_add() -> ProbeResult:
-    """Probe ``Tensor.scatter_add_`` on the active backend."""
+    """Probe ``Tensor.scatter_add_`` on the active backend.
+
+    Allocates a tiny ``[3]`` output tensor, scatters ``5`` ones
+    into it via ``[0, 1, 0, 1, 2]``, and verifies the result is
+    ``[2, 2, 1]``. The probe forces an explicit MPS sync after
+    the scatter because the MPS scatter kernel can lag the rest
+    of the graph.
+
+    Returns:
+        A :class:`ProbeResult` named ``"scatter_add"``;
+        :data:`ProbeStatus.GREEN` when the result matches,
+        :data:`ProbeStatus.RED` otherwise.
+    """
     backend = detect_backend()
     try:
         device = current_device(backend)
