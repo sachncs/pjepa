@@ -96,6 +96,11 @@ class GEM:
         self.memory = deque(maxlen=self.capacity)
 
     def __len__(self) -> int:
+        """Return the number of memory samples currently stored.
+
+        Returns:
+            ``len(self.memory)``.
+        """
         return len(self.memory)
 
     def add(self, x: torch.Tensor, y: torch.Tensor) -> None:
