@@ -90,7 +90,6 @@ def contractivity_bound(eta_g: float, eta_o: float, epsilon: float, t: int) -> f
         GraphError: If any input is negative.
     """
     for name, value in (("eta_g", eta_g), ("eta_o", eta_o), ("epsilon", epsilon), ("t", t)):
-    for name, value in (("eta_g", eta_g), ("eta_o", eta_o), ("epsilon", epsilon), ("t", t)):
         if value < 0:
             raise GraphError(f"contractivity_bound: {name} must be non-negative; got {value}")
     if eta_g >= 1.0:
