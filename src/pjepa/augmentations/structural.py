@@ -31,8 +31,14 @@ class DropEdge(Transform):
     def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
-        Returns the input graph unchanged when it has zero edges or
-        when ``strength * num_edges`` rounds down to zero.
+        Args:
+            graph: The graph to augment.
+
+        Returns:
+            A new :class:`Graph` with ``strength * num_edges``
+            edges removed at random. The input is returned
+            unchanged when the graph has zero edges or when
+            ``strength * num_edges`` rounds down to zero.
         """
         n_edges = graph.num_edges()
         if n_edges == 0:
