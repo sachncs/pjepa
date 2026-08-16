@@ -76,6 +76,7 @@ class Utility(ABC):
         return self.__call__(vertex_subset, observation)
 
 
+
 def uniform_weights(num_vertices: int) -> torch.Tensor:
     """Return uniform per-vertex weights as a 1-D float tensor.
 
