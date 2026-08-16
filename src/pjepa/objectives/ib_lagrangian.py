@@ -38,7 +38,8 @@ def ib_lagrangian(
         The IB Lagrangian value.
 
     Raises:
-        NumericalError: If either mutual information is negative.
+        NumericalError: If either mutual information is
+            negative.
 
     Example:
         >>> ib_lagrangian(1.0, 0.5, 0.1)
