@@ -174,7 +174,13 @@ class Buffer(Storage):
         self.evict_stale()
 
     def evict_stale(self) -> None:
-        """Drop every entry whose age exceeds ``max_age``."""
+        """Drop every entry whose age exceeds ``max_age``.
+
+        The function walks the deque from the head and pops
+        entries until the remaining entries are within the
+        staleness window. ``O(N)`` in the worst case (when every
+        entry is stale).
+        """
         cutoff = self.step_counter - self.max_age
         while self.storage and self.storage[0][0] < cutoff:
             self.storage.popleft()
