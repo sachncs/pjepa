@@ -16,8 +16,13 @@ __all__ = ["sync_mps"]
 def sync_mps() -> None:
     """Block until all pending MPS operations have completed.
 
+    The function probes the runtime for an MPS backend and only
+    synchronises when one is available and built. On non-MPS
+    backends it returns without side effects so callers can
+    invoke it unconditionally.
+
     Returns:
-        None. No-op on non-MPS backends.
+        ``None``. No-op on non-MPS backends.
     """
     if (
         hasattr(torch.backends, "mps")
