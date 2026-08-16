@@ -66,8 +66,14 @@ class DropNode(Transform):
     def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
-        Returns the input graph unchanged when it has zero or one
-        vertex.
+        Args:
+            graph: The graph to augment.
+
+        Returns:
+            A new :class:`Graph` with ``strength * num_vertices``
+            vertices removed at random (at least one vertex is
+            always kept). The input is returned unchanged when
+            the graph has zero or one vertex.
         """
         n_vertices = graph.num_vertices()
         if n_vertices <= 1:
