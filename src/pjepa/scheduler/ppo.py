@@ -34,8 +34,17 @@ class PPOConfig:
         clip_eps: Clipping epsilon for the surrogate objective.
         gae_lambda: GAE lambda parameter; used by
             :meth:`PPOTrainer.compute_gae` rather than by the
-            :meth:`update` loop (which uses the trivial reward-as-advantage
-            fallback when no GAE is supplied).
+            :meth:`update` loop (which uses the trivial
+            reward-as-advantage fallback when no GAE is supplied).
+        value_coef: Coefficient for the value loss.
+        entropy_coef: Coefficient for the entropy bonus.
+        gamma: Discount factor.
+        inner_epochs: Number of PPO epochs per update.
+        minibatch_size: Minibatch size for each inner epoch.
+
+    Args:
+        clip_eps: Clipping epsilon for the surrogate objective.
+        gae_lambda: GAE lambda parameter.
         value_coef: Coefficient for the value loss.
         entropy_coef: Coefficient for the entropy bonus.
         gamma: Discount factor.
@@ -43,10 +52,10 @@ class PPOConfig:
         minibatch_size: Minibatch size for each inner epoch.
 
     Raises:
-        ConfigError: At construction time if ``clip_eps`` is not in
-            ``(0, 1)``, ``gae_lambda`` is outside ``[0, 1]``,
-            ``gamma`` is outside ``(0, 1]``, or ``inner_epochs`` /
-            ``minibatch_size`` is non-positive.
+        ConfigError: At construction time if ``clip_eps`` is not
+            in ``(0, 1)``, ``gae_lambda`` is outside ``[0, 1]``,
+            ``gamma`` is outside ``(0, 1]``, or ``inner_epochs``
+            / ``minibatch_size`` is non-positive.
     """
 
     clip_eps: float = 0.2
