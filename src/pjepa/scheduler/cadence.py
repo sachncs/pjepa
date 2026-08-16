@@ -58,6 +58,10 @@ class Cadence(ABC):
             accepted: Whether the most recent rewrite was accepted.
             utilisation: The working-graph utilisation at this
                 step, expected in ``[0, 1]``.
+
+        Returns:
+            ``None``. Implementations must mutate their
+            internal state in place.
         """
         ...
 
@@ -66,6 +70,9 @@ class Cadence(ABC):
 
         Default implementation is a no-op. Overridden by
         :class:`Sleep` to clear the rolling histories.
+
+        Returns:
+            ``None``.
         """
         return
 
@@ -113,9 +120,13 @@ class Sleep(Cadence):
             accepted: Whether the most recent rewrite was
                 accepted.
             utilisation: The working-graph utilisation at this
-                step, expected in ``[0, 1]``. Values outside that
-                range are accepted but may distort future
+                step, expected in ``[0, 1]``. Values outside
+                that range are accepted but may distort future
                 ``should_sleep`` decisions.
+
+        Returns:
+            ``None``. The method appends to the rolling
+            histories in place.
         """
         self.accepted_history.append(1 if accepted else 0)
         self.utilisation_history.append(utilisation)
@@ -124,8 +135,13 @@ class Sleep(Cadence):
         """Clear the rolling histories.
 
         After a reset the cadence returns ``1.0`` for both
-        :attr:`mean_accepted_rate` and :attr:`mean_utilisation`
-        until a new observation is recorded.
+        :attr:`mean_accepted_rate` and
+        :attr:`mean_utilisation` until a new observation is
+        recorded.
+
+        Returns:
+            ``None``. The method clears the deque histories in
+            place.
         """
         self.accepted_history.clear()
         self.utilisation_history.clear()
@@ -135,8 +151,13 @@ class Sleep(Cadence):
         """Return the rolling accepted-rewrite rate.
 
         When the history is empty (e.g. immediately after
-        :meth:`reset`) returns ``1.0`` so the cadence does not
-        fire from a cold start.
+        :meth:`reset`) returns ``1.0`` so the cadence does
+        not fire from a cold start.
+
+        Returns:
+            ``sum(self.accepted_history) /
+            len(self.accepted_history)`` in ``[0, 1]``, or
+            ``1.0`` when the history is empty.
         """
         if not self.accepted_history:
             return 1.0
@@ -148,6 +169,11 @@ class Sleep(Cadence):
 
         Empty history returns ``1.0``; see
         :attr:`mean_accepted_rate`.
+
+        Returns:
+            ``sum(self.utilisation_history) /
+            len(self.utilisation_history)`` in ``[0, 1]``, or
+            ``1.0`` when the history is empty.
         """
         if not self.utilisation_history:
             return 1.0
