@@ -53,7 +53,14 @@ def ensure_parent_directory(path: Path) -> None:
     """Create ``path.parent`` if it does not yet exist.
 
     Args:
-        path: The destination path whose parent should exist.
+        path: The destination path whose parent should
+            exist.
+
+    Returns:
+        ``None``. The function calls
+        :meth:`pathlib.Path.mkdir` on the parent directory
+        with ``exist_ok=True`` so it is a no-op when the
+        parent already exists.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
 

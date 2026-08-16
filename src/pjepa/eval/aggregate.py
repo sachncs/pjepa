@@ -149,7 +149,13 @@ class AggregatedRow:
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        """Return a flat dict representation, suitable for CSV/JSON."""
+        """Return a flat dict representation, suitable for CSV/JSON.
+
+        Returns:
+            A flat dictionary with one entry per public
+            field. ``None`` metric values are flattened to an
+            empty string so the row can be serialised to CSV.
+        """
         out: dict[str, Any] = {
             "experiment": self.experiment,
             "dataset": self.dataset,
