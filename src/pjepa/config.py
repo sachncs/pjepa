@@ -107,7 +107,7 @@ def load_config(
     Example:
         >>> cfg = load_config("configs/tu.yaml")
         >>> cfg["training"]["epochs"]
-        200
+        100
     """
     config = read_yaml_file(Path(path))
     if required_sections:

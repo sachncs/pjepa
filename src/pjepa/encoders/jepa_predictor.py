@@ -256,3 +256,23 @@ class Target:
         """
         with torch.no_grad():
             return self.shadow(*args, **kwargs)
+
+    def __call__(self, *args: object, **kwargs: object) -> object:
+        """Forward through the target encoder.
+
+        The :class:`Target` class is not a :class:`torch.nn.Module`,
+        so :meth:`__call__` is wired manually to dispatch to
+        :meth:`forward`. This lets callers treat a :class:`Target`
+        instance as a callable encoder (the same way they would
+        treat a module instance).
+
+        Args:
+            *args: Positional arguments forwarded to
+                :meth:`forward`.
+            **kwargs: Keyword arguments forwarded to
+                :meth:`forward`.
+
+        Returns:
+            Whatever the wrapped encoder returns.
+        """
+        return self.forward(*args, **kwargs)
