@@ -83,6 +83,10 @@ class Head(ABC, nn.Module):
         Default implementation is a no-op. Overridden by
         :class:`Target` to perform the EMA update after every
         optimiser step.
+
+        Returns:
+            ``None``. Concrete subclasses may mutate state in
+            place.
         """
         return
 
