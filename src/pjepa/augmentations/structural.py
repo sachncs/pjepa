@@ -165,7 +165,19 @@ class Subgraph(Transform):
     def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
-        Returns the input graph unchanged when it has zero vertices.
+        Args:
+            graph: The graph to augment.
+
+        Returns:
+            A new :class:`Graph` whose vertex set is a uniform
+            random sample of ``max(1, strength * num_vertices)``
+            vertices from the input. The input is returned
+            unchanged when the graph has zero vertices.
+
+        Raises:
+            GraphError: If ``strength`` is outside ``(0, 1]`` (enforced
+                at call time so callers can reuse a single
+                instance with different configurations).
         """
         n_vertices = graph.num_vertices()
         if n_vertices == 0:
