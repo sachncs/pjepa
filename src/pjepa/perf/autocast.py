@@ -42,7 +42,7 @@ class NullAutocastContext(AbstractContextManager[None]):
         Returns:
             ``None``.
         """
-        return None
+        return
 
     def __exit__(self, *args: Any) -> None:
         """Exit the no-op context.
@@ -50,7 +50,7 @@ class NullAutocastContext(AbstractContextManager[None]):
         Args:
             *args: Ignored.
         """
-        return None
+        return
 
 
 def autocast_context(
