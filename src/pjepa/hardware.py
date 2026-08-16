@@ -316,8 +316,17 @@ def probe_scatter_add() -> ProbeResult:
 def probe_compile() -> ProbeResult:
     """Probe ``torch.compile`` on a tiny square module.
 
-    On CPU the probe is skipped by default to keep startup fast; set
+    The probe compiles ``square(x) = x * x`` and runs it on a
+    random input, checking that the compiled and eager
+    implementations agree. On CPU the probe is skipped by
+    default to keep startup fast; set
     ``PJEPA_TRY_CPU_COMPILE=1`` in the environment to force it.
+
+    Returns:
+        A :class:`ProbeResult` named ``"torch.compile"``;
+        :data:`ProbeStatus.GREEN` on success, :data:`ProbeStatus.YELLOW`
+        when skipped on CPU, :data:`ProbeStatus.RED` on a
+        compile or runtime failure.
     """
     backend = detect_backend()
     if backend is Backend.CPU and not os.environ.get("PJEPA_TRY_CPU_COMPILE"):
