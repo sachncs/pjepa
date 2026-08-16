@@ -49,10 +49,13 @@ class TUGraph:
 def expected_checksum(name: str) -> str | None:
     """Return the expected SHA-256 for a TUDataset name, or ``None``.
 
+    Args:
+        name: The TUDataset name (e.g. ``"PROTEINS"``).
+
     Returns:
         The published digest, or ``None`` when no checksum is on
-        record. TUDataset does not maintain a checksum registry so
-        most well-known names return ``None``.
+        record. TUDataset does not maintain a checksum registry
+        so most well-known names return ``None``.
     """
     return {
         "PROTEINS": "8a5ccd1531ee32b81d5b9c4566b5d1feb3c5b9c9c9c9c9c9c9c9c9c9c9c9c9c",
