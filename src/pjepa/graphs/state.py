@@ -37,15 +37,21 @@ class CommitRecord:
     """A single successful commit to the persistent graph.
 
     Attributes:
-        version: The graph version produced by the commit. After the
-            ``k``-th commit ``version == initial_version + k``; the
-            framework guarantees strict monotonicity, so this number
-            is a reliable audit order key.
-        timestamp: An arbitrary monotonic counter or wall-clock value
-            supplied by the caller; the framework does not interpret
-            it. Epoch seconds are the conventional choice.
-        cost: The rewrite cost recorded by the verification step.
-            Non-negative by construction.
+        version: The graph version produced by the commit. After
+            the ``k``-th commit ``version == initial_version + k``;
+            the framework guarantees strict monotonicity, so this
+            number is a reliable audit order key.
+        timestamp: An arbitrary monotonic counter or wall-clock
+            value supplied by the caller; the framework does not
+            interpret it. Epoch seconds are the conventional
+            choice.
+        cost: The rewrite cost recorded by the verification
+            step. Non-negative by construction.
+
+    Args:
+        version: The graph version produced by the commit.
+        timestamp: The commit timestamp (any monotonic value).
+        cost: The rewrite cost.
     """
 
     version: int
