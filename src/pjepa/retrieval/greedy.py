@@ -36,14 +36,19 @@ class Result:
     """The output of a greedy retrieval run.
 
     Attributes:
-        working: The working graph that was selected. Its vertex
-            count never exceeds the configured budget.
+        working: The working graph that was selected. Its
+            vertex count never exceeds the configured budget.
         utility: The cumulative utility achieved by the greedy
             selection. ``0.0`` for empty input graphs.
         iterations: The number of greedy iterations actually
-            performed (may be less than the budget when the graph
-            is too small or when further additions no longer
-            improve the utility).
+            performed (may be less than the budget when the
+            graph is too small or when further additions no
+            longer improve the utility).
+
+    Args:
+        working: The working graph that was selected.
+        utility: The cumulative utility achieved.
+        iterations: The number of greedy iterations performed.
     """
 
     working: Working
