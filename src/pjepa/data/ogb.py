@@ -235,6 +235,10 @@ class OGBArxiv:
 
         Args:
             value: The new value.
+
+        Returns:
+            ``None``. The setter coerces ``value`` to ``bool``
+            and assigns it to ``self._test_labels_unlocked``.
         """
         self._test_labels_unlocked = bool(value)
 
@@ -267,27 +271,34 @@ class OGBArxiv:
     ) -> None:
         """Raise :class:`DataError` when test labels are observed by the trainer.
 
-        The check is a *sound contract assertion*: if the caller has
-        never exposed test labels through this object, the function
-        returns successfully. When ``training_labels`` is supplied
-        (the labels tensor the trainer is fitting), the function
-        raises if any test index resolves to a label that is not the
+        The check is a *sound contract assertion*: if the
+        caller has never exposed test labels through this
+        object, the function returns successfully. When
+        ``training_labels`` is supplied (the labels tensor the
+        trainer is fitting), the function raises if any test
+        index resolves to a label that is not the
         :data:`TEST_LABEL_SENTINEL` (``0``). The sentinel is
-        configurable; the default ``0`` matches OGB-arxiv (classes
-        are ``0..N-1`` so a zero-label on a test vertex is never a
-        legitimate training signal in the train+val subset).
+        configurable; the default ``0`` matches OGB-arxiv
+        (classes are ``0..N-1`` so a zero-label on a test
+        vertex is never a legitimate training signal in the
+        train+val subset).
 
         Args:
             training_labels: Optional ``[N]`` ``long`` tensor of
-              labels the trainer was given. When supplied, indices
-              in :attr:`test_indices` must all be the sentinel
-              :data:`TEST_LABEL_SENTINEL`.
+                labels the trainer was given. When supplied,
+                indices in :attr:`test_indices` must all be
+                the sentinel :data:`TEST_LABEL_SENTINEL`.
 
         Raises:
             DataError: When ``training_labels`` contains a
-              non-sentinel label for any test index, or when
-              :attr:`test_labels_unlocked` is ``True`` while
-              ``training_labels`` is supplied.
+                non-sentinel label for any test index, or when
+                :attr:`test_labels_unlocked` is ``True`` while
+                ``training_labels`` is supplied.
+
+        Returns:
+            ``None``. The method raises :class:`DataError`
+            on a contract violation and otherwise returns
+            silently.
         """
         if training_labels is None:
             return
