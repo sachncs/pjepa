@@ -86,7 +86,16 @@ class Working:
     def to(self, device: torch.device) -> Working:
         """Move every tensor of the working graph to ``device``.
 
-        The ``budget`` and ``parent_version`` fields are preserved.
+        The ``budget`` and ``parent_version`` fields are
+        preserved.
+
+        Args:
+            device: The target device.
+
+        Returns:
+            A new :class:`Working` with the underlying graph
+            moved to ``device``. The budget and parent version
+            are preserved.
         """
         return Working(
             graph=self.graph.to(device),
