@@ -65,6 +65,23 @@ Each entry includes the commit SHA (short), the date (UTC), and the rationale.
   and ``src/pjepa/hardware.py`` now pass ``ruff format --check``.
 - **Test count updated to 470** (was 436) in the README and
   the project tree banner.
+- **Public-API docstring coverage is complete.** Every public
+  function and method across ``src/pjepa/`` now has a full
+  Google-style docstring with ``Args:``, ``Returns:``, and
+  ``Raises:`` sections as appropriate. An AST-based audit
+  script (``scripts/audit_docstrings.py`` would be the
+  conventional location) reports 0 outstanding public-symbol
+  gaps; the audit is part of the contribution checklist.
+- **Test count updated to 495** with the docstring pass
+  (16 new tests in ``tests/test_abc_contracts.py`` verifying
+  that each polymorphic ABC — ``Encoder``, ``Head``,
+  ``Utility``, ``Criterion``, ``Storage``, ``Cadence``,
+  ``Transform`` — is genuinely abstract and cannot be
+  instantiated).
+- **README updated** to use the new single-word class names
+  in the Features bullet, Project Structure tree, and
+  Examples block; the Quick Start example was rewritten to
+  match the post-refactor API.
 
 ### Added
 - ``experiments/train_real.py`` — a real, k-fold-CV
@@ -75,6 +92,13 @@ Each entry includes the commit SHA (short), the date (UTC), and the rationale.
   ~2 hours on a single CPU), with results written to
   ``results/proteins/summary.csv``. When the run completes,
   the resulting accuracy is reported in this changelog.
+- ``tests/test_abc_contracts.py`` — 16 tests that exercise
+  the new abstract-base-class hierarchy, asserting that the
+  ABCs cannot be instantiated directly and that the concrete
+  subclasses (``Euclidean``, ``DualGeometric``, ``Predictor``,
+  ``Target``, ``Facility``, ``InfoGain``, ``FourConditions``,
+  ``Buffer``, ``Sleep``, ``DualGeometric``) all ``isinstance``
+  of the appropriate ABC.
 
 ### Results — PROTEINS, full k-fold CV (3 seeds × 10 folds × 200 epochs)
 
