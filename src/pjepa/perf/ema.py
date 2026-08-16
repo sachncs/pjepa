@@ -64,6 +64,27 @@ class EMATarget:
         final_momentum: float = 0.999,
         total_steps: int = 1000,
     ) -> None:
+        """Initialise the EMA target.
+
+        Args:
+            online: The online module whose parameters are
+                tracked.
+            momentum: The EMA momentum; ``1.0`` means no update,
+                ``0.0`` means instant copy.
+            schedule: Either ``"constant"`` (fixed momentum) or
+                ``"cosine"`` (cosine annealed from the initial
+                value to the final value).
+            final_momentum: For cosine schedule, the target
+                momentum at the end of training.
+            total_steps: For cosine schedule, the total number of
+                updates over which to anneal.
+
+        Raises:
+            NumericalError: If ``momentum`` or ``final_momentum``
+                is outside ``[0, 1]``, ``schedule`` is not a
+                recognised string, or ``total_steps`` is
+                non-positive.
+        """
         if not 0.0 <= momentum <= 1.0:
             raise NumericalError(f"EMATarget: momentum must be in [0, 1]; got {momentum}")
         if not 0.0 <= final_momentum <= 1.0:
