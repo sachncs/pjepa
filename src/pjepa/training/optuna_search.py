@@ -425,7 +425,14 @@ class OptunaSearch:
 
     @property
     def trial_history(self) -> list[TrialResult]:
-        """Return a copy of the per-trial history recorded so far."""
+        """Return a copy of the per-trial history recorded so far.
+
+        Returns:
+            A list of :class:`TrialResult` (one per Optuna
+            trial) in trial-completion order. The underlying
+            state is not exposed by this property; callers may
+            freely sort, slice, or filter the returned copy.
+        """
         return list(self.trial_history_state)
 
     def import_optuna(self) -> Any:
