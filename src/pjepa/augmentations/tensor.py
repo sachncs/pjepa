@@ -94,5 +94,15 @@ def tensor_drop_feature(
     Equivalent to ``TensorDropFeature(strength, generator)(tensor)``;
     provided so call sites that always work with raw tensors do not
     have to construct an instance.
+
+    Args:
+        tensor: A 2-D feature tensor.
+        strength: Fraction of feature columns to drop in ``[0, 1]``.
+        generator: Optional :class:`torch.Generator` for
+            reproducible randomness.
+
+    Returns:
+        A new 2-D tensor with the same shape, with ``strength *
+        num_columns`` columns zeroed.
     """
     return TensorDropFeature(strength=strength, generator=generator)(tensor)
