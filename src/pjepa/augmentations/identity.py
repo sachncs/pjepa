@@ -21,5 +21,12 @@ class Identity(Transform):
     """
 
     def __call__(self, graph: Graph) -> Graph:
-        """Return ``graph`` unchanged."""
+        """Return ``graph`` unchanged.
+
+        Args:
+            graph: The input graph.
+
+        Returns:
+            The same :class:`Graph` instance, unmodified.
+        """
         return graph
