@@ -70,6 +70,10 @@ class MemorySample:
     Attributes:
         x: The input tensor.
         y: The label.
+
+    Args:
+        x: The input tensor.
+        y: The label.
     """
 
     x: torch.Tensor
