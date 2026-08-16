@@ -97,6 +97,10 @@ class Storage(ABC):
 
         Args:
             step: The step to record.
+
+        Returns:
+            ``None``. Implementations must mutate their
+            internal state in place.
         """
         ...
 
@@ -108,14 +112,23 @@ class Storage(ABC):
             batch_size: Size of each minibatch.
 
         Yields:
-            ``(states, actions, old_logprobs, advantages, returns)``
-            tensors each shaped ``[batch_size, ...]``.
+            ``(states, actions, old_logprobs, advantages,
+            returns)`` tensors each shaped ``[batch_size, ...]``.
+
+        Returns:
+            An :class:`Iterator` of 5-tuples. The iterator is
+            empty when the storage is empty.
         """
         ...
 
     @abstractmethod
     def evict_stale(self) -> None:
-        """Drop every entry whose age exceeds the configured bound."""
+        """Drop every entry whose age exceeds the configured bound.
+
+        Returns:
+            ``None``. Implementations must mutate their
+            internal state in place.
+        """
         ...
 
     @abstractmethod
@@ -174,13 +187,17 @@ class Buffer(Storage):
         """Append a step to the buffer.
 
         If ``step.old_logprob`` is ``None`` the buffer copies
-        ``step.logprob.detach()`` so the trainer has an immutable
-        snapshot of the collection-time log-probability. The
-        buffer performs a stale-entry sweep at the end of each
-        call.
+        ``step.logprob.detach()`` so the trainer has an
+        immutable snapshot of the collection-time
+        log-probability. The buffer performs a stale-entry
+        sweep at the end of each call.
 
         Args:
             step: The step to record.
+
+        Returns:
+            ``None``. The method mutates the internal deque
+            and step counter in place.
         """
         if step.old_logprob is None:
             step.old_logprob = step.logprob.detach().clone()
@@ -193,8 +210,12 @@ class Buffer(Storage):
 
         The function walks the deque from the head and pops
         entries until the remaining entries are within the
-        staleness window. ``O(N)`` in the worst case (when every
-        entry is stale).
+        staleness window. ``O(N)`` in the worst case (when
+        every entry is stale).
+
+        Returns:
+            ``None``. The method mutates ``self.storage`` in
+            place.
         """
         cutoff = self.step_counter - self.max_age
         while self.storage and self.storage[0][0] < cutoff:
@@ -226,6 +247,10 @@ class Buffer(Storage):
         Yields:
             ``(states, actions, old_logprobs, advantages, returns)``
             tensors each shaped ``[batch_size, ...]``.
+
+        Returns:
+            An :class:`Iterator` of 5-tuples. The iterator is
+            empty when the buffer is empty.
 
         Raises:
             ConfigError: If ``batch_size`` is non-positive.
