@@ -1,25 +1,28 @@
-# INTERFACES.md — Cross-Module Interface Contract (Phases 0–3)
+# INTERFACES.md — Cross-Module Interface Contract
 
-> Frozen in Phase 0. Updates require a Phase-0 sub-agent sign-off.
-> New interfaces follow the same shape; existing ones never change
-> without a deprecation cycle.
+> The contract is part of the public API. Updates require a
+> deprecation cycle for any existing entry; new interfaces follow
+> the same shape.
 
 This document records the **interface contracts** between the
-sub-packages of `pjepa` that Phases 0 through 3 introduce or depend
-on. Each sub-agent is responsible for implementing its own slice;
-all other slices must consume the interface — never the concrete
-class — for any kind of dependency.
+sub-packages of `pjepa`. Each piece is responsible for
+implementing its own slice; all other slices must consume the
+interface — never the concrete class — for any kind of
+dependency.
 
 ---
 
-## 1. `pjepa.graphs.TypedAttributedGraph`
+## 1. `pjepa.graphs.Graph`
 
-The immutable substrate for both the persistent graph `G_t` and the
-working graph `W_t`. All other modules operate on this type.
+The immutable substrate for both the persistent graph `G_t` and
+the working graph `W_t`. All other modules operate on this type.
+The class was previously named `TypedAttributedGraph`; the
+backward-compatible alias `make_typed_graph` is exported from
+`pjepa.compat`.
 
 ```python
 @dataclass(frozen=True)
-class TypedAttributedGraph:
+class Graph:
     vertex_features: torch.Tensor            # [N, d_v]
     edge_index: torch.Tensor                 # [2, E], long
     edge_features: torch.Tensor              # [E, d_e]
@@ -30,9 +33,9 @@ class TypedAttributedGraph:
 
     def num_vertices(self) -> int: ...
     def num_edges(self) -> int: ...
-    def with_features(self, **kwargs) -> "TypedAttributedGraph": ...
-    def subgraph(self, vertex_mask: torch.Tensor) -> "TypedAttributedGraph": ...
-    def to(self, device: torch.device) -> "TypedAttributedGraph": ...
+    def with_features(self, **kwargs) -> "Graph": ...
+    def subgraph(self, vertex_mask: torch.Tensor) -> "Graph": ...
+    def to(self, device: torch.device) -> "Graph": ...
 ```
 
 **Invariants**
@@ -42,45 +45,129 @@ class TypedAttributedGraph:
 - `edge_features.shape[0]` equals `edge_index.shape[1]` (`E`).
 - Mutations produce a new instance (`frozen=True`).
 
-## 2. `pjepa.encoders.Encoder` (and `EncoderProtocol`)
+## 2. `pjepa.encoders.Encoder`
 
-A graph encoder maps a `TypedAttributedGraph` to an embedding tensor.
-Implementations typically subclass `torch.nn.Module`; the protocol is
-runtime-checkable.
+A graph encoder maps a `Graph` to an embedding tensor. The
+:class:`Encoder` is now a real `ABC` (was previously a runtime
+checkable `Protocol`). The backward-compatible alias
+`EncoderProtocol = Encoder` is kept.
 
 ```python
-@runtime_checkable
-class Encoder(Protocol):
-    output_dim: int
-    def forward(self, graph: TypedAttributedGraph) -> torch.Tensor: ...
-    def to(self, device: torch.device) -> Encoder: ...
+class Encoder(ABC, torch.nn.Module):
+    @property
+    @abstractmethod
+    def output_dim(self) -> int: ...
+    @abstractmethod
+    def forward(self, graph: Graph) -> torch.Tensor | tuple[torch.Tensor, ...]: ...
+    def encode(self, graph: Graph) -> torch.Tensor: ...   # default delegates to forward
+    def summary(self) -> dict[str, Any]: ...
 ```
 
-`EncoderProtocol = Encoder` (alias) is exported for documentation.
+**Consumers**: retrieval, rewriting (via bisimulation metric),
+the JEPA predictor. **Producers**: `Euclidean`, `Hyperbolic`,
+`DualGeometric`, `Predictor`.
 
-**Consumers**: retrieval, rewriting (via bisimulation metric), the
-JEPA predictor. **Producers**: `EuclideanMPNN`, `HyperbolicProjection`,
-`DualGeometricEncoder`, `JEPAPredictor`.
+## 3. `pjepa.encoders.Head`
 
-## 3. `pjepa.augmentations.Augmentation`
-
-Callable `Graph → Graph`. Composed via `AugmentationPipeline`.
+The polymorphic root of the head hierarchy. The concrete
+subclasses are :class:`Predictor` (the learned predictor) and
+:class:`Target` (the EMA shadow encoder). The trainer iterates
+over a list of heads uniformly.
 
 ```python
-class Augmentation(ABC):
+class Head(ABC, torch.nn.Module):
+    @abstractmethod
+    def forward(self, context: torch.Tensor) -> torch.Tensor: ...
+    def update(self) -> None: ...   # default no-op; overridden by Target
+```
+
+## 4. `pjepa.augmentations.Transform`
+
+Callable `Graph → Graph`. Composed via `Pipeline`. The classes
+were renamed from `Augmentation` / `AugmentationPipeline` to
+`Transform` / `Pipeline`.
+
+```python
+class Transform(ABC):
     def __init__(self, strength: float = 0.2, generator: torch.Generator | None = None): ...
     @abstractmethod
-    def __call__(self, graph: TypedAttributedGraph) -> TypedAttributedGraph: ...
+    def __call__(self, graph: Graph) -> Graph: ...
+
+class Pipeline:
+    def __init__(self, augmentations, mode: str = "random_sample_one", k: int = 2, generator=None): ...
+    def __call__(self, graph: Graph) -> Graph: ...
 ```
 
-Built-ins: `DropEdge`, `DropNode`, `Subgraph`, `RandomWalkSubgraph`,
-`DropFeature`, `FeatureMask`, `Identity` (plus tensor adapter
-`TensorDropFeature`).
+Built-ins: `DropEdge`, `DropNode`, `Subgraph`,
+`ConnectedSubgraph`, `DropFeature`, `FeatureMask`, `Identity`
+(plus tensor adapter `TensorDropFeature`).
 
-`AugmentationPipeline(augmentations, mode, k, generator)` supports
-three modes (`SEQUENTIAL`, `RANDOM_SAMPLE_ONE`, `RANDOM_SAMPLE_K`).
+`Pipeline(augmentations, mode, k, generator)` supports three
+modes (`SEQUENTIAL`, `RANDOM_SAMPLE_ONE`, `RANDOM_SAMPLE_K`).
 
-## 4. `pjepa.hardware` capability interface
+## 5. `pjepa.retrieval.Utility`
+
+The polymorphic root of the retrieval-utility hierarchy. The
+concrete subclasses are `Facility` (provably submodular) and
+`InfoGain` (information-gain with per-vertex cost). The class
+was renamed from `RetrievalUtility` to `Utility`.
+
+```python
+class Utility(ABC):
+    @abstractmethod
+    def __call__(self, vertex_subset: torch.Tensor, observation: torch.Tensor) -> float: ...
+    def score(self, vertex_subset, observation) -> float: ...   # default delegates to __call__
+```
+
+The retriever class :class:`pjepa.retrieval.Retrieval` (was
+`GreedyRetrieval`) accepts any `Utility` and returns a
+:class:`Result` (was `RetrievalResult`).
+
+## 6. `pjepa.rewriting.Criterion`
+
+The polymorphic root of the acceptance-criterion hierarchy. The
+concrete subclass is :class:`FourConditions`.
+
+```python
+class Criterion(ABC):
+    @abstractmethod
+    def evaluate(self, candidate, current, observation, grammar) -> tuple[bool, dict[str, object]]: ...
+    def accept(self, candidate, current, observation, grammar) -> tuple[bool, dict[str, object]]: ...
+```
+
+The convenience function :func:`pjepa.rewriting.accept` wraps a
+`FourConditions` instance for callers that prefer the
+functional style.
+
+## 7. `pjepa.scheduler.Storage` and `pjepa.scheduler.Cadence`
+
+The polymorphic roots of the replay-storage and sleep-cadence
+hierarchies.
+
+```python
+class Storage(ABC):
+    @abstractmethod
+    def add(self, step: Step) -> None: ...
+    @abstractmethod
+    def minibatches(self, batch_size: int) -> Iterator[tuple[torch.Tensor, ...]]: ...
+    @abstractmethod
+    def evict_stale(self) -> None: ...
+    @abstractmethod
+    def __len__(self) -> int: ...
+
+class Cadence(ABC):
+    @abstractmethod
+    def should_sleep(self) -> bool: ...
+    @abstractmethod
+    def update(self, accepted: bool, utilisation: float) -> None: ...
+    def reset(self) -> None: ...   # default no-op
+```
+
+Concrete subclasses: `Buffer` (FIFO), `Sleep` (rolling-statistic
+trigger). Backward-compatible aliases: `ReplayBuffer = Buffer`,
+`Transition = Step`, `SleepCadence = Sleep`.
+
+## 8. `pjepa.hardware` capability interface
 
 ```python
 def detect_backend() -> Backend: ...             # Backend ∈ {CUDA, MPS, CPU}
@@ -89,11 +176,12 @@ def detect_capabilities() -> CapabilityReport: ...
 def sync_if_mps() -> None: ...
 ```
 
-`CapabilityReport` carries a tuple of `ProbeResult` with a status
-(`GREEN` / `YELLOW` / `RED`). All performance / runtime decisions
-in Phases 1–3 read this report before activating optimisation paths.
+`CapabilityReport` carries a tuple of `ProbeResult` with a
+status (`GREEN` / `YELLOW` / `RED`). All performance / runtime
+decisions read this report before activating optimisation
+paths.
 
-## 5. `pjepa.perf` adapters
+## 9. `pjepa.perf` adapters
 
 ```python
 def safe_compile(module: nn.Module, *, mode: str | None = None, fullgraph: bool = False) -> nn.Module: ...
@@ -119,33 +207,40 @@ class Microbenchmark:
 def compare_benchmarks(baseline: MicrobenchmarkResult, candidate: MicrobenchmarkResult) -> dict[str, float]: ...
 ```
 
-## 6. `pjepa.baselines` surface
+The `EMATarget` perf wrapper and the `Target` JEPA target are
+intentionally separate classes; `EMATarget` adds a cosine
+schedule on top of the byol-style EMA that `Target` implements.
+The trainer can use either depending on the regime.
+
+## 10. `pjepa.baselines` surface
 
 ```python
 class Naive(nn.Module): ...     # mean-pool linear, sanity baseline
 class GCN(nn.Module): ...
 class GIN(nn.Module): ...
+class GraphSAGE(nn.Module): ...
+class GraphCL(nn.Module): ...
+class GraphMAE(nn.Module): ...
+class InfoGraph(nn.Module): ...
+class BGRL(nn.Module): ...
 class GEM: ...                  # gradient episodic memory, buffer
 class EWC:                      # continual-learning regulariser
     def capture(self, named_parameters, loss: torch.Tensor) -> None: ...
     def penalty(self, named_parameters) -> torch.Tensor: ...
     def fisher_state(self) -> dict[str, dict[str, torch.Tensor]]: ...
     def reset(self) -> None: ...
-class GraphCL(nn.Module): ...
-class GraphMAE(nn.Module): ...
-class InfoGraph(nn.Module): ...
 class PackNet(nn.Module): ...
 ```
 
-## 7. Registries (extension points)
+## 11. Registries (extension points)
 
 Every module that introduces a polymorphic interface ships a
 registry. New implementations register themselves without
 modifying the core library.
 
 ```python
-pjepa.augmentations.register(name: str) -> Callable[[type[Augmentation]], type[Augmentation]]
-pjepa.augmentations.get_augmentation(name: str) -> type[Augmentation]
+pjepa.augmentations.register(name: str) -> Callable[[type[Transform]], type[Transform]]
+pjepa.augmentations.get_augmentation(name: str) -> type[Transform]
 pjepa.augmentations.available_augmentations() -> tuple[str, ...]
 
 pjepa.encoders.register(name: str) -> Callable[[type[Encoder]], type[Encoder]]
@@ -153,25 +248,25 @@ pjepa.encoders.get_encoder(name: str) -> type[Encoder]
 pjepa.encoders.available_encoders() -> tuple[str, ...]
 ```
 
-## 8. Compatibility aliases (`pjepa.compat`)
+## 12. Compatibility aliases (`pjepa.compat`)
 
 ```python
-Graph            = TypedAttributedGraph
-PersistentGraph  = PersistentState
-GraphState       = WorkingGraph
+Graph            = Graph
+PersistentGraph  = State
+GraphState       = Working
 PJEPAEncoder     = Encoder
-PJEPAAugmentation = Augmentation
-make_typed_graph(vertex_features, edge_index, edge_features=None, **kwargs) -> TypedAttributedGraph
+PJEPATransform   = Transform
+make_typed_graph(vertex_features, edge_index, edge_features=None, **kwargs) -> Graph
 ```
 
 These aliases let downstream code adopt the framework without
 depending on internal layout. They are stable exports.
 
-## 9. Package version
+## 13. Package version
 
-`pjepa.__version__` is a `str` exposed by the top-level package and
-re-exported from `pjepa._version.__version__`. The package follows
-PEP 561 (ships `py.typed`).
+`pjepa.__version__` is a `str` exposed by the top-level package
+and re-exported from `pjepa.version.__version__`. The package
+follows PEP 561 (ships `py.typed`).
 
 ---
 
@@ -179,11 +274,11 @@ PEP 561 (ships `py.typed`).
 
 | Change kind | Required action |
 |---|---|
-| Add a new field to `TypedAttributedGraph` | Update this doc + revision bump |
-| Add a new augmentation | Update registry list in §3 |
-| Add a new baseline | Update §6 |
-| Add a new alias | Append to §8 with rationale |
-| Change any signature in §1–§6 | Open a deprecation PR first |
+| Add a new field to `Graph` | Update this doc + revision bump |
+| Add a new augmentation | Update registry list in §4 |
+| Add a new baseline | Update §10 |
+| Add a new alias | Append to §12 with rationale |
+| Change any signature in §1–§10 | Open a deprecation PR first |
 
 The CI workflow runs `ruff check src tests` and an *advisory*
 `pytype src/pjepa` (informational only; failures do not gate PRs).
