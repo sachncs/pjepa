@@ -114,6 +114,10 @@ def ensure_experiments_importable() -> None:
 
     Called lazily from :func:`dispatch_to_experiment` so that
     ``import pjepa.cli.app`` does not mutate the global path.
+
+    Returns:
+        ``None``. The function mutates ``sys.path`` in place
+        when entries are missing.
     """
     for entry in experiments_search_paths():
         if entry not in sys.path:
@@ -181,7 +185,12 @@ def version_callback(value: bool) -> None:
         value: ``True`` when the user passed ``--version``.
 
     Raises:
-        typer.Exit: Always exits after echoing the version string.
+        typer.Exit: Always exits after echoing the version
+            string.
+
+    Returns:
+        ``None``. The function exits the process via
+        :class:`typer.Exit` before returning.
     """
     if value:
         typer.echo(f"pjepa, version {__version__}")
@@ -459,21 +468,38 @@ def root(
     ),
     log_level: str = typer.Option("INFO", "--log-level", help="Logging level."),
 ) -> None:
-    """Global CLI options."""
+    """Global CLI options.
+
+    Returns:
+        ``None``. The callback configures the logger and
+        returns; ``show_version`` is consumed by the eager
+        ``--version`` callback and is ``del``-eted here.
+    """
     del show_version  # consumed by the callback above
     configure_logging(level=log_level, fmt=log_format)
 
 
 @app.command()
 def hardware() -> None:
-    """Print a one-line summary of the detected compute backend."""
+    """Print a one-line summary of the detected compute backend.
+
+    Returns:
+        ``None``. The summary is printed to stdout.
+    """
     backend = detect_backend()
     typer.echo(f"backend={backend.value} device={torch.device(backend.value).type}")
 
 
 @app.command()
 def doctor() -> None:
-    """Print the full capability probe report."""
+    """Print the full capability probe report.
+
+    Returns:
+        ``None``. The report is printed to stdout. The command
+        exits with code :data:`EXIT_CONFIG` when at least one
+        probe is RED so callers can detect hardware failures
+        from the exit status.
+    """
     report = detect_capabilities()
     typer.echo(report.render())
     if report.has_red():
