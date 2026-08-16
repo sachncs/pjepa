@@ -143,22 +143,35 @@ class CapabilityReport:
     def is_green(self) -> bool:
         """Return ``True`` when every probe is GREEN.
 
-        An empty probe list returns ``False`` because "no probes run"
-        is not the same as "every probe passed". Callers that want to
-        treat a report as uninformative should check ``len(probes)``
-        before calling :meth:`is_green`.
+        An empty probe list returns ``False`` because "no probes
+        run" is not the same as "every probe passed". Callers
+        that want to treat a report as uninformative should check
+        ``len(probes)`` before calling :meth:`is_green`.
+
+        Returns:
+            ``True`` when there is at least one probe and every
+            probe status is :data:`ProbeStatus.GREEN`.
         """
         return len(self.probes) > 0 and all(p.status is ProbeStatus.GREEN for p in self.probes)
 
     def has_red(self) -> bool:
-        """Return ``True`` when at least one probe is RED."""
+        """Return ``True`` when at least one probe is RED.
+
+        Returns:
+            ``True`` when at least one probe in ``self.probes``
+            has status :data:`ProbeStatus.RED`.
+        """
         return any(p.status is ProbeStatus.RED for p in self.probes)
 
     def render(self) -> str:
         """Return a multi-line rendering of the full report.
 
-        The output is suitable for direct printing at the start of
-        every interactive session.
+        The output is suitable for direct printing at the start
+        of every interactive session.
+
+        Returns:
+            A newline-separated rendering of the backend
+            summary followed by one line per probe.
         """
         lines = [
             f"Backend:    {self.backend.value}",
