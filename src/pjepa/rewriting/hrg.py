@@ -117,9 +117,23 @@ class HRG:
         return tuple(p for p in self.productions if p.lhs == label)
 
     def is_nonterminal(self, label: str) -> bool:
-        """Return whether ``label`` is a non-terminal in this grammar."""
+        """Return whether ``label`` is a non-terminal in this grammar.
+
+        Args:
+            label: The label to check.
+
+        Returns:
+            ``True`` when ``label in self.nonterminals``.
+        """
         return label in self.nonterminals
 
     def is_terminal(self, label: str) -> bool:
-        """Return whether ``label`` is a terminal in this grammar."""
+        """Return whether ``label`` is a terminal in this grammar.
+
+        Args:
+            label: The label to check.
+
+        Returns:
+            ``True`` when ``label in self.terminals``.
+        """
         return label in self.terminals
