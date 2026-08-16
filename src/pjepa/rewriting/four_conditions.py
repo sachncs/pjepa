@@ -102,8 +102,21 @@ class FourConditions(Criterion):
 
     Attributes:
         beta_ib: Coefficient of the IB KL term in the objective.
-        lambda_mdl: Coefficient of the MDL description-length term.
-        gamma_forward: Coefficient of the forward-information bonus.
+        lambda_mdl: Coefficient of the MDL description-length
+            term.
+        gamma_forward: Coefficient of the forward-information
+            bonus.
+        bisimulation_eps: Maximum allowed bisimulation distance.
+        max_cost: Maximum allowed cost delta for an accepted
+            rewrite.
+        bisimulation: Configuration for the bisimulation metric.
+
+    Args:
+        beta_ib: Coefficient of the IB KL term in the objective.
+        lambda_mdl: Coefficient of the MDL description-length
+            term.
+        gamma_forward: Coefficient of the forward-information
+            bonus.
         bisimulation_eps: Maximum allowed bisimulation distance.
         max_cost: Maximum allowed cost delta for an accepted
             rewrite.
