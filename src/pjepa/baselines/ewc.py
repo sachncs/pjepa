@@ -100,7 +100,8 @@ class EWC:
         present in the cached Fisher map contribute nothing.
 
         Args:
-            named_parameters: An iterable of ``(name, parameter)`` pairs.
+            named_parameters: An iterable of ``(name, parameter)``
+                pairs.
 
         Returns:
             A scalar tensor equal to ``λ Σ F_i (θ_i - θ_i*)²``.
