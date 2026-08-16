@@ -79,7 +79,14 @@ class PackNet:
 
     @property
     def current_task_mask(self) -> dict[str, torch.Tensor]:
-        """Return the mask of the most recently begun task (or empty)."""
+        """Return the mask of the most recently begun task (or empty).
+
+        Returns:
+            A name-to-tensor dict of ``{0.0, 1.0}`` masks
+            identifying the parameter entries allocated to the
+            most-recently begun task. Empty when no task has
+            been begun yet.
+        """
         if not self.task_masks:
             return {}
         last_task = max(self.task_masks)
@@ -94,14 +101,18 @@ class PackNet:
 
         Args:
             named_parameters: Iterable of ``(name, parameter)``
-              pairs from the model to be trained.
+                pairs from the model to be trained.
             task_idx: Zero-based index of the task being begun.
-              Must be unique and increasing across calls and satisfy
-              ``0 <= task_idx < num_tasks``.
+                Must be unique and increasing across calls and
+                satisfy ``0 <= task_idx < num_tasks``.
 
         Raises:
-            ConfigError: When ``task_idx`` is out of range or has
-              already been begun.
+            ConfigError: When ``task_idx`` is out of range or
+                has already been begun.
+
+        Returns:
+            ``None``. The method mutates ``self.task_masks``
+            and calls :meth:`refresh_frozen_mask`.
         """
         if task_idx in self.task_masks:
             raise ConfigError(f"PackNet.begin_task: task {task_idx} already begun")
@@ -125,7 +136,12 @@ class PackNet:
         self.refresh_frozen_mask()
 
     def refresh_frozen_mask(self) -> None:
-        """Combine all but the current task's mask into the frozen mask."""
+        """Combine all but the current task's mask into the frozen mask.
+
+        Returns:
+            ``None``. The method rebuilds ``self.frozen_mask``
+            in place; no-op when no task has been begun.
+        """
         if not self.task_masks:
             self.frozen_mask = {}
             return
@@ -147,6 +163,10 @@ class PackNet:
         Should be called *after* ``loss.backward()`` and *before*
         ``optimizer.step()``. Frozen-task weights retain their
         previous values because their gradient is zeroed.
+
+        Returns:
+            ``None``. The method mutates ``param.grad`` in
+            place for every entry in ``named_parameters``.
         """
         if not self.task_masks:
             return
@@ -172,18 +192,33 @@ class PackNet:
 
         Raises:
             ConfigError: When no task has been begun yet.
+
+        Returns:
+            ``None``. The method refreshes the frozen mask
+            in place.
         """
         if not self.task_masks:
             raise ConfigError("PackNet.freeze_current_task: no task has been begun")
         self.refresh_frozen_mask()
 
     def active_parameter_count(self) -> int:
-        """Return the number of currently trainable parameter entries."""
+        """Return the number of currently trainable parameter entries.
+
+        Returns:
+            ``sum(m.sum())`` over the current task's masks,
+            rounded to ``int``. ``0`` when no task has been
+            begun yet.
+        """
         if not self.task_masks:
             return 0
         current = max(self.task_masks)
         return int(sum(int(m.sum().item()) for m in self.task_masks[current].values()))
 
     def frozen_parameter_count(self) -> int:
-        """Return the number of frozen parameter entries across all prior tasks."""
+        """Return the number of frozen parameter entries across all prior tasks.
+
+        Returns:
+            ``sum(m.sum())`` over the frozen mask, rounded to
+            ``int``. ``0`` when no task has been begun yet.
+        """
         return int(sum(int(m.sum().item()) for m in self.frozen_mask.values()))
