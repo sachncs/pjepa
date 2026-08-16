@@ -46,26 +46,37 @@ class Graph:
 
     All tensor-shaped fields are 2-D: the leading dimension indexes
     vertices or edges, and the trailing dimension indexes feature
-    channels. Label fields are 1-D ``long`` tensors aligned with their
-    vertices or edges.
+    channels. Label fields are 1-D ``long`` tensors aligned with
+    their vertices or edges.
 
     Attributes:
         vertex_features: ``[N, d_v]`` tensor of vertex features.
         edge_index: ``[2, E]`` ``long`` tensor in COO format where
-            ``edge_index[0]`` is the source and ``edge_index[1]`` is
-            the destination of each edge.
+            ``edge_index[0]`` is the source and ``edge_index[1]``
+            is the destination of each edge.
         edge_features: ``[E, d_e]`` tensor of edge features; for
-            edgeless graphs the constructor synthesises a ``[0, 0]``
-            zero-row tensor.
-        vertex_labels: Optional ``[N]`` ``long`` tensor of categorical
-            vertex labels. ``None`` means "no labels assigned".
-        edge_labels: Optional ``[E]`` ``long`` tensor of categorical
-            edge labels. An empty tensor (zero-element) is treated as
-            "no labels" and passes validation.
+            edgeless graphs the constructor synthesises a
+            ``[0, 0]`` zero-row tensor.
+        vertex_labels: Optional ``[N]`` ``long`` tensor of
+            categorical vertex labels. ``None`` means "no labels
+            assigned".
+        edge_labels: Optional ``[E]`` ``long`` tensor of
+            categorical edge labels. An empty tensor (zero-element)
+            is treated as "no labels" and passes validation.
         global_features: Optional ``[d_g]`` tensor of graph-level
             features.
-        version: A monotonically increasing version counter, bumped on
-            every functional update that produces a new graph.
+        version: A monotonically increasing version counter,
+            bumped on every functional update that produces a new
+            graph.
+
+    Args:
+        vertex_features: ``[N, d_v]`` tensor of vertex features.
+        edge_index: ``[2, E]`` ``long`` COO tensor.
+        edge_features: ``[E, d_e]`` tensor of edge features.
+        vertex_labels: Optional per-vertex labels.
+        edge_labels: Optional per-edge labels.
+        global_features: Optional graph-level feature vector.
+        version: Monotonically increasing version counter.
     """
 
     vertex_features: torch.Tensor
