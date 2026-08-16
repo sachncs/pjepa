@@ -99,7 +99,11 @@ def read_rss_bytes() -> int:
 
 
 def current_rss_mb() -> float:
-    """Return the resident-set size of the current process in MiB."""
+    """Return the resident-set size of the current process in MiB.
+
+    Returns:
+        RSS in MiB (``0.0`` when the platform cannot report it).
+    """
     return read_rss_bytes() / (1024.0 * 1024.0)
 
 
