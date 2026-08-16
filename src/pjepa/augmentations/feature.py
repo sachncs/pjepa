@@ -26,8 +26,14 @@ class DropFeature(Transform):
     def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
-        Returns the input graph unchanged when it has zero vertices or
-        when ``strength * dim`` rounds down to zero.
+        Args:
+            graph: The graph to augment.
+
+        Returns:
+            A new :class:`Graph` with ``strength * dim`` feature
+            columns zeroed across all vertices. The input is
+            returned unchanged when the graph has zero vertices
+            or when ``strength * dim`` rounds down to zero.
         """
         if graph.num_vertices() == 0:
             return graph
@@ -55,6 +61,20 @@ class FeatureMask(Transform):
         strength: float = 0.2,
         generator: torch.Generator | None = None,
     ) -> None:
+        """Initialise the feature-mask augmentation.
+
+        Args:
+            feature_dim: Vertex feature dimension. Used to size the
+                learnable mask token.
+            strength: Fraction of feature dimensions to mask in
+                ``[0, 1]``.
+            generator: Optional :class:`torch.Generator` for
+                reproducible randomness.
+
+        Raises:
+            GraphError: If ``strength`` is outside ``[0, 1]`` (raised
+                by the base class).
+        """
         super().__init__(strength=strength, generator=generator)
         self.feature_dim = feature_dim
         self.mask_token = nn.Parameter(torch.zeros(feature_dim))
@@ -62,8 +82,14 @@ class FeatureMask(Transform):
     def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
-        Returns the input graph unchanged when it has zero vertices or
-        when ``strength * dim`` rounds down to zero.
+        Args:
+            graph: The graph to augment.
+
+        Returns:
+            A new :class:`Graph` with ``strength * dim`` features
+            replaced by the mask token. The input is returned
+            unchanged when the graph has zero vertices or when
+            ``strength * dim`` rounds down to zero.
         """
         if graph.num_vertices() == 0:
             return graph
