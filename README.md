@@ -23,19 +23,20 @@ experiments, and the reproducibility package.
 
 ## Features
 
-- **Persistent + Working Graphs** — `PersistentState` (long-term knowledge) and `WorkingGraph` (transient reasoning) with typed-attributed graph primitives.
-- **Dual-Geometric Encoder** — `EuclideanMPNN` + `HyperbolicProjection` composed via `DualGeometricEncoder` with a `JEPAPredictor` head.
-- **Greedy Retrieval with (1 − 1/e) Guarantee** — `retrieval.GreedyRetrieval` realises the Theorem 3 matroid-greedy bound.
+- **Persistent + Working Graphs** — `Graph` (the immutable substrate), `State` (long-term knowledge wrapper with commit/reject audit trail), and `Working` (budget-bounded retrieval view) — see `pjepa.graphs`.
+- **Dual-Geometric Encoder** — `Euclidean` (GIN-style MPNN) + `Hyperbolic` (Poincaré projection) composed via `DualGeometric`, all rooted in a polymorphic `Encoder` ABC. A separate `Predictor` / `Target` head pair (`Head` ABC) drives JEPA training.
+- **Greedy Retrieval with (1 − 1/e) Guarantee** — `Retrieval` realises the Theorem 3 matroid-greedy bound; the utility hierarchy (`Utility` ABC) provides `Facility` (provably submodular) and `InfoGain` (information-gain with per-vertex cost).
 - **Hyperbolic Distortion Bound** — encoders and retrieval are dimensioned for the Proposition 7 hyperbolic vs Euclidean guarantee.
-- **HRG / Bisimulation Rewriting** — four-conditions rewriting with HRG, bisimulation, and DPO drivers in `pjepa.rewriting`.
-- **Sleep-Cadence Scheduler** — PPO trainer, replay buffer, sleep cadence in `pjepa.scheduler`.
-- **Variational Objective** — `𝒥` free-energy functional with information-bottleneck (IB) and minimum-description-length (MDL) terms.
-- **Performance Infra** — `safe_compile`, autocast, EMA, fused scatter, sync helpers in `pjepa.perf`.
-- **Augmentation Suite** — DropEdge, DropNode, DropFeature, FeatureMask, RandomWalk, and `TensorDropFeature`.
-- **Training Stack** — SWA, TTA, Ensemble, Distillation, plus TU / CL / OGB runners.
-- **Baselines** — GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM.
+- **HRG / Bisimulation Rewriting** — `Criterion` ABC with the headline `FourConditions` verifier, plus HRG, bisimulation, and DPO drivers in `pjepa.rewriting`.
+- **Sleep-Cadence Scheduler** — PPO trainer, `Buffer` replay storage (`Storage` ABC), and `Sleep` cadence (`Cadence` ABC) in `pjepa.scheduler`.
+- **Variational Objective** — `𝒥` free-energy functional with information-bottleneck (IB) and minimum-description-length (MDL) terms — `pjepa.objectives`.
+- **Performance Infra** — `safe_compile`, autocast, EMA, fused scatter, sync helpers — `pjepa.perf`.
+- **Augmentation Suite** — DropEdge, DropNode, DropFeature, FeatureMask, RandomWalk, plus `Transform` / `Pipeline` (the polymorphic augmentation ABCs) and `TensorDropFeature`.
+- **Training Stack** — pretrain / train / eval loops, SWA, TTA, Ensemble, Distillation, plus TU / CL / OGB runners — `pjepa.training`.
+- **Baselines** — GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM, BGRL, GraphSAGE, PackNet, Naive.
 - **8-Class Test Taxonomy** — 495 tests covering happy / bad / ugly / leaky / round-trip / cross-backend / distributional / property.
 - **mkdocs --strict** — researcher, developer, and reference doc trees.
+- **Real multi-hour training** — `experiments/train_real.py` is the canonical k-fold CV training script. The full PROTEINS run (3 seeds × 10 folds × 200 epochs × 2 methods, 60 fits, ~2 hours on a single CPU) ships in `results/proteins_full/`.
 
 ---
 
@@ -167,19 +168,23 @@ See `configs/*.yaml` for the canonical TU / CL / OGB experiment configs.
 
 ```bash
 # Validate Theorem 3 cheaply (single GPU)
-pjepa benchmark retrieval --budget small
+pjepa benchmark retrieval
 
 # Run Phase 8 TU SOTA on a single dataset
-pjepa train tu configs/tu.yaml --dataset MUTAG --methods pjepa,gin,graphmae
+pjepa train tu configs/tu.yaml --dataset MUTAG --methods gin,dual_geometric
+
+# Run the headline k-fold-CV reproduction on PROTEINS
+python experiments/train_real.py --epochs 200 --seeds 3 --folds 10 \
+    --methods gin dual_geometric --output-dir results/proteins_full
 ```
 
 ```python
 # Retrieve against a persistent state and inspect the guarantee
-from pjepa.retrieval import GreedyRetrieval
+from pjepa.retrieval import Retrieval
 
-retriever = GreedyRetrieval(persistent=state)
-hits = retriever.retrieve(query=embedding, k=10)
-guarantee = retriever.last_approximation_ratio  # >= (1 - 1/e)
+retriever = Retrieval(budget=4)
+result = retriever.select(state.graph, torch.randn(4, 8))
+print(result.utility, result.iterations)  # utility, iterations actually used
 ```
 
 ---
@@ -200,21 +205,22 @@ pjepa/
 │   ├── run_exp_e_continual.py
 │   ├── run_exp_f_ogb_arxiv.py
 │   ├── run_exp_g_decoupling.py
-│   └── run_exp_h_ablations.py
+│   ├── run_exp_h_ablations.py
+│   └── train_real.py           # k-fold CV training script (PROTEINS head-to-head)
 ├── src/pjepa/                  # The library
-│   ├── graphs/                 # TypedAttributedGraph, PersistentState, WorkingGraph
-│   ├── encoders/               # EuclideanMPNN, HyperbolicProjection, DualGeometricEncoder, JEPAPredictor
-│   ├── retrieval/              # GreedyRetrieval with (1 - 1/e) guarantee
-│   ├── rewriting/              # HRG, bisimulation, four-conditions, DPO
-│   ├── scheduler/              # PPO trainer, replay buffer, sleep cadence
-│   ├── objectives/             # 𝒥 free-energy functional, IB, MDL
-│   ├── dynamics/               # Evolution operator F, contraction analysis
-│   ├── augmentations/          # DropEdge, DropNode, DropFeature, FeatureMask, RandomWalk, Tensor
+│   ├── graphs/                 # Graph, State, Working
+│   ├── encoders/               # Encoder (ABC), Euclidean, Hyperbolic, DualGeometric, Head/Predictor/Target
+│   ├── retrieval/              # Retrieval, Utility (ABC), Facility, InfoGain
+│   ├── rewriting/              # HRG, Bisimulation, Criterion (ABC), FourConditions
+│   ├── scheduler/              # PPOTrainer, Buffer, Storage (ABC), Cadence/Sleep
+│   ├── objectives/             # FreeEnergy, ib_lagrangian, description_length
+│   ├── dynamics/               # EvolutionOperator, contractivity_bound, fixed_point_iteration
+│   ├── augmentations/          # Transform (ABC), Pipeline, DropEdge, DropNode, …
 │   ├── training/               # pretrain/train/eval loops, SWA, TTA, Ensemble, Distillation
 │   ├── eval/                   # metrics, bootstrap CI, statistical tests
-│   ├── perf/                   # safe_compile, autocast, EMA, fused scatter, sync
+│   ├── perf/                   # safe_compile, autocast, EMATarget, fused scatter, sync
 │   ├── data/                   # TUDataset, OGB-arxiv, class-incremental splits
-│   ├── baselines/              # GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM
+│   ├── baselines/              # GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM, BGRL, GraphSAGE, PackNet, Naive
 │   └── cli/                    # Typer-based CLI
 ├── tests/                      # 495 tests (8-class taxonomy)
 ├── configs/                    # TU, CL, OGB experiment configs
@@ -323,7 +329,7 @@ release.
 
 ## Roadmap
 
-- **v1.0.0** — Current: library, CLI dispatcher, experiment runners, aggregator, mkdocs strict docs, package artefacts.
+- **v1.0.0** — Current: library, CLI dispatcher, experiment runners, aggregator, mkdocs strict docs, package artefacts, full Google-style docstrings on every public symbol, polymorphic ABC roots for every major hierarchy.
 - **v1.1.0** — Distributed (multi-GPU) training; persistent-state compression.
 - **v2.0.0** — External release (Docker push, GH Release, PyPI upload, RTD trigger).
 
