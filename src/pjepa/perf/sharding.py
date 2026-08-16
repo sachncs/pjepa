@@ -134,7 +134,15 @@ def assert_rss_cap(cap_mb: float) -> float:
 
 
 def tensor_size_bytes(tensor: torch.Tensor) -> int:
-    """Return the byte size of ``tensor`` after dtype conversion."""
+    """Return the byte size of ``tensor`` after dtype conversion.
+
+    Args:
+        tensor: The input tensor.
+
+    Returns:
+        The number of bytes the tensor occupies in memory
+        (``numel * element_size``).
+    """
     return int(tensor.numel() * tensor.element_size())
 
 
