@@ -37,9 +37,19 @@ class NullAutocastContext(AbstractContextManager[None]):
     """
 
     def __enter__(self) -> None:
+        """Enter the no-op context.
+
+        Returns:
+            ``None``.
+        """
         return None
 
     def __exit__(self, *args: Any) -> None:
+        """Exit the no-op context.
+
+        Args:
+            *args: Ignored.
+        """
         return None
 
 
