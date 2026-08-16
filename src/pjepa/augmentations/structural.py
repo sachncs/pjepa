@@ -105,6 +105,20 @@ class ConnectedSubgraph(Transform):
         strength: Fraction of vertices to retain, in ``(0, 1]``.
     """
 
+    def __init__(
+        self,
+        strength: float = 0.2,
+        generator: torch.Generator | None = None,
+    ) -> None:
+        """Initialise the connected-subgraph augmentation.
+
+        Args:
+            strength: Fraction of vertices to retain, in ``(0, 1]``.
+            generator: Optional :class:`torch.Generator` for
+                reproducible randomness.
+        """
+        super().__init__(strength=strength, generator=generator)
+
     def __call__(self, graph: Graph) -> Graph:
         """Apply the augmentation.
 
