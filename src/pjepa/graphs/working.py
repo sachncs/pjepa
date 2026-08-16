@@ -68,8 +68,11 @@ class Working:
     def is_within_budget(self) -> bool:
         """Return whether the working graph respects its budget.
 
-        A budget of ``0`` is treated as "no vertices allowed"; the
-        graph must then be empty for this to return ``True``.
+        A budget of ``0`` is treated as "no vertices allowed";
+        the graph must then be empty for this to return ``True``.
+
+        Returns:
+            ``True`` if ``num_vertices <= budget``.
         """
         return self.num_vertices() <= self.budget
 
