@@ -49,7 +49,6 @@ class Cadence(ABC):
         Returns:
             ``True`` if a sleep cycle should begin.
         """
-        ...
 
     @abstractmethod
     def update(self, accepted: bool, utilisation: float) -> None:
