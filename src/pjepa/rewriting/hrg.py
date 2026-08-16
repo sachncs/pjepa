@@ -70,13 +70,20 @@ class HRG:
         nonterminals: Tuple of non-terminal labels.
         terminals: Tuple of terminal labels.
         productions: Tuple of :class:`HRGProduction` rules.
-        start: The start non-terminal. Must appear in ``nonterminals``.
+        start: The start non-terminal. Must appear in
+            ``nonterminals``.
+
+    Args:
+        nonterminals: Tuple of non-terminal labels.
+        terminals: Tuple of terminal labels.
+        productions: Tuple of :class:`HRGProduction` rules.
+        start: The start non-terminal.
 
     Raises:
         GraphError: At construction time if ``nonterminals`` is
-            empty, ``start`` is not a non-terminal, non-terminal and
-            terminal labels overlap, or a production's ``lhs`` is not
-            a non-terminal.
+            empty, ``start`` is not a non-terminal, non-terminal
+            and terminal labels overlap, or a production's
+            ``lhs`` is not a non-terminal.
 
     Example:
         >>> hrg = HRG(
