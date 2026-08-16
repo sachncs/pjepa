@@ -43,6 +43,14 @@ class MicrobenchmarkResult:
         std_s: Population standard deviation (seconds).
         min_s: Minimum (seconds).
         max_s: Maximum (seconds).
+
+    Args:
+        name: The benchmark name.
+        n_iter: The number of timed iterations.
+        mean_s: Mean wall-clock per iteration.
+        std_s: Population standard deviation.
+        min_s: Minimum wall-clock per iteration.
+        max_s: Maximum wall-clock per iteration.
     """
 
     name: str
