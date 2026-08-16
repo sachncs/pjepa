@@ -58,11 +58,19 @@ class Working:
             )
 
     def num_vertices(self) -> int:
-        """Return the number of vertices in the working graph."""
+        """Return the number of vertices in the working graph.
+
+        Returns:
+            The number of vertices.
+        """
         return self.graph.num_vertices()
 
     def num_edges(self) -> int:
-        """Return the number of edges in the working graph."""
+        """Return the number of edges in the working graph.
+
+        Returns:
+            The number of edges.
+        """
         return self.graph.num_edges()
 
     def is_within_budget(self) -> bool:
