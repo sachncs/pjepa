@@ -29,10 +29,15 @@ class DPOConfig:
     """Configuration for the DPO objective.
 
     Attributes:
-        beta: Temperature parameter; larger values push the policy
-            further from the reference.
+        beta: Temperature parameter; larger values push the
+            policy further from the reference.
         label_smoothing: Optional label smoothing coefficient in
             ``[0, 0.5)``. ``0.0`` recovers the canonical DPO loss.
+
+    Args:
+        beta: Temperature parameter; larger values push the policy
+            further from the reference.
+        label_smoothing: Optional label smoothing coefficient.
     """
 
     beta: float = 0.1
