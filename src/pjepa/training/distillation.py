@@ -48,11 +48,15 @@ class DistillationConfig:
 
     Attributes:
         temperature: Softmax temperature for the KL divergence.
-          Higher values produce softer distributions. The Hinton et
-          al. recipe uses ``T = 4``.
+            Higher values produce softer distributions. The
+            Hinton et al. recipe uses ``T = 4``.
         alpha: Weight on the distillation loss (``alpha * distill +
-          (1 - alpha) * task``). ``0.0`` reduces to pure task loss;
-          ``1.0`` reduces to pure distillation.
+            (1 - alpha) * task``). ``0.0`` reduces to pure task
+            loss; ``1.0`` reduces to pure distillation.
+
+    Args:
+        temperature: Softmax temperature for the KL divergence.
+        alpha: Weight on the distillation loss.
     """
 
     temperature: float = 4.0
