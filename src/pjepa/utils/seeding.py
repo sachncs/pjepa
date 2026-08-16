@@ -113,5 +113,10 @@ def seed_for(component: str, base: int | None = None) -> int:
 
 
 def current_seed() -> int:
-    """Alias for :func:`get_global_seed` kept for ergonomic call sites."""
+    """Alias for :func:`get_global_seed` kept for ergonomic call sites.
+
+    Returns:
+        The current global seed (a non-negative integer). When
+        no seed has been set, returns ``0``.
+    """
     return _current_seed.get()
