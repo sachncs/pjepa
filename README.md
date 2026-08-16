@@ -34,7 +34,7 @@ experiments, and the reproducibility package.
 - **Augmentation Suite** — DropEdge, DropNode, DropFeature, FeatureMask, RandomWalk, and `TensorDropFeature`.
 - **Training Stack** — SWA, TTA, Ensemble, Distillation, plus TU / CL / OGB runners.
 - **Baselines** — GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM.
-- **8-Class Test Taxonomy** — 470 tests covering happy / bad / ugly / leaky / round-trip / cross-backend / distributional / property.
+- **8-Class Test Taxonomy** — 495 tests covering happy / bad / ugly / leaky / round-trip / cross-backend / distributional / property.
 - **mkdocs --strict** — researcher, developer, and reference doc trees.
 
 ---
@@ -216,7 +216,7 @@ pjepa/
 │   ├── data/                   # TUDataset, OGB-arxiv, class-incremental splits
 │   ├── baselines/              # GCN, GIN, GraphMAE, GraphCL, InfoGraph, EWC, GEM
 │   └── cli/                    # Typer-based CLI
-├── tests/                      # 470 tests (8-class taxonomy)
+├── tests/                      # 495 tests (8-class taxonomy)
 ├── configs/                    # TU, CL, OGB experiment configs
 ├── pyproject.toml              # PEP 621 metadata
 └── Dockerfile                  # Reproducible container image
@@ -231,7 +231,7 @@ pjepa/
 pip install -e ".[dev,ogb]"
 
 # Tests
-pytest                              # 470 tests
+pytest                              # 495 tests
 pytest -m "not slow"                # skip slow tests
 pytest --cov=pjepa tests/           # with coverage
 
