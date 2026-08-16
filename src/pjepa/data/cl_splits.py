@@ -20,11 +20,16 @@ class ClassIncrementalSplit:
     """A class-incremental split of a labelled dataset.
 
     Attributes:
-        tasks: A list of lists of integer indices; ``tasks[t]`` holds
-          the indices that belong to task ``t``.
-        num_classes: The total number of distinct classes in the split.
-        task_classes: A list of sets; ``task_classes[t]`` is the set
-          of class labels assigned to task ``t``.
+        tasks: A list of lists of integer indices; ``tasks[t]``
+            holds the indices that belong to task ``t``.
+        num_classes: The total number of distinct classes in the
+            split.
+        task_classes: A list of sets; ``task_classes[t]`` is the
+            set of class labels assigned to task ``t``.
+
+    Args:
+        tasks: Per-task index lists.
+        task_classes: Per-task class-label sets.
     """
 
     def __init__(
