@@ -165,7 +165,10 @@ class Sleep(Cadence):
         Returns:
             ``True`` if a sleep cycle should begin.
         """
-        return self.mean_accepted_rate < self.rho_min or self.mean_utilisation < self.alpha_min
+        return (
+            self.mean_accepted_rate < self.rho_min
+            or self.mean_utilisation < self.alpha_min
+        )
 
 
 def should_sleep(cadence: Cadence) -> bool:
