@@ -523,10 +523,24 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
     except ImportError as exc:
         raise DataError("load_ogb_arxiv: ogb is required; install with `pip install ogb`") from exc
 
-    # ponytail: ogb 1.3 calls torch.load without weights_only; PyTorch 2.6+ defaults to True
+    # OGB 1.3 calls torch.load without ``weights_only``; PyTorch 2.6+
+    # defaults to ``True`` and would otherwise reject the legacy
+    # checkpoint. Patch the loader in-process for the duration of
+    # this call.
     _orig_load = torch.load
 
     def compat_load(*a, **kw):
+        """Patched torch.load that defaults ``weights_only`` to False.
+
+        Args:
+            *a: Positional arguments forwarded to :func:`torch.load`.
+            **kw: Keyword arguments forwarded to
+                :func:`torch.load`. ``weights_only`` defaults to
+                ``False`` if not explicitly set.
+
+        Returns:
+            Whatever :func:`torch.load` returns.
+        """
         kw.setdefault("weights_only", False)
         return _orig_load(*a, **kw)
 
