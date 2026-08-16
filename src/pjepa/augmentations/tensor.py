@@ -28,6 +28,17 @@ class TensorDropFeature:
         strength: float = 0.2,
         generator: torch.Generator | None = None,
     ) -> None:
+        """Initialise the tensor drop-feature augmentation.
+
+        Args:
+            strength: Fraction of feature columns to drop in
+                ``[0, 1]``.
+            generator: Optional :class:`torch.Generator` for
+                reproducible randomness.
+
+        Raises:
+            GraphError: If ``strength`` is outside ``[0, 1]``.
+        """
         if not 0.0 <= strength <= 1.0:
             raise GraphError(f"TensorDropFeature: strength must be in [0, 1]; got {strength}")
         self.strength = strength
