@@ -89,6 +89,10 @@ class PPOTrainer:
         policy: A module that produces logits and a value estimate
             given a state. The interface is
             ``policy(state) -> (logits, value)``.
+
+    Args:
+        policy: The policy module to train.
+        config: Optional :class:`PPOConfig`.
     """
 
     def __init__(self, policy: torch.nn.Module, config: PPOConfig | None = None) -> None:
