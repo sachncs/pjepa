@@ -77,11 +77,16 @@ class Transform(ABC):
 
     @abstractmethod
     def __call__(self, graph: Graph) -> Graph:
-        """Apply the augmentation to ``graph`` and return the result.
+        """Apply the augmentation to ``graph``.
 
-        The returned graph may equal ``graph`` (an explicit no-op) but
-        is always a new object unless the subclass deliberately
-        returns the input.
+        Args:
+            graph: The input graph.
+
+        Returns:
+            A new :class:`Graph` after the augmentation is
+            applied. The returned graph may equal ``graph`` (an
+            explicit no-op) but is always a new object unless the
+            subclass deliberately returns the input.
         """
 
 
