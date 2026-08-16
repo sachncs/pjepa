@@ -48,7 +48,13 @@ class LinearProbeResult:
     Attributes:
         accuracy: Mean accuracy on the test split in ``[0, 1]``.
         num_classes: Number of distinct classes seen across the
-          train + test sets (taken as ``max(y) + 1``).
+            train + test sets (taken as ``max(y) + 1``).
+        train_size: Number of training samples used.
+        test_size: Number of test samples used.
+
+    Args:
+        accuracy: Mean accuracy on the test split in ``[0, 1]``.
+        num_classes: Number of distinct classes seen.
         train_size: Number of training samples used.
         test_size: Number of test samples used.
     """
