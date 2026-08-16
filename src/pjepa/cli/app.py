@@ -541,16 +541,22 @@ def pretrain(config: str = typer.Argument(..., help="Path to a YAML config file.
 
     The command first reads the YAML config to pick up the
     ``training.epochs`` and ``training.log_every`` values, then
-    runs a three-step smoke loop on a small synthetic input via
-    :func:`run_pretrain_smoke`. This is a real smoke test: the
-    encoder, predictor, target encoder (EMA), and optimiser are
-    all wired through the package's own :func:`pretrain_loop`.
+    runs a three-step smoke loop on a small synthetic input
+    via :func:`run_pretrain_smoke`. This is a real smoke test:
+    the encoder, predictor, target encoder (EMA), and optimiser
+    are all wired through the package's own
+    :func:`pretrain_loop`.
 
     Args:
         config: Path to the YAML configuration. Missing or
-          malformed files do not raise; the loader returns an
-          empty dict and the smoke loop runs with the default
-          settings so the command always produces useful output.
+            malformed files do not raise; the loader returns
+            an empty dict and the smoke loop runs with the
+            default settings so the command always produces
+            useful output.
+
+    Returns:
+        ``None``. The smoke-loop result is printed to stdout
+        as JSON.
     """
     log = get_logger(__name__)
     cfg = resolve_yaml_config(config)
@@ -576,8 +582,14 @@ def train(
     """Train (supervised or continual) on the named dataset family.
 
     Args:
-        dataset: One of :data:`DATASETS` (``tu``, ``cl``, or ``ogb``).
+        dataset: One of :data:`DATASETS` (``tu``, ``cl``, or
+            ``ogb``).
         config: Path to the YAML configuration.
+
+    Returns:
+        ``None``. The runner writes its results to the
+        configured ``output_dir`` and prints a JSON summary to
+        stdout.
     """
     key = f"train.{dataset}"
     if key not in RUNNERS:
@@ -617,6 +629,11 @@ def tune(
     Args:
         dataset: The dataset family (only ``tu`` is supported).
         config: Path to the YAML configuration.
+
+    Returns:
+        ``None``. The Optuna study writes its database under
+        ``optuna_dir`` and the best configuration is saved as
+        a YAML sidecar.
     """
     key = f"tune.{dataset}"
     if key not in RUNNERS:
@@ -667,6 +684,10 @@ def baseline_smoke(
     Args:
         baseline: The baseline name; one of :data:`BASELINES`.
         config: Path to the YAML configuration.
+
+    Returns:
+        ``None``. The smoke-test result is printed to stdout
+        as JSON.
     """
     if baseline not in BASELINES:
         typer.echo(f"unknown baseline: {baseline!r}; choose one of {', '.join(BASELINES)}")
@@ -692,6 +713,12 @@ def decoupling(config: str = typer.Argument(..., help="Path to a YAML config fil
 
     Args:
         config: Path to the YAML configuration.
+
+    Returns:
+        ``None``. The decoupling experiment writes
+        ``decoupling.csv``, ``decoupling_slope.csv``, and
+        ``decoupling.png`` under the configured output
+        directory.
     """
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
@@ -729,6 +756,10 @@ def ablation(config: str = typer.Argument(..., help="Path to a YAML config file.
 
     Args:
         config: Path to the YAML configuration.
+
+    Returns:
+        ``None``. The ablation experiment writes its results
+        to ``ablation.csv`` and prints a JSON summary to stdout.
     """
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
@@ -764,6 +795,11 @@ def sensitivity(config: str = typer.Argument(..., help="Path to a YAML config fi
 
     Args:
         config: Path to the YAML configuration.
+
+    Returns:
+        ``None``. The sweep writes its results to the
+        configured output directory and prints a JSON summary
+        to stdout.
     """
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
@@ -801,7 +837,13 @@ def aggregate(
 
     Args:
         results_dir: Directory containing the per-experiment
-          outputs.
+            outputs.
+
+    Returns:
+        ``None``. Writes ``all_runs.jsonl``,
+        ``tables/all_runs.csv``, and ``tables/summary.md``
+        under ``results_dir`` and prints a JSON summary of
+        the discovered artefacts to stdout.
     """
     from pjepa.eval import aggregate_all
 
