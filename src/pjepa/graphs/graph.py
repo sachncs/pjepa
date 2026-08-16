@@ -135,6 +135,9 @@ class Graph:
 
         Equivalent to ``int(self.vertex_features.shape[0])`` but
         documents intent at call sites.
+
+        Returns:
+            The number of vertices in the graph.
         """
         return int(self.vertex_features.shape[0])
 
