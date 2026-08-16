@@ -131,8 +131,13 @@ class EMATarget:
     def update(self) -> None:
         """Update the target parameters via EMA.
 
-        The function walks every parameter pair, computes the EMA
-        update, and increments :attr:`step`.
+        The function walks every parameter pair, computes the
+        EMA update, and increments :attr:`step`.
+
+        Returns:
+            ``None``. The method mutates ``self.shadow`` in
+            place under ``torch.no_grad`` and increments
+            :attr:`step`.
 
         Raises:
             NumericalError: When the computed new parameters
