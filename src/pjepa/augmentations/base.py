@@ -97,6 +97,27 @@ class Pipeline:
         k: int = 2,
         generator: torch.Generator | None = None,
     ) -> None:
+        """Initialise the augmentation pipeline.
+
+        Args:
+            augmentations: The list of augmentations to compose.
+                Must be non-empty.
+            mode: One of :class:`PipelineMode`. ``SEQUENTIAL``
+                applies every augmentation in order;
+                ``RANDOM_SAMPLE_ONE`` samples exactly one
+                uniformly; ``RANDOM_SAMPLE_K`` samples ``k``
+                without replacement and applies them in the sampled
+                order.
+            k: Number of augmentations to sample under
+                ``RANDOM_SAMPLE_K``. Must be in
+                ``[1, len(augmentations)]``.
+            generator: Optional :class:`torch.Generator` for
+                reproducibility.
+
+        Raises:
+            GraphError: If ``augmentations`` is empty, ``mode`` is
+                unknown, or ``k`` is out of range.
+        """
         if not augmentations:
             raise GraphError("Pipeline: at least one augmentation is required")
         if mode not in (
