@@ -120,6 +120,7 @@ class Sleep(Cadence):
         self.accepted_history.append(1 if accepted else 0)
         self.utilisation_history.append(utilisation)
 
+
     def reset(self) -> None:
         """Clear the rolling histories.
 
