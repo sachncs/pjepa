@@ -27,11 +27,19 @@ class EvolutionOperator:
     """Configuration for analysing the evolution operator F.
 
     Attributes:
-        eta_g: Lipschitz constant of F in the graph state. Values
-            below ``1.0`` make the operator a strict contraction.
+        eta_g: Lipschitz constant of F in the graph state.
+            Values below ``1.0`` make the operator a strict
+            contraction.
         eta_o: Lipschitz constant of F in the observation.
-        bisimulation_eps: Bisimulation threshold used for state-space
-            discretisation in the contraction analysis.
+        bisimulation_eps: Bisimulation threshold used for
+            state-space discretisation in the contraction
+            analysis.
+
+    Args:
+        eta_g: Lipschitz constant of F in the graph state.
+        eta_o: Lipschitz constant of F in the observation.
+        bisimulation_eps: Bisimulation threshold for state-space
+            discretisation.
     """
 
     eta_g: float = 0.5
