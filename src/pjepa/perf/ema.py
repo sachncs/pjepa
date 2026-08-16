@@ -131,10 +131,14 @@ class EMATarget:
     def update(self) -> None:
         """Update the target parameters via EMA.
 
+        The function walks every parameter pair, computes the EMA
+        update, and increments :attr:`step`.
+
         Raises:
             NumericalError: When the computed new parameters
-              contain ``NaN`` or ``inf``. The check guards against
-              silent corruption from the optimisation loop.
+                contain ``NaN`` or ``inf``. The check guards
+                against silent corruption from the optimisation
+                loop.
         """
         m = self.current_momentum()
         for online_param, shadow_param in zip(self.online.parameters(), self.shadow.parameters()):
