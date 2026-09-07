@@ -1,0 +1,18 @@
+experiment:
+  name: baseline_graphmae_tu
+  baseline: graphmae
+  dataset: PROTEINS
+  seed_split: 0
+  seed_model: 42
+
+training:
+  epochs: 200
+  batch_size: 32
+  optimizer: adamw
+  lr: 1.0e-3
+  weight_decay: 1.0e-5
+
+model:
+  hidden_dim: 64
+  num_layers: 3
+  mask_ratio: 0.5

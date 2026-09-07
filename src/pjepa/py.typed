@@ -1,0 +1,3 @@
+"""PEP 561 marker file (see https://peps.python.org/pep-0561/)."""
+
+from __future__ import annotations
