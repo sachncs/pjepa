@@ -597,25 +597,34 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
     # OGB 1.3 calls torch.load without ``weights_only``; PyTorch 2.6+
     # defaults to ``True`` and would otherwise reject the legacy
     # checkpoint. Patch the loader in-process for the duration of
-    # this call.
+    # this call. The patch is guarded so a re-entrant call does not
+    # stack two wrappers and so the original is restored even when
+    # the inner block raises (see SECURITY.md for the security
+    # implications of this compatibility workaround).
     _orig_load = torch.load
+    if getattr(_orig_load, "_pjepa_weights_only_compat", False):
+        # Already patched by an outer call; skip the re-patch.
+        _skip_patch = True
+    else:
+        _skip_patch = False
 
-    def compat_load(*a, **kw):
-        """Patched torch.load that defaults ``weights_only`` to False.
+        def compat_load(*a, **kw):
+            """Patched torch.load that defaults ``weights_only`` to False.
 
-        Args:
-            *a: Positional arguments forwarded to :func:`torch.load`.
-            **kw: Keyword arguments forwarded to
-                :func:`torch.load`. ``weights_only`` defaults to
-                ``False`` if not explicitly set.
+            Args:
+                *a: Positional arguments forwarded to :func:`torch.load`.
+                **kw: Keyword arguments forwarded to
+                    :func:`torch.load`. ``weights_only`` defaults to
+                    ``False`` if not explicitly set.
 
-        Returns:
-            Whatever :func:`torch.load` returns.
-        """
-        kw.setdefault("weights_only", False)
-        return _orig_load(*a, **kw)
+            Returns:
+                Whatever :func:`torch.load` returns.
+            """
+            kw.setdefault("weights_only", False)
+            return _orig_load(*a, **kw)
 
-    torch.load = compat_load
+        compat_load._pjepa_weights_only_compat = True  # type: ignore[attr-defined]
+        torch.load = compat_load
     try:
         cache_root = Path(
             root
@@ -641,4 +650,5 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
             num_classes=int(dataset.num_classes),
         )
     finally:
-        torch.load = _orig_load
+        if not _skip_patch:
+            torch.load = _orig_load
