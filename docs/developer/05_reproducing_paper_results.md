@@ -165,8 +165,12 @@ curvature `c` is too high. Reduce to `c = 0.5` in
 
 ### Bisimulation metric too expensive
 
-The bisimulation metric is O(B²). For `B > 256`, switch to the
-WL-test proxy via `config.bisimulation.proxy = "wl"`.
+The bisimulation metric is O(B²). For `B > 256`, reduce
+`pjepa.bisimulation_eps` (e.g. `5.0e-2` instead of `1.0e-2`) to
+terminate the value iteration earlier, or lower `pjepa.max_cost`
+to reject candidates before the full distance is computed.
+The `bisimulation.proxy` switch is not implemented in the
+shipped configs.
 
 ## Customising the Reproduction
 

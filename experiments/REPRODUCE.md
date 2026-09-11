@@ -137,8 +137,12 @@ This indicates a bug in your utility implementation. Check that
 
 ### Bisimulation metric too expensive
 
-Set `configs/<dataset>.yaml::pjepa.bisimulation.proxy = "wl"` to use the
-Weisfeiler-Leman proxy (much faster, slightly weaker).
+Reduce `configs/<dataset>.yaml::pjepa.bisimulation_eps` (e.g. from
+`1.0e-2` to `5.0e-2`) to terminate the bisimulation value iteration
+earlier, or lower `pjepa.max_cost` to reject candidates before the
+full bisimulation distance is computed. The
+`pjepa.bisimulation.proxy` switch is not implemented in the shipped
+configs.
 
 ## Where to Look Next
 
