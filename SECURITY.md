@@ -24,13 +24,25 @@ a fix or mitigation within 30 days for critical vulnerabilities.
 - **No `eval` or `exec`** anywhere in the library.
 - **No `pickle.load`** on untrusted sources; checkpoints are loaded via
   `torch.load(..., weights_only=True)` which restricts deserialisation.
+  The OGB-Arxiv loader temporarily patches `torch.load` to default
+  `weights_only=False` for the duration of one call inside a
+  `try`/`finally` so the process-wide default is restored even on
+  exception; this is a deliberate compatibility workaround for
+  OGB 1.3 with PyTorch 2.6+, not a permanent demotion of the
+  default.
 - **No `shell=True`** subprocess calls.
 - **All file paths validated** against path traversal.
-- **All YAML configs** loaded via a Pydantic-compatible schema (no
-  arbitrary constructor execution).
-- **Dependencies pinned** to exact versions in `pyproject.toml`.
-- **`pip-audit`** runs in CI on every push to `main`; HIGH/CRITICAL
-  vulnerabilities block the merge.
+- **All YAML configs** are loaded with `yaml.safe_load`, which
+  prevents arbitrary code execution via Python-object YAML tags.
+  The loader accepts arbitrary extra keys (no schema validator is
+  bundled); callers should validate required sections via
+  `pjepa.config.load_config(path, required_sections=...)`.
+- **Dependencies** are declared with lower-bound version specifiers
+  (e.g. `torch>=2.13.0`) in `pyproject.toml`. No resolved lockfile
+  is committed; users wanting reproducible installs should run
+  `pip-compile` locally.
+- **`pip-audit`** can be run locally via `make audit`; CI integration
+  is planned but not yet wired into `.github/workflows/ci.yml`.
 
 ## Out of Scope
 
