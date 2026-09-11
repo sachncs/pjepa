@@ -129,19 +129,22 @@ profile: ## Run a CPU/memory profile of the pretraining loop
 	$(VENV)/bin/python -c "import cProfile, pstats, io, os, tempfile, torch; \
 from pjepa.training.pretrain import pretrain_loop, PretrainConfig; \
 from pjepa.encoders import DualGeometric, Predictor, Target; \
-import torch.nn as nn; \
-encoder = nn.Linear(8, 16); \
-pred = Predictor(input_dim=16, hidden_dim=16, output_dim=16); \
+encoder = DualGeometric(input_dim=8, euclidean_dim=16, hyperbolic_dim=4, num_layers=2); \
+pred = Predictor(input_dim=20, hidden_dim=16, output_dim=20); \
 tgt = Target(online=encoder, momentum=0.9); \
 opt = torch.optim.AdamW(list(encoder.parameters()) + list(pred.parameters()), lr=1e-3); \
 context = torch.randn(8, 8); \
-target_features = torch.randn(8, 16); \
+target_features = torch.randn(8, 20); \
 batches = [(context, target_features)] * 2; \
 ckpt_dir = tempfile.mkdtemp(prefix='pjepa_profile_'); \
 pr = cProfile.Profile(); pr.enable(); \
 pretrain_loop(encoder, pred, tgt, opt, batches, config=PretrainConfig(epochs=1, checkpoint_dir=ckpt_dir, log_every=0)); \
 pr.disable(); \
 s = io.StringIO(); pstats.Stats(pr, stream=s).sort_stats('cumulative').print_stats(20); \
+out_path = os.path.join('results', 'profile.txt'); \
+os.makedirs('results', exist_ok=True); \
+open(out_path, 'w').write(s.getvalue()); \
+print('profile written to', out_path); \
 print(s.getvalue())"
 
 .PHONY: package
