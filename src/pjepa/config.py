@@ -158,12 +158,11 @@ def merge_configs(*configs: Mapping[str, Any]) -> dict[str, Any]:
 def save_config(config: Mapping[str, Any], path: str | os.PathLike[str]) -> None:
     """Write a configuration to a YAML file.
 
-    The function opens the destination in write mode, truncating any
-    existing file. The write is **not** crash-consistent: no fsync is
-    issued and the rename is not atomic, so a process crash between
-    open and close can leave a half-written file. Callers that need
-    durability should write to a sibling temp file and ``os.replace``
-    it into place.
+    The function is **crash-consistent**: the YAML payload is first
+    written to a sibling temp file, ``fsync``'d to disk, then atomically
+    renamed into place with :func:`os.replace`. A process crash at any
+    point leaves either the original file untouched or the fully-written
+    replacement in place — never a half-written file.
 
     Args:
         config: The configuration to serialise.
@@ -174,7 +173,7 @@ def save_config(config: Mapping[str, Any], path: str | os.PathLike[str]) -> None
 
     Raises:
         ConfigError: If PyYAML is not installed or the parent
-            directory does not exist.
+        directory does not exist.
 
     Example:
         >>> save_config({"training": {"epochs": 50}}, "configs/min.yaml")
@@ -188,5 +187,17 @@ def save_config(config: Mapping[str, Any], path: str | os.PathLike[str]) -> None
     target = Path(path)
     if not target.parent.exists():
         raise ConfigError(f"save_config: parent directory does not exist: {target.parent}")
-    with target.open("w", encoding="utf-8") as fh:
-        yaml.safe_dump(dict(config), fh, sort_keys=False)
+    tmp = target.with_name(target.name + ".tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as fh:
+            yaml.safe_dump(dict(config), fh, sort_keys=False)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, target)
+    except OSError as exc:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+        raise ConfigError(f"save_config: failed to write {target}: {exc}") from exc
