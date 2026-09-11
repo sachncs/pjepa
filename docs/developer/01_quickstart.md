@@ -84,6 +84,29 @@ pjepa benchmark encoder-ablation
 
 `all_pass: true` means every row met its threshold.
 
+## 3a. Emit Your Own Structured Logs
+
+`pjepa` ships `pjepa.logging_setup` — the canonical structured-
+logging surface. Every module in the framework obtains a logger
+through `get_logger`, and CLI invocations configure it once at
+startup. To emit a JSON-formatted event from your own script:
+
+```python
+from pjepa.logging_setup import (
+    LOG_FORMAT_JSON,
+    configure_logging,
+    get_logger,
+    log_event,
+)
+
+configure_logging(level="INFO", fmt=LOG_FORMAT_JSON)
+log = get_logger(__name__)
+log_event(log, "experiment.started", dataset="PROTEINS", seed=42)
+```
+
+Switch `--log-format JSON` on the CLI to get one-line JSON records
+on stderr, suitable for shipping to a centralised log store.
+
 ## 4. Tour the Code
 
 The repository is organised as:
