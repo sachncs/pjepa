@@ -27,9 +27,6 @@ from pjepa.augmentations.base import Transform as TransformBase
 from pjepa.encoders.base import Encoder as EncoderBase
 from pjepa.graphs import Graph, State, Working
 
-Graph = Graph
-"""Alias matching the convention used in some downstream packages."""
-
 PersistentGraph = State
 """Alias: ``PersistentGraph`` is the framework's persistent-state container."""
 
