@@ -5,16 +5,24 @@ The `pjepa` command-line interface exposes the canonical workflow. Run `pjepa --
 ## Synopsis
 
 ```
-pjepa [--log-format {HUMAN,JSON}] [--log-level LEVEL] COMMAND [ARGS]
+pjepa [--log-format {HUMAN,JSON}] [--log-level LEVEL] [--verbose | --quiet] COMMAND [ARGS]
 ```
 
 ### Global options
 
 | Option | Description |
 |---|---|
-| `--log-format {HUMAN,JSON}` | Output format (default: HUMAN). |
-| `--log-level LEVEL` | One of DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO). |
+| `--log-format {HUMAN,JSON}` | Output format (default: HUMAN). Pass `JSON` for machine-readable one-line records. |
+| `--log-level LEVEL` | One of DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO). Ignored when `--verbose` or `--quiet` is set. |
+| `--verbose`, `-v` | Surface per-step progress on stderr. Equivalent to `--log-level=DEBUG`. |
+| `--quiet`, `-q` | Suppress progress output; only the final JSON summary is emitted. Equivalent to `--log-level=ERROR`. |
 | `--version` | Print version and exit. |
+
+Every subcommand also prints a one-line banner to stderr when it
+starts (`pjepa doctor: running capability probes...`,
+`pjepa train: dataset=tu config=configs/tu.yaml...`, etc.) so the
+user sees the command is alive even before structured logs surface.
+Pass `--quiet` to suppress these banners for non-interactive use.
 
 ## Commands
 

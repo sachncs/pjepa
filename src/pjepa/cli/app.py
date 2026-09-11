@@ -467,6 +467,18 @@ def root(
         help="Log format: HUMAN (default) or JSON.",
     ),
     log_level: str = typer.Option("INFO", "--log-level", help="Logging level."),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Surface per-step progress on stderr (overrides --log-level=ERROR).",
+    ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Suppress progress output; only the final JSON summary is emitted.",
+    ),
 ) -> None:
     """Global CLI options.
 
@@ -476,7 +488,8 @@ def root(
         ``--version`` callback and is ``del``-eted here.
     """
     del show_version  # consumed by the callback above
-    configure_logging(level=log_level, fmt=log_format)
+    effective_level = "DEBUG" if verbose else ("ERROR" if quiet else log_level)
+    configure_logging(level=effective_level, fmt=log_format)
 
 
 @app.command()
@@ -486,6 +499,7 @@ def hardware() -> None:
     Returns:
         ``None``. The summary is printed to stdout.
     """
+    typer.echo("pjepa hardware: probing backend...", err=True)
     backend = detect_backend()
     typer.echo(f"backend={backend.value} device={torch.device(backend.value).type}")
 
@@ -500,6 +514,7 @@ def doctor() -> None:
         probe is RED so callers can detect hardware failures
         from the exit status.
     """
+    typer.echo("pjepa doctor: running capability probes...", err=True)
     report = detect_capabilities()
     typer.echo(report.render())
     if report.has_red():
@@ -525,6 +540,7 @@ def benchmark(
     if key not in RUNNERS:
         typer.echo(f"unknown benchmark: {name!r}; choose one of {', '.join(BENCHMARKS)}")
         raise typer.Exit(code=EXIT_CONFIG)
+    typer.echo(f"pjepa benchmark: starting {name}...", err=True)
     log = get_logger(__name__)
     log.info("benchmark requested", extra={"event": "benchmark.start", "benchmark": name})
     module_name, run_callable, dataclass_name = RUNNERS[key]
@@ -566,6 +582,7 @@ def pretrain(config: str = typer.Argument(..., help="Path to a YAML config file.
     """
     log = get_logger(__name__)
     cfg = resolve_yaml_config(config)
+    typer.echo(f"pjepa pretrain: starting with {config}...", err=True)
     log.info(
         "pretrain requested",
         extra={"event": "pretrain.start", "config": config},
@@ -603,6 +620,7 @@ def train(
         raise typer.Exit(code=EXIT_CONFIG)
     log = get_logger(__name__)
     cfg = resolve_yaml_config(config, dataset=dataset)
+    typer.echo(f"pjepa train: dataset={dataset} config={config}...", err=True)
     log.info(
         "train requested",
         extra={"event": "train.start", "dataset": dataset, "config": config},
@@ -647,6 +665,7 @@ def tune(
         raise typer.Exit(code=EXIT_CONFIG)
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
+    typer.echo(f"pjepa tune: dataset={dataset} config={config}...", err=True)
     log.info(
         "tune requested",
         extra={"event": "tune.start", "dataset": dataset, "config": config},
@@ -700,6 +719,7 @@ def baseline_smoke(
         raise typer.Exit(code=EXIT_CONFIG)
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
+    typer.echo(f"pjepa baseline-smoke: {baseline} on {config}...", err=True)
     log.info(
         "baseline-smoke requested",
         extra={"event": "baseline_smoke.start", "baseline": baseline, "config": config},
@@ -728,6 +748,7 @@ def decoupling(config: str = typer.Argument(..., help="Path to a YAML config fil
     """
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
+    typer.echo(f"pjepa decoupling: starting with {config}...", err=True)
     log.info(
         "decoupling requested",
         extra={"event": "decoupling.start", "config": config},
@@ -769,6 +790,7 @@ def ablation(config: str = typer.Argument(..., help="Path to a YAML config file.
     """
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
+    typer.echo(f"pjepa ablation: starting with {config}...", err=True)
     log.info(
         "ablation requested",
         extra={"event": "ablation.start", "config": config},
@@ -809,6 +831,7 @@ def sensitivity(config: str = typer.Argument(..., help="Path to a YAML config fi
     """
     cfg = resolve_yaml_config(config)
     log = get_logger(__name__)
+    typer.echo(f"pjepa sensitivity: starting with {config}...", err=True)
     log.info(
         "sensitivity requested",
         extra={"event": "sensitivity.start", "config": config},
@@ -854,6 +877,7 @@ def aggregate(
     from pjepa.eval import aggregate_all
 
     log = get_logger(__name__)
+    typer.echo(f"pjepa aggregate: walking {results_dir}...", err=True)
     log.info(
         "aggregate requested",
         extra={"event": "aggregate.start", "results_dir": results_dir},
