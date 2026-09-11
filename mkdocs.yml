@@ -51,7 +51,6 @@ nav:
       - CLI: reference/cli.md
       - Configuration Schema: reference/config.md
   - Paper Module Notes:
-      - Paper Draft: paper/paper.md
       - Dynamics Module: paper/dynamics.md
       - Encoders Module: paper/encoders.md
       - Free-Energy Module: paper/free-energy.md
