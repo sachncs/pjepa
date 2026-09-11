@@ -8,8 +8,10 @@ version: 1.0.0
 date-released: 2026-07-13
 license: Apache-2.0
 authors:
-  - family-names: Anonymous
-    given-names: Anonymous
+  - family-names: Sachin
+    given-names: Sachin
+    affiliation: Persistent-JEPA maintainer
+    email: sachncs@gmail.com
 repository-code: https://github.com/sachncs/pjepa
 keywords:
   - graph-neural-networks
