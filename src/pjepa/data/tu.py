@@ -6,18 +6,16 @@ helpers for converting each graph into the framework's
 
 ## Checksums
 
-:func:`expected_checksum` returns the published SHA-256 for a
-small set of well-known TUDataset archives (only ``PROTEINS`` is
-currently registered). :func:`load_tu_dataset` only verifies the
-checksum when both ``verify_checksum=True`` and a checksum is
-published for the dataset; otherwise it skips verification with a
-helpful message. This mirrors the convention used by
-``torch_geometric``.
+:func:`expected_checksum` returns ``None`` for every name because
+TUDataset does not publish a SHA-256 registry for its archives.
+When ``verify_checksum=True`` is requested on a name without a
+published digest, :func:`load_tu_dataset` raises :class:`DataError`
+rather than silently skipping verification — a security-conscious
+caller that explicitly opts in deserves an explicit failure.
 """
 
 from __future__ import annotations
 
-import hashlib
 import os
 from pathlib import Path
 
@@ -53,13 +51,14 @@ def expected_checksum(name: str) -> str | None:
         name: The TUDataset name (e.g. ``"PROTEINS"``).
 
     Returns:
-        The published digest, or ``None`` when no checksum is on
-        record. TUDataset does not maintain a checksum registry
-        so most well-known names return ``None``.
+        ``None`` for every name. TUDataset does not publish a
+        checksum registry, so the loader cannot honour
+        ``verify_checksum=True`` for any dataset. Callers that
+        request verification will get an explicit
+        :class:`DataError` instead of a silent skip.
     """
-    return {
-        "PROTEINS": "8a5ccd1531ee32b81d5b9c4566b5d1feb3c5b9c9c9c9c9c9c9c9c9c9c9c9c9c",
-    }.get(name)
+    del name
+    return None
 
 
 def load_tu_dataset(
@@ -72,11 +71,12 @@ def load_tu_dataset(
     Args:
         name: The dataset name (e.g. ``"PROTEINS"``).
         root: Root directory for caching; defaults to
-          ``${PJ_DATA_ROOT:-~/.cache/pj/datasets}``.
+          ``${PJEPA_DATA_ROOT:-~/.cache/pjepa/datasets}``.
         verify_checksum: When ``True``, verify the SHA-256 checksum
-          of the cached archive against the published value.
-          Disabled by default because TUDataset does not publish
-          checksums for most families.
+          of the cached archive against the published value. The
+          loader raises :class:`DataError` when no checksum is
+          available because the underlying dataset does not
+          publish one; it does not silently pass.
 
     Returns:
         A tuple ``(graphs, num_classes)`` where ``graphs`` is a list
@@ -95,6 +95,12 @@ def load_tu_dataset(
             "load_tu_dataset: torch_geometric is required; install with "
             "`pip install torch_geometric`"
         ) from exc
+
+    if verify_checksum:
+        raise DataError(
+            f"load_tu_dataset: no published checksum for {name!r}; "
+            "TUDataset does not maintain a checksum registry"
+        )
 
     cache_root = Path(
         root or os.environ.get("PJEPA_DATA_ROOT") or Path.home() / ".cache" / "pjepa" / "datasets"
@@ -115,17 +121,4 @@ def load_tu_dataset(
         labels.add(label)
         graphs.append(TUGraph(graph=graph, label=label))
 
-    if verify_checksum:
-        expected = expected_checksum(name)
-        if expected is None:
-            raise DataError(
-                f"load_tu_dataset: no published checksum for {name!r}; skipping verification"
-            )
-        # Hash the cache directory contents as a coarse check.
-        digest = hashlib.sha256()
-        for path in sorted(cache_root.rglob("*")):
-            if path.is_file():
-                digest.update(path.read_bytes())
-        if digest.hexdigest() != expected:
-            raise DataError(f"load_tu_dataset: checksum mismatch for {name!r}")
     return graphs, len(labels)
