@@ -212,7 +212,9 @@ benchmarks in [`experiments/REPRODUCE.md`](experiments/REPRODUCE.md)
 and the continual-learning / hierarchical-graph runners in
 `results/cl/` show the framework's headline advantage on the
 workloads it is designed for. Per-fit table:
-`results/proteins_full/summary.csv`.
+`reproduction/proteins_full_summary.csv` (committed to the repo so
+reviewers can audit the headline numbers without re-running the
+~2-hour reproduction).
 
 For the full TU / CL / OGB reproduction matrix, see
 [`experiments/REPRODUCE.md`](experiments/REPRODUCE.md).
