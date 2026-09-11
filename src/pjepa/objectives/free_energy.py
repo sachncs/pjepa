@@ -22,6 +22,7 @@ level.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import torch
@@ -118,8 +119,9 @@ class FreeEnergy:
             forward = sim
 
         value = nll + self.beta_ib * kl + self.lambda_mdl * dl - self.gamma_forward * forward
-        if value != value:  # NaN check that avoids importing math.
+        if not math.isfinite(value):
             raise NumericalError(
-                f"FreeEnergy: computed NaN for graph with {graph.num_vertices()} vertices"
+                f"FreeEnergy: computed non-finite value for graph with "
+                f"{graph.num_vertices()} vertices"
             )
         return value
