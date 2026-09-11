@@ -25,7 +25,7 @@ Example configuration::
     model:
       hidden_dim: 128
       num_layers: 4
-    pj:
+    pjepa:
       B: 64
       beta_ib: 1.0e-2
       lambda_mdl: 1.0e-3
@@ -35,6 +35,10 @@ This module is **synchronous** and **side-effect-free** outside the
 filesystem. Concurrent calls from multiple workers to
 :func:`save_config` against the same path may race; pass distinct paths
 if that matters.
+
+See :file:`configs/tu.yaml` for the canonical YAML schema used by the
+TU experiment runner; every key above maps directly to a dataclass
+field on the runner's config object.
 """
 
 from __future__ import annotations
