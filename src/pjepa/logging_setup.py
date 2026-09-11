@@ -32,6 +32,7 @@ LOG_FORMAT_HUMAN: LogFormat = "HUMAN"
 LOG_FORMAT_JSON: LogFormat = "JSON"
 
 __all__ = [
+    "EVENT_SCHEMA",
     "LOG_FORMAT_HUMAN",
     "LOG_FORMAT_JSON",
     "STANDARD_RECORD_KEYS",
@@ -42,6 +43,50 @@ __all__ = [
     "get_logger",
     "log_event",
 ]
+
+
+EVENT_SCHEMA: Final[frozenset[str]] = frozenset(
+    (
+        "ablation.start",
+        "ablation.complete",
+        "aggregate.start",
+        "aggregate.complete",
+        "baseline_smoke.start",
+        "baseline_smoke.complete",
+        "benchmark.start",
+        "benchmark.complete",
+        "compile.complete",
+        "compile.failed",
+        "decoupling.start",
+        "decoupling.complete",
+        "experiment.start",
+        "experiment.complete",
+        "optuna.dataset_complete",
+        "optuna.dataset_failed",
+        "optuna.search_failed",
+        "optuna.trial_complete",
+        "optuna.trial_failed",
+        "pretrain.start",
+        "pretrain.complete",
+        "pretrain.cadence_stop",
+        "pretrain.best_val",
+        "sensitivity.start",
+        "sensitivity.complete",
+        "style.use_failed",
+        "train.start",
+        "train.complete",
+        "tune.start",
+        "tune.complete",
+    )
+)
+"""Canonical set of structured-event names emitted across the package.
+
+Every ``log.info(..., extra={"event": "..."})`` call must use a
+name from this set. The convention is ``module.phase`` where
+``phase`` is one of ``start``, ``complete``, ``failed``, or
+``skipped``. The set is enforced by
+``tests/test_logging_setup.py::test_event_schema_is_canonical``.
+"""
 
 
 LOGGING_LOCK = threading.Lock()
