@@ -32,6 +32,13 @@ from pjepa.logging_setup import get_logger
 __all__ = ["CompileOutcome", "safe_compile"]
 
 
+try:
+    from torch._dynamo.exc import TorchDynamoException as _TorchDynamoException
+except ImportError:
+    class _TorchDynamoException(Exception):  # type: ignore[no-redef]
+        """Fallback when ``torch._dynamo.exc`` is unavailable (very old PyTorch)."""
+
+
 @dataclass(frozen=True)
 class CompileOutcome:
     """Result of a :func:`safe_compile` call.
@@ -87,6 +94,18 @@ def safe_compile(
         )
         return CompileOutcome(module=compiled, compiled=True, reason="")
     except (RuntimeError, ImportError) as exc:
+        log.warning(
+            "compile failed; returning uncompiled module",
+            extra={
+                "event": "compile.failure",
+                "backend": backend.value,
+                "mode": chosen_mode,
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            },
+        )
+        return CompileOutcome(module=module, compiled=False, reason=str(exc))
+    except _TorchDynamoException as exc:
         log.warning(
             "compile failed; returning uncompiled module",
             extra={
