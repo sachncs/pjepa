@@ -54,7 +54,7 @@ Each entry includes the commit SHA (short), the date (UTC), and the rationale.
   been replaced with a runnable example against the new
   public API.
 - **Repository URLs aligned.** The clone path, the docs site
-  URL, and ``CITATION.cff`` all point at ``sachncs/jepa``
+  URL, and ``CITATION.cff`` all point at ``sachncs/pjepa``
   (was ``sachncs/persistent-jepa`` in some places).
 - **Makefile ``profile`` target fixed.** The objective-snake
   form of the ``pretrain_loop`` invocation has been replaced
