@@ -43,6 +43,7 @@ field on the runner's config object.
 
 from __future__ import annotations
 
+import contextlib
 import os
 from collections.abc import Mapping
 from pathlib import Path
@@ -196,8 +197,6 @@ def save_config(config: Mapping[str, Any], path: str | os.PathLike[str]) -> None
         os.replace(tmp, target)
     except OSError as exc:
         if tmp.exists():
-            try:
+            with contextlib.suppress(OSError):
                 tmp.unlink()
-            except OSError:
-                pass
         raise ConfigError(f"save_config: failed to write {target}: {exc}") from exc

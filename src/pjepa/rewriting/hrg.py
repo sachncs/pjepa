@@ -188,12 +188,14 @@ class HRG:
         if not isinstance(candidate, Graph) or not isinstance(current, Graph):
             return False
         if not self.productions:
-            return candidate.num_vertices() == current.num_vertices() and candidate.num_edges() == current.num_edges()
+            return (
+                candidate.num_vertices() == current.num_vertices()
+                and candidate.num_edges() == current.num_edges()
+            )
         rhs_vertices = [int(p.rhs_edge_index.shape[1]) for p in self.productions]
         rhs_edges = [int(p.rhs_edge_index.shape[1]) for p in self.productions]
         v_delta = abs(candidate.num_vertices() - current.num_vertices())
         e_delta = abs(candidate.num_edges() - current.num_edges())
         return any(
-            v_delta <= rv + 1 and e_delta <= re + 1
-            for rv, re in zip(rhs_vertices, rhs_edges)
+            v_delta <= rv + 1 and e_delta <= re + 1 for rv, re in zip(rhs_vertices, rhs_edges)
         )

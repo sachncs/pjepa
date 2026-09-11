@@ -35,6 +35,7 @@ __all__ = ["CompileOutcome", "safe_compile"]
 try:
     from torch._dynamo.exc import TorchDynamoException as _TorchDynamoException
 except ImportError:
+
     class _TorchDynamoException(Exception):  # type: ignore[no-redef]
         """Fallback when ``torch._dynamo.exc`` is unavailable (very old PyTorch)."""
 
