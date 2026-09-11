@@ -52,7 +52,8 @@ Each entry includes the commit SHA (short), the date (UTC), and the rationale.
   broken sample (referenced non-existent ``from_dataset``,
   ``feature_dim``, ``working_view``, ``latent_dim`` API) has
   been replaced with a runnable example against the new
-  public API.
+  public API (``Graph``, ``State``, ``DualGeometric``,
+  ``Predictor``, ``Retrieval``, ``Facility``).
 - **Repository URLs aligned.** The clone path, the docs site
   URL, and ``CITATION.cff`` all point at ``sachncs/pjepa``
   (was ``sachncs/persistent-jepa`` in some places).
