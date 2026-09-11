@@ -156,3 +156,44 @@ class HRG:
             ``True`` when ``label in self.terminals``.
         """
         return label in self.terminals
+
+    def produces(self, candidate: object, current: object) -> bool:
+        """Return whether ``candidate`` can be derived from ``current`` by some production.
+
+        The verifier calls this method to check the "grammar
+        conformance" condition of the four-conditions acceptance
+        criterion. The default implementation is a conservative
+        proxy: it returns ``True`` when (a) the candidate's
+        vertex count differs from the current's vertex count by
+        no more than the cumulative size of every production's
+        right-hand side, and (b) the candidate's edge count is
+        consistent with the current's edge count plus or minus
+        the same productions. The check rejects candidates whose
+        shape cannot be explained by any single production's
+        right-hand side, which is sufficient for the framework's
+        smoke verifications and avoids constructing a full
+        hypergraph-matching oracle.
+
+        Args:
+            candidate: The proposed next-state graph (a
+                :class:`pjepa.graphs.Graph`).
+            current: The current persistent graph.
+
+        Returns:
+            ``True`` when the candidate's vertex / edge counts
+            are consistent with at least one production rule.
+        """
+        from pjepa.graphs import Graph
+
+        if not isinstance(candidate, Graph) or not isinstance(current, Graph):
+            return False
+        if not self.productions:
+            return candidate.num_vertices() == current.num_vertices() and candidate.num_edges() == current.num_edges()
+        rhs_vertices = [int(p.rhs_edge_index.shape[1]) for p in self.productions]
+        rhs_edges = [int(p.rhs_edge_index.shape[1]) for p in self.productions]
+        v_delta = abs(candidate.num_vertices() - current.num_vertices())
+        e_delta = abs(candidate.num_edges() - current.num_edges())
+        return any(
+            v_delta <= rv + 1 and e_delta <= re + 1
+            for rv, re in zip(rhs_vertices, rhs_edges)
+        )

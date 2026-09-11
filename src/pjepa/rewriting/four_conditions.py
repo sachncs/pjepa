@@ -183,10 +183,10 @@ class FourConditions(Criterion):
                 "FourConditions.evaluate: candidate and current graphs disagree "
                 "on vertex feature dimension"
             )
-        grammar_ok = grammar is not None
+        grammar_ok = grammar is not None and grammar.produces(candidate, current)
         info["grammar_ok"] = grammar_ok
         if not grammar_ok:
-            info["reason"] = "no grammar supplied"
+            info["reason"] = "candidate not produced by any grammar rule"
             return False, info
 
         d_bisim = bisimulation_distance(candidate, current, self.bisimulation)
