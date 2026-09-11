@@ -37,8 +37,8 @@ format-check: ## Verify ruff formatting (no changes)
 	$(VENV)/bin/ruff format --check $(SRC) $(TESTS)
 
 .PHONY: typecheck
-typecheck: ## Run pytype in strict mode
-	$(VENV)/bin/pytype $(SRC)/pjepa
+typecheck: ## Run pyright in strict mode
+	$(VENV)/bin/pyright $(SRC)/pjepa
 
 .PHONY: test
 test: ## Run the test suite (parallel)

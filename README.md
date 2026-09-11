@@ -113,7 +113,7 @@ docker run --rm pjepa pjepa doctor
 The `setup.sh` script at the repository root is the canonical
 environment contract — it creates the venv, installs the project
 with `.[dev,ogb]`, verifies every CI tool (`pjepa`, `pytest`,
-`ruff`, `pytype`, `pip-audit`, `mkdocs`, `python -m build`,
+`ruff`, `pyright`, `pip-audit`, `mkdocs`, `python -m build`,
 `optuna`), runs `pjepa doctor`, and executes the test suite.
 
 ---
@@ -398,7 +398,7 @@ bytecode caches, and `results/` (preserved when `PRESERVE=1`).
 | Search | Optuna |
 | Docs | mkdocs (strict) |
 | Lint | ruff |
-| Type Check | pytype |
+| Type Check | pyright |
 | Audit | pip-audit |
 | Testing | pytest |
 | Container | Docker |

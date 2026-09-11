@@ -57,7 +57,7 @@ echo "setup.sh: installing pjepa with extras: ${EXTRAS}"
 "${VENV_PY}" -m pip install -e ".[${EXTRAS}]"
 
 echo "setup.sh: verifying required tooling"
-for tool in pjepa pytest ruff pytype pip-audit mkdocs; do
+for tool in pjepa pytest ruff pyright pip-audit mkdocs; do
   if [[ ! -x "${VENV}/bin/${tool}" ]]; then
     echo "setup.sh: missing required entry point '${VENV}/bin/${tool}'" >&2
     exit 1
