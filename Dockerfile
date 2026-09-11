@@ -2,7 +2,7 @@
 # Stage 1: dependencies (cached unless pyproject.toml changes)
 FROM python:3.12-slim AS deps
 WORKDIR /app
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml README.md LICENSE-APACHE ./
 COPY src ./src
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir .

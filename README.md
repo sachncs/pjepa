@@ -2,7 +2,7 @@
   <h1 align="center">pjepa</h1>
   <p align="center">Persistent-JEPA — a persistent graph world model for continual developmental learning.</p>
   <p align="center">
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License"></a>
+    <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License"></a>
     <a href="https://github.com/sachncs/pjepa/actions"><img src="https://img.shields.io/github/actions/workflow/status/sachncs/pjepa/ci.yml?branch=master" alt="CI"></a>
     <a href="https://github.com/sachncs/pjepa/stargazers"><img src="https://img.shields.io/github/stars/sachncs/pjepa" alt="Stars"></a>
   </p>
@@ -444,4 +444,4 @@ BibTeX entry is in [CITATION.cff](CITATION.cff).
 
 ## License
 
-[Apache-2.0](LICENSE) © 2026 Sachin
+[Apache-2.0](LICENSE-APACHE) © 2026 Sachin
