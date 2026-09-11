@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 360" role="img" aria-label="Persistent-JEPA architecture diagram">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3f51b5"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill: #f4f6ff; stroke: #3f51b5; stroke-width: 2; rx: 8; ry: 8; }
+    .label { font: 14px sans-serif; fill: #1a237e; text-anchor: middle; }
+    .arrow { stroke: #3f51b5; stroke-width: 1.5; fill: none; }
+    .title { font: 18px sans-serif; fill: #1a237e; text-anchor: start; font-weight: bold; }
+  </style>
+  <text x="20" y="30" class="title">Persistent-JEPA: persistent graph world model</text>
+
+  <rect class="box" x="40"  y="80"  width="160" height="60"/>
+  <text class="label" x="120" y="115">Observation</text>
+
+  <rect class="box" x="260" y="80"  width="160" height="60"/>
+  <text class="label" x="340" y="110">Encoder</text>
+  <text class="label" x="340" y="128">(DualGeometric)</text>
+
+  <rect class="box" x="480" y="80"  width="160" height="60"/>
+  <text class="label" x="560" y="115">Predictor</text>
+
+  <rect class="box" x="680" y="80"  width="100" height="60"/>
+  <text class="label" x="730" y="115">Target</text>
+
+  <rect class="box" x="260" y="200" width="160" height="60"/>
+  <text class="label" x="340" y="235">Persistent Graph (G)</text>
+
+  <rect class="box" x="480" y="200" width="160" height="60"/>
+  <text class="label" x="560" y="235">Working Graph (W)</text>
+
+  <rect class="box" x="260" y="290" width="380" height="50"/>
+  <text class="label" x="450" y="320">Free-energy functional &#x1D4A5;</text>
+
+  <path class="arrow" marker-end="url(#arrow)" d="M200 110 L260 110"/>
+  <path class="arrow" marker-end="url(#arrow)" d="M420 110 L480 110"/>
+  <path class="arrow" marker-end="url(#arrow)" d="M640 110 L680 110"/>
+  <path class="arrow" marker-end="url(#arrow)" d="M340 140 L340 200"/>
+  <path class="arrow" marker-end="url(#arrow)" d="M560 140 L560 200"/>
+  <path class="arrow" marker-end="url(#arrow)" d="M340 260 L340 290"/>
+  <path class="arrow" marker-end="url(#arrow)" d="M560 260 L560 290"/>
+  <path class="arrow" marker-end="url(#arrow)" d="M420 230 L480 230"/>
+  <path class="arrow" marker-end="url(#arrow)" d="M450 290 L450 260"/>
+</svg>

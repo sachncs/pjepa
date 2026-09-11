@@ -8,6 +8,10 @@
   </p>
 </p>
 
+<p align="center">
+  <img src="docs/assets/architecture.svg" alt="Persistent-JEPA architecture" width="720">
+</p>
+
 Persistent-JEPA (`pjepa`) is an open-source implementation of a
 persistent graph world model. It separates long-term knowledge (a
 persistent graph), transient reasoning (a working graph), and
