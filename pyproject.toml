@@ -70,8 +70,8 @@ ogb = [
 pjepa = "pjepa.cli:main"
 
 [project.urls]
-"Source" = "https://github.com/sachncs/jepa"
-"Issues" = "https://github.com/sachncs/jepa/issues"
+"Source" = "https://github.com/sachncs/pjepa"
+"Issues" = "https://github.com/sachncs/pjepa/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
