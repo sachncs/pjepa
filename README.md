@@ -367,6 +367,7 @@ bytecode caches, and `results/` (preserved when `PRESERVE=1`).
 | Testing | pytest |
 | Container | Docker |
 | Citation | CITATION.cff |
+| Structured Logging | `pjepa.logging_setup` (HUMAN / JSON via `--log-format`) |
 
 ---
 
