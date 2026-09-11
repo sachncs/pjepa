@@ -82,6 +82,12 @@ class SleepCallback(Protocol):
     Implementations are consulted once per epoch: returning ``True``
     triggers an early stop after the current epoch's checkpoint has
     been written.
+
+    The protocol also exposes an optional :meth:`update` method so the
+    pretrain loop can drive the rolling-history statistics that
+    :class:`pjepa.scheduler.Sleep` consults; loops that pass a cadence
+    without an ``update`` method (e.g. a minimal test stub) simply
+    skip the per-epoch update call.
     """
 
     def should_sleep(self) -> bool:
@@ -89,6 +95,21 @@ class SleepCallback(Protocol):
 
         Returns:
             ``True`` when a sleep cycle should begin.
+        """
+        ...
+
+    def update(self, accepted: bool, utilisation: float) -> None:
+        """Record one observation for the rolling history.
+
+        Args:
+            accepted: Whether the most recent rewrite was
+                accepted. The pretrain loop passes a derived value
+                based on validation-loss improvement at each
+                validation checkpoint.
+            utilisation: The working-graph utilisation at this
+                step, expected in ``[0, 1]``. The pretrain loop
+                passes ``1.0 - (loss / baseline_loss)`` clamped to
+                ``[0, 1]`` as a loss-based utilisation proxy.
         """
         ...
 
@@ -238,10 +259,10 @@ def build_tensor_augmentation(
     """
     if name in (None, "", "none"):
         return None
-    if name not in ("dropfeat", "composite"):
+    if name not in ("dropfeat", "composite", "drop_feature"):
         raise ConfigError(
             f"build_tensor_augmentation: unknown augmentation name {name!r}; "
-            "expected one of 'none', 'dropfeat', 'composite'"
+            "expected one of 'none', 'dropfeat', 'composite', 'drop_feature'"
         )
     generator = None
     if seed is not None:
@@ -360,6 +381,11 @@ def pretrain_loop(
                 epoch,
                 val_metric,
             )
+        if cfg.cadence is not None and hasattr(cfg.cadence, "update"):
+            accepted = val_metric is not None and val_metric < best_val
+            baseline = max(val_metrics) if val_metrics else max(mean_loss, 1.0)
+            utilisation = max(0.0, min(1.0, 1.0 - (mean_loss / baseline)))
+            cfg.cadence.update(bool(accepted), float(utilisation))
         extras = dict(cfg.extras)
         extras["epoch_loss"] = mean_loss
         if val_metric is not None:
