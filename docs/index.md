@@ -109,4 +109,4 @@ BibTeX entry is in [CITATION.cff on GitHub](https://github.com/sachncs/pjepa/blo
 
 ## License
 
-Apache 2.0. See [LICENSE on GitHub](https://github.com/sachncs/pjepa/blob/master/LICENSE).
+Apache 2.0. See [LICENSE-APACHE on GitHub](https://github.com/sachncs/pjepa/blob/master/LICENSE-APACHE).
