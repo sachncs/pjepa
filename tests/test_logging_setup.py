@@ -5,10 +5,12 @@ from __future__ import annotations
 import io
 import json
 import logging
+from pathlib import Path
 
 import pytest
 
 from pjepa.logging_setup import (
+    EVENT_SCHEMA,
     LOG_FORMAT_HUMAN,
     configure_logging,
     get_logger,
@@ -17,6 +19,7 @@ from pjepa.logging_setup import (
 
 __all__ = [
     "test_bad_format_rejected",
+    "test_event_schema_is_canonical",
     "test_get_logger_returns_named_logger",
     "test_human_format_renders",
     "test_json_format_is_parseable",
@@ -91,3 +94,19 @@ def test_default_level_is_info() -> None:
     configure_logging()
     log = get_logger("default_level")
     assert log.getEffectiveLevel() == logging.INFO
+
+
+def test_event_schema_is_canonical() -> None:
+    """Every 'event' extra used in src/ must be a member of EVENT_SCHEMA."""
+    import re
+
+    src = Path(__file__).resolve().parents[1] / "src" / "pjepa"
+    seen: set[str] = set()
+    pattern = re.compile(r'"event"\s*:\s*"([a-z][a-z0-9_.]*[a-z0-9])"')
+    for path in src.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        for match in pattern.finditer(text):
+            seen.add(match.group(1))
+    assert seen, "no event names found in src/; the schema enforcement test is meaningless"
+    extras = seen - set(EVENT_SCHEMA)
+    assert not extras, f"event names not in EVENT_SCHEMA: {sorted(extras)}"

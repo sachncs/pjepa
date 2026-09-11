@@ -786,7 +786,7 @@ def write_artifacts(
     log.info(
         "aggregation complete",
         extra={
-            "event": "aggregation.complete",
+            "event": "aggregate.complete",
             "n_rows": len(rows),
             "summary_groups": len(summary_rows),
             "content_hash": content_hash(rows),

@@ -90,14 +90,14 @@ def safe_compile(
         compiled = torch.compile(module, mode=chosen_mode, fullgraph=fullgraph)
         log.info(
             "compiled module",
-            extra={"event": "compile.success", "backend": backend.value, "mode": chosen_mode},
+            extra={"event": "compile.complete", "backend": backend.value, "mode": chosen_mode},
         )
         return CompileOutcome(module=compiled, compiled=True, reason="")
     except (RuntimeError, ImportError) as exc:
         log.warning(
             "compile failed; returning uncompiled module",
             extra={
-                "event": "compile.failure",
+                "event": "compile.failed",
                 "backend": backend.value,
                 "mode": chosen_mode,
                 "error": str(exc),
@@ -109,7 +109,7 @@ def safe_compile(
         log.warning(
             "compile failed; returning uncompiled module",
             extra={
-                "event": "compile.failure",
+                "event": "compile.failed",
                 "backend": backend.value,
                 "mode": chosen_mode,
                 "error": str(exc),
