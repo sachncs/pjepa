@@ -585,6 +585,19 @@ def build_summary_rows(rows: Iterable[AggregatedRow]) -> list[dict[str, Any]]:
     excluded from the grouping so a malformed row never poisons the
     summary.
 
+    Edge cases:
+
+    * ``n == 1`` (a single-sample group) produces ``std == 0.0``,
+      not ``nan``: a single sample has zero observed variance, so
+      the denominator ``max(n - 1, 1)`` returns ``1`` and the sum
+      of squared deviations collapses to ``0``. Downstream
+      consumers that need to distinguish "one fit" from "many
+      identical fits" should inspect the ``n`` field, not ``std``.
+    * ``n == 0`` is unreachable because groups with no usable
+      metrics are filtered before this function is called; the
+      upstream filter is the contract that bounds the ``n``
+      argument to ``>= 1``.
+
     Args:
         rows: The aggregated row list.
 
