@@ -120,4 +120,7 @@ model:
 
 ## Validation
 
-Configuration is validated at load time via [`pjepa.config.ConfigSchema`](api.md). Missing required sections raise [`ConfigError`](api.md).
+Configuration is validated at load time via
+[`pjepa.config.load_config`](api.md) and its
+``required_sections`` argument. Missing required sections raise
+[`ConfigError`](api.md).
