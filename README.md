@@ -321,8 +321,8 @@ brute-force optima where tractable and pseudo-optima otherwise.
 
 ## Documentation
 
-The full docs site is built with `mkdocs --strict` and lives under
-`site/` after `make docs`. Three audiences:
+The full docs site is published at
+<https://sachncs.github.io/pjepa/>. Three audiences:
 
 - **Researchers** — [`docs/researcher/01_persistent_graph_world_model.md`](docs/researcher/01_persistent_graph_world_model.md)
   for a deep-dive explanation of the framework.
@@ -331,7 +331,8 @@ The full docs site is built with `mkdocs --strict` and lives under
 - **API reference** — [`docs/reference/api.md`](docs/reference/api.md)
   (auto-generated from docstrings).
 
-Serve locally with `mkdocs serve`.
+The site is built with `mkdocs --strict`; rebuild locally with
+`make docs` and serve with `mkdocs serve`.
 
 ---
 
