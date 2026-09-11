@@ -287,9 +287,8 @@ YAML configuration loading.
 
 | Symbol | Description |
 |---|---|
-| `ConfigSchema` | Required-section schema. |
-| `load_config(path, schema)` | Load and validate a YAML config. |
-| `save_config(config, path)` | Save a config to YAML. |
+| `load_config(path, required_sections=None)` | Load a YAML config; optionally enforce required top-level sections. |
+| `save_config(config, path)` | Save a config to YAML atomically (crash-consistent). |
 | `merge_configs(*configs)` | Deep-merge multiple configs. |
 
 ## `pjepa.utils.seeding`
