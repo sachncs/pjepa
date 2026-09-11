@@ -57,7 +57,8 @@ Every public symbol must:
 1. Have a Google-style docstring with Args, Returns, Raises, Example.
 2. Be listed in the module's `__all__`.
 3. Pass the eight-class test suite.
-4. Type-check under `pytype --strict`.
+4. Type-check under `pyright` (configured `[tool.pyright]`
+   `typeCheckingMode = "strict"`).
 5. Lint clean under `ruff check`.
 
 The lint config enforces these rules at every commit via pre-commit

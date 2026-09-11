@@ -36,7 +36,8 @@ We follow the [Google Python Style Guide](https://google.github.io/styleguide/py
 - Have a Google-style docstring with `Args`, `Returns`, `Raises`, and `Example` sections.
 - Be listed in the module's `__all__`.
 - Have type hints (PEP 484).
-- Pass `ruff check` and (eventually) `pytype --strict`.
+- Pass `ruff check` and `pyright` (configured `[tool.pyright]`
+  `typeCheckingMode = "strict"`).
 
 Forbidden patterns:
 

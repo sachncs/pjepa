@@ -59,7 +59,7 @@ dev = [
     "pytest-cov>=5.0",
     "pytest-xdist>=3.5",
     "ruff>=0.6",
-    "pytype>=2024.10",
+    "pyright>=1.1",
     "mutmut>=2.4",
     "pip-audit>=2.7",
     "pip-tools>=7.4",
@@ -155,8 +155,8 @@ exclude_lines = [
 show_missing = true
 precision = 1
 
-[tool.pytype]
-inputs = ["src/pjepa"]
-python_version = "3.12"
-strict = ["src/pjepa"]
-exclude = ["**/version.py"]
+[tool.pyright]
+include = ["src/pjepa"]
+exclude = ["**/version.py", "src/pjepa/cli/__init__.py"]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"

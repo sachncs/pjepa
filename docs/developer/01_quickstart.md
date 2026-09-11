@@ -16,7 +16,7 @@ make install
 
 `make install` creates a virtual environment at `.venv`, installs
 the package in editable mode, and pulls in development
-dependencies (pytest, ruff, pytype, mkdocs, optuna, etc.).
+dependencies (pytest, ruff, pyright, mkdocs, optuna, etc.).
 
 If you prefer not to use the Makefile:
 

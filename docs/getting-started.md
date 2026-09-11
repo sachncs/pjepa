@@ -15,7 +15,7 @@ make install
 `make install` creates a Python 3.12 virtual environment at `.venv`,
 installs the package in editable mode, installs the dev and OGB
 extras, and verifies every CI tool (`pjepa`, `pytest`, `ruff`,
-`pytype`, `pip-audit`, `mkdocs`, `python -m build`, `optuna`) is
+`pyright`, `pip-audit`, `mkdocs`, `python -m build`, `optuna`) is
 importable.
 
 ### From source — manual

@@ -146,7 +146,7 @@ table is in ``results/proteins/summary.csv``.
 - `setup.sh` and `cleanup.sh` at the repository root. `setup.sh`
   creates the configured virtual environment, installs the project
   with the dev and OGB extras, verifies that every CI tool
-  (`pjepa`, `pytest`, `ruff`, `pytype`, `pip-audit`, `mkdocs`,
+  (`pjepa`, `pytest`, `ruff`, `pyright`, `pip-audit`, `mkdocs`,
   `python -m build`, `optuna`) is available, runs `pjepa doctor`,
   and executes the test suite. `cleanup.sh` removes the virtual
   environment, build artefacts, type-checker caches, the mkdocs

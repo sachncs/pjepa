@@ -281,4 +281,5 @@ follows PEP 561 (ships `py.typed`).
 | Change any signature in §1–§10 | Open a deprecation PR first |
 
 The CI workflow runs `ruff check src tests` and an *advisory*
-`pytype src/pjepa` (informational only; failures do not gate PRs).
+`pyright src/pjepa` (configured `[tool.pyright]`
+`typeCheckingMode = "strict"`; failures gate PRs).
