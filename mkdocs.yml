@@ -1,6 +1,6 @@
 site_name: Persistent-JEPA
 site_description: Persistent-JEPA implementation — a persistent graph world model for continual developmental learning.
-site_url: https://sachncs.github.io/jepa/
+site_url: https://sachncs.github.io/pjepa/
 repo_url: https://github.com/sachncs/pjepa
 repo_name: sachncs/pjepa
 
