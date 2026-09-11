@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Stage 2: test (adds dev dependencies and runs tests)
 FROM deps AS test
 RUN pip install --no-cache-dir pytest pytest-cov pytest-xdist
-RUN pjepa doctor
+RUN pjepa doctor || (echo "pjepa doctor reported a RED capability; see above" && exit 1)
 
 # Stage 3: default (runs the CLI)
 FROM deps AS app
