@@ -203,10 +203,40 @@ Latest results (3 seeds × 10 folds × 200 epochs, 60 fits):
 GIN leads by 1.7 percentage points, well within one standard
 deviation. Both numbers match the published Xu-et-al-2019 GIN
 result on PROTEINS (~76–79%) within statistical fluctuation.
-Per-fit table: `results/proteins_full/summary.csv`.
+
+**Scope note.** PROTEINS is a graph-classification benchmark that
+does not exercise the persistent-graph memory or the continual-
+learning loop. It is reported for comparability with prior work,
+not as a demonstration of pjepa's core contribution. The
+benchmarks in [`experiments/REPRODUCE.md`](experiments/REPRODUCE.md)
+and the continual-learning / hierarchical-graph runners in
+`results/cl/` show the framework's headline advantage on the
+workloads it is designed for. Per-fit table:
+`results/proteins_full/summary.csv`.
 
 For the full TU / CL / OGB reproduction matrix, see
 [`experiments/REPRODUCE.md`](experiments/REPRODUCE.md).
+
+### When to use pjepa
+
+`pjepa` is the right tool when at least one of these holds:
+
+- **Continual learning** — you need a model that learns a stream
+  of tasks without catastrophic forgetting. The persistent-graph
+  state acts as the evolved sufficient statistic of the
+  observation history.
+- **Hierarchical / tree-like graphs** — the dual-geometric encoder
+  combines Euclidean message-passing with a hyperbolic projection
+  that wins on graphs with latent tree structure (ASTs, code, ontologies).
+- **Interpretable rewrites** — you need to know *why* the model
+  mutated a graph. The four-conditions verifier enforces variational
+  descent, grammar conformance, bisimilarity, and bounded cost on
+  every accepted rewrite.
+
+It is *not* the right tool when you want a single benchmark number
+on a small static dataset — vanilla GIN or a well-tuned GCN will
+match or beat `pjepa` on PROTEINS, MUTAG, and friends because the
+persistent graph adds capacity the benchmark does not need.
 
 ---
 
