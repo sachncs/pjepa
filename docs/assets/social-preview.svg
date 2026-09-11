@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-label="Persistent-JEPA social preview">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a237e"/>
+      <stop offset="100%" stop-color="#3f51b5"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <text x="80" y="200" font-family="sans-serif" font-size="72" font-weight="bold" fill="#ffffff">pjepa</text>
+  <text x="80" y="280" font-family="sans-serif" font-size="36" fill="#cfd8dc">Persistent-JEPA</text>
+  <text x="80" y="340" font-family="sans-serif" font-size="28" fill="#cfd8dc">a persistent graph world model</text>
+  <text x="80" y="380" font-family="sans-serif" font-size="28" fill="#cfd8dc">for continual developmental learning</text>
+  <text x="80" y="560" font-family="sans-serif" font-size="22" fill="#b0bec5">github.com/sachncs/pjepa</text>
+</svg>
