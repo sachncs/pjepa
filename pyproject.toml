@@ -11,6 +11,9 @@ license = {text = "Apache-2.0"}
 authors = [
     {name = "Sachin", email = "sachncs@gmail.com"},
 ]
+maintainers = [
+    {name = "Sachin", email = "sachncs@gmail.com"},
+]
 requires-python = ">=3.10,<3.13"
 keywords = [
     "graph-neural-networks",
@@ -19,6 +22,10 @@ keywords = [
     "world-model",
     "self-supervised-learning",
     "developmental-ai",
+    "pytorch",
+    "geometric-deep-learning",
+    "variational-inference",
+    "graph-classification",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
