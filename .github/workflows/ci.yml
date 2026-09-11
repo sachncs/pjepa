@@ -80,7 +80,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
       - name: pytype (blocking)
-        run: pytype src/pjepa
+        run: pytype
 
   docs:
     name: Docs strict build
