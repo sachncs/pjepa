@@ -41,6 +41,7 @@ These helpers keep memory bounded on the full 169K-node graph.
 from __future__ import annotations
 
 import os
+import warnings
 from collections import namedtuple
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -63,6 +64,22 @@ __all__ = [
 ]
 
 CSRAdj = namedtuple("CSRAdj", ["indptr", "indices"])
+
+
+def _resolve_data_root() -> str | None:
+    """Return the cache root from env vars, preferring PJEPA_DATA_ROOT."""
+    val = os.environ.get("PJEPA_DATA_ROOT")
+    if val:
+        return val
+    legacy = os.environ.get("PJ_DATA_ROOT")
+    if legacy:
+        warnings.warn(
+            "PJ_DATA_ROOT is deprecated; use PJEPA_DATA_ROOT instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return legacy
+    return None
 
 
 def build_csr_adjacency(edge_index: torch.Tensor, num_nodes: int) -> CSRAdj:
@@ -560,7 +577,10 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
 
     Args:
         root: Cache root; defaults to
-          ``${PJ_DATA_ROOT:-~/.cache/pj/datasets}``.
+          ``${PJEPA_DATA_ROOT:-~/.cache/pjepa/datasets}``. The
+          legacy ``PJ_DATA_ROOT`` environment variable is also
+          honoured with a :class:`DeprecationWarning` for
+          back-compat with the pre-rename configuration.
 
     Returns:
         A populated :class:`OGBArxiv`.
@@ -599,7 +619,7 @@ def load_ogb_arxiv(root: str | os.PathLike[str] | None = None) -> OGBArxiv:
     try:
         cache_root = Path(
             root
-            or os.environ.get("PJEPA_DATA_ROOT")
+            or _resolve_data_root()
             or Path.home() / ".cache" / "pjepa" / "datasets"
         )
         cache_root.mkdir(parents=True, exist_ok=True)
